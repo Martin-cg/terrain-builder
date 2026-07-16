@@ -26,7 +26,39 @@ inline double signed_distance_to_bounds(const radix::geometry::Aabb3d &bounds, c
     return outside + inside;
 }
 
-inline std::vector<uint8_t> find_vertices_to_lock(const Clustering &clustering, const radix::geometry::Aabb3d &node_bounds) {
+// Marks vertices referenced by clusters in cluster_selection that are also referenced by another cluster.
+inline std::vector<bool> find_seam_vertices(
+    const Clustering &clustering,
+    const std::span<const uint32_t> cluster_selection) {
+    std::vector<bool> is_selected(clustering.cluster_count(), false);
+    for (const uint32_t cluster_index : cluster_selection) {
+        is_selected[cluster_index] = true;
+    }
+
+    constexpr uint8_t SELECTED = 1;
+    constexpr uint8_t UNSELECTED = 2;
+    constexpr uint8_t BOTH = SELECTED | UNSELECTED;
+
+    std::vector<uint8_t> touched(clustering.vertex_count(), 0);
+    for (const auto &[cluster_index, cluster] : enumerate(clustering.clusters)) {
+        const uint8_t flag = is_selected[cluster_index] ? SELECTED : UNSELECTED;
+        for (const uint32_t vertex_index : cluster.vertex_indices) {
+            touched[vertex_index] |= flag;
+        }
+    }
+
+    std::vector<bool> mask(clustering.vertex_count());
+    for (const auto &[vertex_index, flags] : enumerate(touched)) {
+        mask[vertex_index] = (flags == BOTH);
+    }
+
+    return mask;
+}
+
+inline std::vector<uint8_t> find_vertices_to_lock(
+    const Clustering &clustering,
+    const radix::geometry::Aabb3d &node_bounds,
+    const std::span<const uint8_t> seam_vertex_mask = {}) {
     // Lock every triangle where any vertex is either on the border and near the bounds or shared between clusters.
     const uint32_t cluster_count = clustering.cluster_count();
     const uint32_t vertex_count = clustering.vertex_count();
@@ -108,6 +140,14 @@ inline std::vector<uint8_t> find_vertices_to_lock(const Clustering &clustering, 
     std::vector<uint8_t> vertex_lock(vertex_count, VertexLock::UNLOCKED);
     for (const uint32_t vertex_index : vertices_to_lock) {
         vertex_lock[vertex_index] = VertexLock::LOCKED;
+    }
+
+    // Lock vertices flagged by an ancestor's cross-node seam detection.
+    DEBUG_ASSERT(seam_vertex_mask.empty() || seam_vertex_mask.size() == vertex_count);
+    for (const auto &[vertex_index, locked] : enumerate(seam_vertex_mask)) {
+        if (locked) {
+            vertex_lock[vertex_index] = VertexLock::LOCKED;
+        }
     }
 
     return vertex_lock;

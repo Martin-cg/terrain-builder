@@ -6,6 +6,7 @@
 
 #include <fmt/format.h>
 #include <glm/gtx/component_wise.hpp>
+#include <libassert/assert.hpp>
 #include <tbb/concurrent_vector.h>
 
 #include "build.h"
@@ -73,7 +74,11 @@ struct LodResult {
 };
 
 // Run the full LOD pipeline on a clustering: partition, simplify, re-clusterize, and build child map.
-LodResult build_lod(const Clustering &clusters, const BuildOptions &options, const radix::geometry::Aabb3d &node_bounds) {
+LodResult build_lod(
+    const Clustering &clusters,
+    const BuildOptions &options,
+    const radix::geometry::Aabb3d &node_bounds,
+    const std::span<const uint8_t> seam_vertex_mask) {
     const Partitioning partitioning = create_partitioning(clusters, PartitionOptions{
                                                                         .clusters_per_partition = options.clusters_per_partition});
     // Construct new clusters and generate new textures.
@@ -88,7 +93,7 @@ LodResult build_lod(const Clustering &clusters, const BuildOptions &options, con
     trim_textures_inplace(clustering);
 
     // Find vertices to lock
-    const std::vector<uint8_t> vertex_lock = find_vertices_to_lock(clustering, node_bounds);
+    const std::vector<uint8_t> vertex_lock = find_vertices_to_lock(clustering, node_bounds, seam_vertex_mask);
 
     // Convert relative_target_error (a fraction of the node bounds) to an absolute
     // error; both targets stay optional so simplify() can apply its own default.
@@ -120,34 +125,6 @@ LodResult build_lod(const Clustering &clusters, const BuildOptions &options, con
     return {std::move(result.clustering), std::move(child_map)};
 }
 
-// Load input meshes, clusterize, and filter them to the target region.
-std::vector<Clustering> load_input_clusters(
-    const std::span<const octree::Id> input_ids,
-    const octree::MeshStorage &input_storage,
-    const RegionFilter& filter) {
-    std::vector<Clustering> result;
-
-    for (const octree::Id &id : input_ids) {
-        auto opt = load_and_clusterize_mesh(input_storage, id);
-        if (!opt) {
-            LOG_WARN("Failed to load or clusterize {}, skipping", id);
-            continue;
-        }
-        Clustering clustering = std::move(*opt);
-        if (clustering.is_empty()) {
-            LOG_WARN("Loaded clustering was empty for {}, skipping", id);
-            continue;
-        }
-        auto indices = find_clusters_matching(clustering, filter);
-        if (indices.empty()) {
-            continue;
-        }
-        result.push_back(slice_clusters(clustering, indices));
-    }
-
-    return result;
-}
-
 // Dependencies shared across the whole dag building pipeline.
 struct BuildContext {
     const octree::IndexedMeshStorage &input_storage;
@@ -158,97 +135,115 @@ struct BuildContext {
     const radix::geometry::Aabb3d &root_bounds;
 };
 
-// Load relevant DAG nodes, filter, merge, then simplify clusters.
-dag::ClusterBatch load_and_simplify_dag_nodes(
-    const std::vector<octree::Id> &dag_ids,
-    const RegionFilter &filter,
-    const double epsilon,
-    const radix::geometry::Aabb3d &node_bounds,
-    const BuildContext &ctx) {
+// Dag clusters loaded whole (so excluded clusters can still act as seam context), plus
+// which of them match inner_filter and where each one came from.
+struct InnerSources {
+    std::vector<Clustering> clusterings;
     std::vector<dag::Id> cluster_sources;
-    std::vector<Clustering> filtered;
+    std::vector<uint32_t> selected_indices; // positions of matching clusters once concatenated
+    uint32_t cluster_count = 0;
+};
 
-    for (const octree::Id &id : dag_ids) {
-        // Load dag node clusters
-        auto dag_node = ctx.output_storage.load(id);
-        if (!dag_node) {
+InnerSources load_inner_sources(
+    const std::vector<octree::Id> &inner_ids,
+    const RegionFilter &inner_filter,
+    const BuildContext &ctx) {
+    InnerSources result;
+
+    for (const octree::Id &id : inner_ids) {
+        auto inner_node = ctx.output_storage.load(id);
+        if (!inner_node) {
             LOG_WARN("Failed to load DAG node {}, skipping", id);
             continue;
         }
-        Clustering clustering = std::move(dag_node.value().clustering);
+        Clustering clustering = std::move(inner_node.value().clustering);
 
-        // Assign canonical cluster ids
+        // Assign canonical cluster ids, which double as positions once concatenated.
         for (auto &[cluster_index, cluster] : enumerate(clustering.clusters)) {
-            cluster.id = cluster_sources.size();
-            cluster_sources.emplace_back(id, cluster_index);
-        }
-        if (clustering.is_empty()) {
-            continue;
+            cluster.id = result.cluster_count + cluster_index;
+            result.cluster_sources.emplace_back(id, cluster_index);
         }
 
-        auto indices = find_clusters_matching(clustering, filter);
-        // Find relevant clusters from this node.
-        if (indices.empty()) {
-            continue;
+        for (const uint32_t local_index : find_clusters_matching(clustering, inner_filter)) {
+            result.selected_indices.push_back(result.cluster_count + local_index);
         }
-        filtered.push_back(slice_clusters(clustering, indices));
-    }
-    if (filtered.empty()) {
-        return {};
+        result.cluster_count += clustering.cluster_count();
+
+        result.clusterings.push_back(std::move(clustering));
     }
 
-    // Merge remaining clusterings
-    const Clustering merged = merge_clusterings(filtered, epsilon);
-
-    const auto [simplified, child_map] = build_lod(merged, ctx.options, node_bounds);
-    // Run nanite-style grouping, simplification, splitting.
-
-    // Create map from cluster index to child cluster id.
-    auto child_id_map = transform_vector(child_map, [&](const auto &children) {
-        return transform_vector(children, [&](const uint32_t merged_index) {
-            const uint32_t source_index = merged.clusters[merged_index].id;
-            return cluster_sources[source_index];
-        });
-    });
-
-    return {simplified, std::move(child_id_map)};
+    return result;
 }
 
-// Combine input clusters with inner clusters.
-dag::ClusterBatch combine_input_and_inner(
-    std::vector<Clustering> input_clusters,
-    dag::ClusterBatch inner,
+// Input tiles loaded whole (so excluded clusters can still act as seam context against dag
+// content), plus which of them match input_filter once concatenated.
+struct InputSources {
+    std::vector<Clustering> clusterings;
+    std::vector<uint32_t> selected_indices; // positions of matching clusters once concatenated
+    uint32_t cluster_count = 0;
+};
+
+InputSources load_input_sources(
+    const std::vector<octree::Id> &input_ids,
+    const RegionFilter &input_filter,
+    const BuildContext &ctx) {
+    InputSources result;
+
+    for (const octree::Id &id : input_ids) {
+        auto opt = load_and_clusterize_mesh(ctx.input_storage, id);
+        if (!opt) {
+            LOG_WARN("Failed to load or clusterize {}, skipping", id);
+            continue;
+        }
+        Clustering clustering = std::move(*opt);
+
+        for (const uint32_t local_index : find_clusters_matching(clustering, input_filter)) {
+            result.selected_indices.push_back(result.cluster_count + local_index);
+        }
+        result.cluster_count += clustering.cluster_count();
+
+        result.clusterings.push_back(std::move(clustering));
+    }
+
+    return result;
+}
+
+// Marks vertices on dag_selected clusters that are also referenced by an unselected one --
+// an excluded dag cluster or an input cluster.
+std::vector<uint8_t> compute_seam_vertex_mask(
+    const Clustering &combined,
+    const std::span<const uint32_t> inner_selected_indices,
+    const VertexMap &inner_vertex_map) {
+    const std::vector<bool> combined_seam_mask = find_seam_vertices(combined, inner_selected_indices);
+
+    std::vector<uint8_t> seam_vertex_mask(inner_vertex_map.new_vertex_count(), 0);
+    for (const auto &[combined_index, inner_index] : enumerate(inner_vertex_map.forward())) {
+        if (inner_index != VertexMap::invalid_index && combined_seam_mask[combined_index]) {
+            seam_vertex_mask[inner_index] = 1;
+        }
+    }
+    return seam_vertex_mask;
+}
+
+// Stitches simplified dag-derived clusters back together with the input clusters that
+// were merged alongside them. A second merge is unavoidable here since simplify() moved
+// the dag clusters into a new vertex space.
+dag::ClusterBatch stitch_input_and_simplified(
+    Clustering input_clusters,
+    Clustering simplified,
+    std::vector<std::vector<dag::Id>> child_id_map,
     const double epsilon) {
-    const bool has_input = !input_clusters.empty();
-    const bool has_inner = !inner.clustering.is_empty();
-    DEBUG_ASSERT(has_input || has_inner);
-
-    // If there are no input clusters, just return the inner clustering.
-    if (!has_input) {
-        return inner;
+    if (input_clusters.is_empty()) {
+        return {std::move(simplified), std::move(child_id_map)};
     }
 
-    // If there are no inner clusters, just return the input clusters merged together.
-    uint32_t input_cluster_count = 0;
-    for (const auto &c : input_clusters) {
-        input_cluster_count += c.cluster_count();
-    }
-    if (!has_inner) {
-        Clustering merged = merge_clusterings(std::move(input_clusters), epsilon);
-        return dag::ClusterBatch::make_leaves(std::move(merged));
-    }
+    const uint32_t input_cluster_count = input_clusters.cluster_count();
+    std::vector<Clustering> sources{std::move(input_clusters), std::move(simplified)};
+    Clustering combined = merge_clusterings(sources, epsilon);
 
-    // Otherwise, merge the input clusters with the inner clustering.
-    input_clusters.push_back(std::move(inner.clustering));
-    Clustering combined = merge_clusterings(std::move(input_clusters), epsilon);
-
-    std::vector<std::vector<dag::Id>> combined_child_map;
-    combined_child_map.reserve(combined.cluster_count());
-    for (uint32_t i = 0; i < input_cluster_count; i++) {
-        combined_child_map.emplace_back();
-    }
-    for (auto &entry : inner.child_map) {
-        combined_child_map.push_back(std::move(entry));
+    std::vector<std::vector<dag::Id>> combined_child_map(combined.cluster_count());
+    for (const auto &[index, children] : enumerate(child_id_map)) {
+        combined_child_map[input_cluster_count + index] = std::move(children);
     }
 
     return {std::move(combined), std::move(combined_child_map)};
@@ -259,49 +254,93 @@ double compute_epsilon(const radix::geometry::Aabb3d &bounds) {
     return glm::compAdd(bounds.size()) / 10000;
 }
 
+// Merge dag children and input tiles into one vertex space so seams -- whether the far
+// side of one is an excluded dag cluster or an input cluster -- can be found by cluster
+// adjacency instead of proximity to node_bounds, then simplify the dag-selected part.
+std::optional<dag::ClusterBatch> load_and_simplify_sources(
+    const std::vector<octree::Id> &inner_ids,
+    const std::vector<octree::Id> &input_ids,
+    const RegionFilter &inner_filter,
+    const RegionFilter &input_filter,
+    const radix::geometry::Aabb3d &node_bounds,
+    const BuildContext &ctx) {
+    InnerSources inner = load_inner_sources(inner_ids, inner_filter, ctx);
+    InputSources input = load_input_sources(input_ids, input_filter, ctx);
+
+    if (inner.selected_indices.empty() && input.selected_indices.empty()) {
+        return std::nullopt;
+    }
+
+    // Offset input's selected positions past the dag clusters they're concatenated after.
+    const std::vector<uint32_t> input_selected_indices = transform_vector(input.selected_indices, [&](const uint32_t local_index) {
+        return inner.cluster_count + local_index;
+    });
+
+    const double epsilon = compute_epsilon(node_bounds);
+
+    std::vector<Clustering> all_clusterings = std::move(inner.clusterings);
+    all_clusterings.insert(all_clusterings.end(), std::make_move_iterator(input.clusterings.begin()), std::make_move_iterator(input.clusterings.end()));
+    const Clustering combined = merge_clusterings(all_clusterings, epsilon);
+
+    Clustering input_clusters;
+    if (!input_selected_indices.empty()) {
+        input_clusters = slice_clusters(combined, input_selected_indices);
+    }
+
+    // No dag content to simplify: the merge above already reconciled input with itself.
+    if (inner.selected_indices.empty()) {
+        return dag::ClusterBatch::make_leaves(std::move(input_clusters));
+    }
+
+    const auto [inner_clusters, inner_vertex_map] = slice_clusters_with_map(combined, inner.selected_indices);
+    const std::vector<uint8_t> seam_vertex_mask = compute_seam_vertex_mask(combined, inner.selected_indices, inner_vertex_map);
+
+    // Run nanite-style grouping, simplification, splitting.
+    auto [simplified, child_map] = build_lod(inner_clusters, ctx.options, node_bounds, seam_vertex_mask);
+
+    // Create map from cluster index to child cluster id.
+    auto child_id_map = transform_vector(child_map, [&](const auto &children) {
+        return transform_vector(children, [&](const uint32_t inner_cluster_index) {
+            const uint32_t source_index = inner_clusters.clusters[inner_cluster_index].id;
+            return inner.cluster_sources[source_index];
+        });
+    });
+
+    return stitch_input_and_simplified(std::move(input_clusters), std::move(simplified), std::move(child_id_map), epsilon);
+}
+
 // Build a single target node by loading input clusters (preserved as-is) and
 // DAG children (inner, run through simplification pipeline), then combining both.
 std::optional<dag::ClusterBatch> build_node(
     const octree::Id &target_id,
     const std::vector<octree::Id> &input_ids,
-    const std::vector<octree::Id> &dag_ids,
+    const std::vector<octree::Id> &inner_ids,
     const BuildContext &ctx) {
-    LOG_DEBUG("Building node {} ({} inputs, {} inner nodes)", target_id, input_ids.size(), dag_ids.size());
+    LOG_DEBUG("Building node {} ({} inputs, {} inner nodes)", target_id, input_ids.size(), inner_ids.size());
 
     const auto node_bounds = ctx.shifted_space.get_node_bounds(target_id);
-    const double epsilon = compute_epsilon(node_bounds);
 
-    // Prepare filter to only include clusters inside the target_id bounds. 
+    // Prepare filter to only include clusters inside the target_id bounds.
     // In CurrentAndCoarser mode, input regions represented by the relevant DAG nodes are excluded as well.
     RegionFilter input_filter;
     input_filter.include = {node_bounds};
     if (ctx.options.include_mode == IncludeMode::CurrentAndCoarser) {
-        for (const octree::Id &dag_id : dag_ids) {
-            input_filter.exclude.push_back(ctx.shifted_space.get_node_bounds(dag_id));
+        for (const octree::Id &inner_id : inner_ids) {
+            input_filter.exclude.push_back(ctx.shifted_space.get_node_bounds(inner_id));
         }
     }
-    std::vector<Clustering> input_clusters = load_input_clusters(input_ids, ctx.input_storage, input_filter);
+    RegionFilter inner_filter;
+    inner_filter.include = {node_bounds};
 
-    RegionFilter dag_filter;
-    dag_filter.include = {node_bounds};
-    dag::ClusterBatch inner = load_and_simplify_dag_nodes(dag_ids, dag_filter, epsilon, node_bounds, ctx);
-
-    if (input_clusters.empty() && inner.clustering.is_empty()) {
+    std::optional<dag::ClusterBatch> result = load_and_simplify_sources(inner_ids, input_ids, inner_filter, input_filter, node_bounds, ctx);
+    if (!result) {
         LOG_WARN("No valid clusters for node {}, skipping", target_id);
         return std::nullopt;
     }
 
-    uint32_t input_cluster_count = 0;
-    for (const auto &c : input_clusters) {
-        input_cluster_count += c.cluster_count();
-    }
-    LOG_INFO(
-        "Finished node {} with {} input + {} inner clusters",
-        target_id,
-        input_cluster_count,
-        inner.clustering.cluster_count());
+    LOG_INFO("Finished node {} with {} clusters", target_id, result->clustering.cluster_count());
 
-    return combine_input_and_inner(std::move(input_clusters), std::move(inner), epsilon);
+    return result;
 }
 
 struct LevelWorkplan {
@@ -345,7 +384,7 @@ std::vector<octree::Id> find_relevant_input_nodes(
 }
 
 // Return the already-built DAG nodes that are children of the given target node.
-std::vector<octree::Id> find_relevant_dag_nodes(
+std::vector<octree::Id> find_relevant_inner_nodes(
     const octree::Id &target_id,
     const std::unordered_set<octree::Id> &prev_level_built,
     const octree::OddLevelShifted &shifted_space) {
@@ -398,7 +437,7 @@ LevelWorkplan build_level_workplan(
     std::unordered_map<octree::Id, std::vector<octree::Id>> inner_nodes;
     for (const octree::Id &target : target_set) {
         input_sources[target] = find_relevant_input_nodes(target, input_by_level, ctx.shifted_space, ctx.space, ctx.options.include_mode);
-        inner_nodes[target] = find_relevant_dag_nodes(target, prev_level_built, ctx.shifted_space);
+        inner_nodes[target] = find_relevant_inner_nodes(target, prev_level_built, ctx.shifted_space);
     }
 
     return {
@@ -491,10 +530,10 @@ std::unordered_set<octree::Id> build_level(
             return;
         }
 
-        const auto dag_ids = find_value(inner_nodes, target).value_or({});
+        const auto inner_ids = find_value(inner_nodes, target).value_or({});
         const auto target_input_ids = find_value(input_sources, target).value_or({});
 
-        auto result = build_node(target, target_input_ids, dag_ids, ctx);
+        auto result = build_node(target, target_input_ids, inner_ids, ctx);
         if (result) {
             const auto save_result = ctx.output_storage.save(target, *result);
             if (save_result) {
