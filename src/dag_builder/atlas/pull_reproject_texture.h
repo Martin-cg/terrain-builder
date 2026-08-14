@@ -13,6 +13,7 @@
 #include <opencv2/imgproc.hpp>
 #include <radix/geometry.h>
 
+#include "build_config.h"
 #include "fixed_point.h"
 #include "mesh/WindingOrder.h"
 #include "opencv_utils.h"
@@ -24,6 +25,7 @@ struct ReprojectionOptions {
     uint32_t sample_scale = 2;
     int interpolation = cv::INTER_LINEAR;
     uint32_t gutter = 0;
+    cv::Scalar clear_color = IS_DEBUG_BUILD ? cv::Scalar(255, 0, 255) : cv::Scalar::all(0);
 };
 
 struct ReprojectionTriangle {
@@ -279,7 +281,7 @@ public:
         const Vector2D<int32_t> triangle_index_map =
             detail::build_triangle_index_map(prepared_triangles, grid_size);
 
-        cv::Mat output(this->_output_size.y, this->_output_size.x, this->_output_type, cv::Scalar::all(0));
+        cv::Mat output(this->_output_size.y, this->_output_size.x, this->_output_type, this->_options.clear_color);
         texture::Mask coverage(this->_output_size);
         this->render_by_depth(output, coverage, prepared_triangles, triangle_index_map);
 
