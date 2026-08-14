@@ -58,7 +58,7 @@ TEST_CASE("TextureReprojector leaves the background where triangles are degenera
     triangles[0].source_uvs = {glm::dvec2(0, 0), glm::dvec2(1, 0), glm::dvec2(1, 1)};
     triangles[0].target_uvs = {glm::dvec2(0.5, 0.5), glm::dvec2(0.5, 0.5), glm::dvec2(0.5, 0.5)};
 
-    TextureReprojector reprojector(glm::uvec2(1, 1), CV_8UC3, ReprojectionOptions{1, cv::INTER_NEAREST});
+    TextureReprojector reprojector(glm::uvec2(1, 1), CV_8UC3, ReprojectionOptions{1, cv::INTER_NEAREST, 0, cv::Scalar::all(0)});
     const cv::Mat output = reprojector.render(std::span(&source, 1), triangles);
 
     CHECK(output.at<cv::Vec3b>(0, 0) == cv::Vec3b(0, 0, 0));
@@ -110,7 +110,7 @@ TEST_CASE("TextureReprojector background stays zero when no samples covered", "[
     // Triangle outside output area
     triangles[0].target_uvs = {glm::dvec2(2, 2), glm::dvec2(3, 2), glm::dvec2(3, 3)};
 
-    TextureReprojector reprojector(glm::uvec2(1, 1), CV_8UC3, ReprojectionOptions{2, cv::INTER_NEAREST});
+    TextureReprojector reprojector(glm::uvec2(1, 1), CV_8UC3, ReprojectionOptions{2, cv::INTER_NEAREST, 0, cv::Scalar::all(0)});
     const cv::Mat output = reprojector.render(std::span(&source, 1), triangles);
 
     CHECK(output.at<cv::Vec3b>(0, 0) == cv::Vec3b(0, 0, 0));
@@ -254,7 +254,7 @@ TEST_CASE("TextureReprojector extends the covered region by the requested gutter
     const cv::Mat source(1, 1, CV_8UC3, cv::Vec3b(10, 20, 30));
     const std::array<ReprojectionTriangle, 2> triangles = make_centre_quad();
 
-    TextureReprojector without_gutter(glm::uvec2(3, 3), CV_8UC3, ReprojectionOptions{1, cv::INTER_NEAREST, 0});
+    TextureReprojector without_gutter(glm::uvec2(3, 3), CV_8UC3, ReprojectionOptions{1, cv::INTER_NEAREST, 0, cv::Scalar::all(0)});
     const cv::Mat unfilled = without_gutter.render(std::span(&source, 1), triangles);
 
     CHECK(unfilled.at<cv::Vec3b>(1, 1) == cv::Vec3b(10, 20, 30));
