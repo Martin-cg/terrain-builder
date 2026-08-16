@@ -25,16 +25,12 @@ public:
     }
     SegmentedBuffer(std::vector<value_type> segment) : _data(std::move(segment)) {
         this->_offsets.append_length(this->_data.size());
-        this->_is_first_segment_implicit = false;
     }
 
     // Resets the buffer to its default state.
     void reset() {
         this->_offsets.clear();
         this->_data.clear();
-
-        this->_offsets.append_length(0);
-        this->_is_first_segment_implicit = true;
     }
 
     // Initializes the buffer with pre-defined segment sizes and pre-allocates backing storage.
@@ -49,7 +45,6 @@ public:
 
         this->_offsets.append_lengths(segment_sizes);
         this->_data.resize(this->_offsets.total_size(), value);
-        this->_is_first_segment_implicit = false;
     }
 
     // Reserve size in the global backing storage.
@@ -59,7 +54,7 @@ public:
 
     // Resize the last segment.
     void resize_last_segment(const index_type size, const value_type &value = {}) {
-        this->_is_first_segment_implicit = false;
+        this->ensure_segment();
         if (size == 0) {
             return;
         }
@@ -91,7 +86,7 @@ public:
 
     // Appends an item to the end of the last segment in the data buffer.
     void push_to_last_segment(const value_type &value) {
-        this->_is_first_segment_implicit = false;
+        this->ensure_segment();
         const segment_index last_segment = this->segment_count() - 1;
         const offset_range range = this->_offsets.segment_range(last_segment);
 
@@ -101,7 +96,7 @@ public:
 
     // Appends an item to the end of the last segment in the data buffer.
     void push_to_last_segment(value_type &&value) {
-        this->_is_first_segment_implicit = false;
+        this->ensure_segment();
         const segment_index last_segment = this->segment_count() - 1;
         const offset_range range = this->_offsets.segment_range(last_segment);
 
@@ -111,13 +106,9 @@ public:
 
     // Finalizes the current segment and starts a new one at the current buffer position.
     void start_new_segment() {
-        if (this->_is_first_segment_implicit) {
-            this->_is_first_segment_implicit = false;
-            return;
+        if (this->segment_count() > 0) {
+            this->_offsets.set_end(this->segment_count() - 1, this->total_size());
         }
-
-        const segment_index last_segment = this->segment_count() - 1;
-        this->_offsets.set_end(last_segment, this->total_size());
         this->_offsets.append_length(0);
     }
 
@@ -161,12 +152,18 @@ public:
         return this->get_segment_impl(*this, segment_index);
     }
 
-    // Returns a readonly view of the last segment of the buffer.
+    // Returns a readonly view of the last segment of the buffer, empty while there is none.
     std::span<const value_type> last_segment() const & noexcept {
+        if (this->segment_count() == 0) {
+            return {};
+        }
         return this->segment(this->segment_count() - 1);
     }
-    // Returns a view of the last segment of the buffer.
+    // Returns a view of the last segment of the buffer, empty while there is none.
     std::span<value_type> last_segment() & noexcept {
+        if (this->segment_count() == 0) {
+            return {};
+        }
         return this->segment(this->segment_count() - 1);
     }
 
@@ -214,6 +211,12 @@ private:
         return std::span(self._data.data() + range.begin, length);
     }
 
+    void ensure_segment() {
+        if (this->segment_count() == 0) {
+            this->start_new_segment();
+        }
+    }
+
     template <typename Self>
     static auto segments_impl(Self &self) noexcept {
         return std::views::iota(segment_index{0}, self.segment_count()) 
@@ -227,9 +230,4 @@ private:
 
     // The contiguous backing storage for all segments.
     std::vector<value_type> _data;
-
-    // Whether the first segment is the one reset creates rather than one a caller asked for.
-    // Starting or writing a segment makes it the caller's, so a caller starting one segment
-    // per item still ends up with one segment per item.
-    bool _is_first_segment_implicit = true;
 };
