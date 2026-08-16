@@ -57,6 +57,19 @@ struct Map {
 inline constexpr Algorithm DEFAULT_ALGORITHM = Algorithm::TutteBarycentricMapping;
 inline constexpr Border DEFAULT_BORDER = Border::Circle;
 
+// Whether unwrap can take this mesh: one manifold component with the topology of a disk.
+bool can_unwrap(
+    const std::span<const glm::uvec3> triangles,
+    const std::span<const glm::dvec3> positions);
+
+inline bool can_unwrap(const mesh::View &mesh) {
+    return can_unwrap(mesh.triangles, mesh.positions);
+}
+
+inline bool can_unwrap(const mesh::Simple &mesh) {
+    return can_unwrap(mesh.triangles, mesh.positions);
+}
+
 tl::expected<Map, UnwrapError> unwrap(
     const std::span<const glm::uvec3> triangles,
     const std::span<const glm::dvec3> positions,
