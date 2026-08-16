@@ -11,6 +11,7 @@
 #undef CGLTF_WRITE_IMPLEMENTATION
 
 #include "log.h"
+#include "containers/FixedVector.h"
 #include "mesh/io/utils.h"
 #include "mesh/io/gltf.h"
 #include "mesh/io/texture.h"
@@ -610,37 +611,40 @@ tl::expected<void, SaveMeshError> save_to_path(
     // We need multiple parents to ensure that we dont lose our double precision accurary.
     // TODO: dont create this hierachy if the translation is 0
     char *node_name = const_cast<char *>(options.name.data());
-    std::array<cgltf_node, 3> nodes;
-    cgltf_node &mesh_node = nodes[2] = {};
-    mesh_node.name = node_name;
-    mesh_node.has_translation = true;
+    // Each level translates by what the float of the level above could not hold, until nothing
+    // is left over. A level that would translate by zero is not created.
+    FixedVector<glm::vec3, 3> offsets;
+    glm::dvec3 remaining = average_position;
+    for (size_t level = 0; level < offsets.capacity(); level++) {
+        const glm::vec3 offset(remaining);
+        if (level > 0 && offset == glm::vec3(0)) {
+            break;
+        }
+        offsets.push_back(offset);
+        remaining -= glm::dvec3(offset);
+    }
+
+    FixedVector<cgltf_node, 3> nodes;
+    for (const glm::vec3 &offset : offsets) {
+        cgltf_node node = {};
+        node.name = node_name;
+        node.has_translation = true;
+        std::copy(glm::value_ptr(offset), glm::value_ptr(offset) + offset.length(), node.translation);
+        nodes.push_back(node);
+    }
+
+    FixedVector<cgltf_node *, 2> children;
+    for (size_t level = 1; level < nodes.size(); level++) {
+        children.push_back(&nodes[level]);
+        nodes[level].parent = &nodes[level - 1];
+        nodes[level - 1].children_count = 1;
+        nodes[level - 1].children = &children.back();
+    }
+
+    cgltf_node &mesh_node = nodes.back();
     mesh_node.mesh = &mesh;
 
-    cgltf_node &parent_node = nodes[1] = {};
-    parent_node.name = node_name;
-    std::array<cgltf_node *, 1> parent_node_children = {&mesh_node};
-    parent_node.children_count = parent_node_children.size();
-    parent_node.children = parent_node_children.data();
-    parent_node.has_translation = true;
-    mesh_node.parent = &parent_node;
-
-    cgltf_node &parent_parent_node = nodes[0] = {};
-    parent_parent_node.name = node_name;
-    std::array<cgltf_node *, 1> parent_parent_node_children = {&parent_node};
-    parent_parent_node.children_count = parent_parent_node_children.size();
-    parent_parent_node.children = parent_parent_node_children.data();
-    parent_parent_node.has_translation = true;
-    parent_node.parent = &parent_parent_node;
-
-    const glm::vec3 parent_parent_offset(average_position);
-    const glm::dvec3 parent_parent_offset_error = glm::dvec3(parent_parent_offset) - average_position;
-    const glm::vec3 parent_offset(-parent_parent_offset_error);
-    const glm::dvec3 parent_offset_error = glm::dvec3(parent_offset) + glm::dvec3(parent_parent_offset) - average_position;
-    const glm::vec3 mesh_offset(-parent_offset_error);
-    std::copy(glm::value_ptr(parent_parent_offset), glm::value_ptr(parent_parent_offset) + parent_parent_offset.length(), parent_parent_node.translation);
-    std::copy(glm::value_ptr(parent_offset), glm::value_ptr(parent_offset) + parent_offset.length(), parent_node.translation);
-    std::copy(glm::value_ptr(mesh_offset), glm::value_ptr(mesh_offset) + mesh_offset.length(), mesh_node.translation);
-    const glm::dvec3 full_error = (glm::dvec3(parent_parent_offset) + glm::dvec3(parent_offset) + glm::dvec3(mesh_offset)) - average_position;
+    const glm::dvec3 full_error = remaining;
     // DEBUG_ASSERT(glm::length(full_error) == 0);
     if (full_error != glm::dvec3(0)) {
         LOG_ERROR("Float transform trick failed (error: {})", glm::length(full_error));
@@ -649,7 +653,7 @@ tl::expected<void, SaveMeshError> save_to_path(
     // Create a scene
     std::array<cgltf_scene, 1> scenes;
     cgltf_scene &scene = scenes[0] = {};
-    std::array<cgltf_node *, 1> scene_nodes = {&parent_parent_node};
+    std::array<cgltf_node *, 1> scene_nodes = {&nodes[0]};
     scene.nodes_count = scene_nodes.size();
     scene.nodes = scene_nodes.data();
 
