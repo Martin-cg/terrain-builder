@@ -116,6 +116,7 @@ if(TARGET bvhbuilderlib)
         catch2_helpers.h
         temp_directory.h
         bvh_builder/traverse.cpp
+        bvh_builder/traverse_dag.cpp
     )
     target_link_libraries(unittests_bvhbuilder PUBLIC bvhbuilderlib Catch2::Catch2WithMain)
     atb_configure_test(unittests_bvhbuilder)

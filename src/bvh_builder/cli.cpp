@@ -1,0 +1,65 @@
+#include "cli.h"
+
+#include "batch_store.h"
+
+#include <CLI/CLI.hpp>
+#include <libassert/assert.hpp>
+#include <spdlog/spdlog.h>
+
+#include <cstdlib>
+#include <string>
+#include <unordered_map>
+
+using namespace cli;
+
+namespace {
+
+const std::unordered_map<std::string, spdlog::level::level_enum> log_level_names{
+    {"off", spdlog::level::level_enum::off},
+    {"critical", spdlog::level::level_enum::critical},
+    {"error", spdlog::level::level_enum::err},
+    {"warn", spdlog::level::level_enum::warn},
+    {"info", spdlog::level::level_enum::info},
+    {"debug", spdlog::level::level_enum::debug},
+    {"trace", spdlog::level::level_enum::trace},
+};
+
+}
+
+Args cli::parse(int argc, const char *const *argv) {
+    DEBUG_ASSERT(argc >= 0);
+
+    CLI::App app{"bvh_builder"};
+    app.allow_windows_style_options();
+
+    Args args{
+        .log_level = spdlog::level::level_enum::info,
+        .input_path = {},
+        .output_path = {},
+        .max_batch_bytes = default_max_batch_bytes,
+    };
+
+    app.add_option("--input", args.input_path, "Path to the dag dataset to flatten")
+        ->required()
+        ->check(CLI::ExistingDirectory);
+
+    app.add_option("--output", args.output_path, "Path to write the bvh run to")
+        ->required();
+
+    app.add_option("--max-batch-size", args.max_batch_bytes, "Maximum size a batch file, e.g. 512MB or 1GB")
+        ->transform(CLI::AsSizeValue(false))
+        ->default_str("64MB")
+        ->check(CLI::PositiveNumber);
+
+    app.add_option("--verbosity", args.log_level, "Verbosity level of logging")
+        ->transform(CLI::CheckedTransformer(log_level_names, CLI::ignore_case))
+        ->default_val(args.log_level);
+
+    try {
+        app.parse(argc, argv);
+    } catch (const CLI::ParseError &e) {
+        std::exit(app.exit(e));
+    }
+
+    return args;
+}
