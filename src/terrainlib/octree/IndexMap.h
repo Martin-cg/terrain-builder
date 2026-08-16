@@ -22,6 +22,7 @@ public:
 
     bool is_present(Id id) const;
     bool is_absent(Id id) const;
+    bool has_data(Id id) const;
     bool is(NodeStatus status, Id id) const;
 
     void clear();

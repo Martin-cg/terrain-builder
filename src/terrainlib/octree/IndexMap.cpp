@@ -92,6 +92,10 @@ bool IndexMap::is_present(Id id) const {
 bool IndexMap::is_absent(Id id) const {
     return !this->is_present(id);
 }
+bool IndexMap::has_data(Id id) const {
+    const NodeStatus *status = this->get_raw(id);
+    return status != nullptr && *status != NodeStatus::Virtual;
+}
 bool IndexMap::is(NodeStatus status, Id id) const {
     return this->get(id) == status;
 }
