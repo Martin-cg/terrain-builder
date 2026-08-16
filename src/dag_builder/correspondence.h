@@ -24,8 +24,8 @@ struct CorrespondenceOptions {
     double slack_ratio = 0.25;
     // Vertices outside the output triangle a walk may pass through before a branch is abandoned.
     uint32_t max_steps_outside = 2;
-    // Below this, a source triangle faces away and belongs to another layer of the surface.
-    double min_normal_dot = 0.0;
+    // When set, a source facing the output triangle by less than this belongs to another layer.
+    std::optional<double> min_normal_dot = {};
 };
 
 // Source triangles that may contribute to each output triangle, indexed by output triangle.
@@ -138,7 +138,7 @@ inline void collect_relevant_vertices(
     }
 }
 
-// Appends the triangles touching the found vertices that face the output triangle and cover part of it.
+// Appends the triangles touching the found vertices that cover part of the output triangle.
 inline void collect_covering_triangles(
     const OutputTriangle &output,
     const VertexGraph &source,
@@ -155,8 +155,8 @@ inline void collect_covering_triangles(
             }
 
             const radix::geometry::Triangle<3, double> source_corners = geometry::corners(source.triangles[triangle_index], source.positions);
-            if (glm::dot(radix::geometry::normal(source_corners), output.frame.normal) <= options.min_normal_dot) {
-                // Another layer of the surface, and another output triangle's concern.
+            if (options.min_normal_dot.has_value() &&
+                glm::dot(radix::geometry::normal(source_corners), output.frame.normal) <= *options.min_normal_dot) {
                 continue;
             }
             if (geometry::triangles_overlap(output.outline, output.frame.flatten(source_corners))) {

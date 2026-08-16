@@ -89,36 +89,6 @@ Coarsening make_overhang() {
 constexpr uint32_t overhang_bump_root = 3;
 constexpr uint32_t overhang_bump_tip = 4;
 
-// A closed shell whose inset underside sits directly below the output triangle.
-Coarsening make_thin_shell() {
-    Coarsening coarsening;
-    coarsening.positions = {
-        glm::dvec3(0.0, 0.0, 0.0),
-        glm::dvec3(4.0, 0.0, 0.0),
-        glm::dvec3(4.0, 4.0, 0.0),
-        glm::dvec3(0.0, 4.0, 0.0),
-        // Inset and below, so the rim joining it to the top slopes outward and downward.
-        glm::dvec3(0.5, 0.5, -0.5),
-        glm::dvec3(3.5, 0.5, -0.5),
-        glm::dvec3(3.5, 3.5, -0.5),
-        glm::dvec3(0.5, 3.5, -0.5),
-    };
-    coarsening.source_triangles = {
-        glm::uvec3(0, 1, 2), // top
-        glm::uvec3(0, 2, 3), // top
-        glm::uvec3(4, 6, 5), // underside, wound facing down
-        glm::uvec3(4, 7, 6), // underside, wound facing down
-        glm::uvec3(0, 4, 5), // rim
-        glm::uvec3(0, 5, 1), // rim
-    };
-    coarsening.output_triangles = {glm::uvec3(0, 1, 2)};
-    return coarsening;
-}
-
-// The underside triangles, directly beneath the output triangle but facing away from it.
-constexpr uint32_t shell_underside_near = 2;
-constexpr uint32_t shell_underside_far = 3;
-
 } // namespace
 
 TEST_CASE("find_source_triangles assigns every source triangle to a covering output triangle", "[dag_builder][correspondence]") {
@@ -169,12 +139,45 @@ TEST_CASE("find_source_triangles stops at the outside step bound", "[dag_builder
     CHECK_FALSE(contains_source(correspondence, 0, overhang_bump_tip));
 }
 
-TEST_CASE("find_source_triangles does not cross onto the far side of a thin shell", "[dag_builder][correspondence]") {
-    const Correspondence correspondence = run(make_thin_shell());
+TEST_CASE("find_source_triangles reaches the far side of a thin shell unless facing is required", "[dag_builder][correspondence]") {
+    // A closed shell whose inset underside sits directly below the output triangle.
+    Coarsening shell;
+    shell.positions = {
+        glm::dvec3(0.0, 0.0, 0.0),
+        glm::dvec3(4.0, 0.0, 0.0),
+        glm::dvec3(4.0, 4.0, 0.0),
+        glm::dvec3(0.0, 4.0, 0.0),
+        // Inset and below, so the rim joining it to the top slopes outward and downward.
+        glm::dvec3(0.5, 0.5, -0.5),
+        glm::dvec3(3.5, 0.5, -0.5),
+        glm::dvec3(3.5, 3.5, -0.5),
+        glm::dvec3(0.5, 3.5, -0.5),
+    };
+    shell.source_triangles = {
+        glm::uvec3(0, 1, 2), // top
+        glm::uvec3(0, 2, 3), // top
+        glm::uvec3(4, 6, 5), // underside, wound facing down
+        glm::uvec3(4, 7, 6), // underside, wound facing down
+        glm::uvec3(0, 4, 5), // rim
+        glm::uvec3(0, 5, 1), // rim
+    };
+    shell.output_triangles = {glm::uvec3(0, 1, 2)};
 
-    REQUIRE(contains_source(correspondence, 0, 0));
-    CHECK_FALSE(contains_source(correspondence, 0, shell_underside_near));
-    CHECK_FALSE(contains_source(correspondence, 0, shell_underside_far));
+    SECTION("without a facing test") {
+        const Correspondence correspondence = run(shell);
+
+        REQUIRE(contains_source(correspondence, 0, 0));
+        CHECK(contains_source(correspondence, 0, 2));
+        CHECK(contains_source(correspondence, 0, 3));
+    }
+
+    SECTION("with a facing test") {
+        const Correspondence correspondence = run(shell, CorrespondenceOptions{.min_normal_dot = 0.0});
+
+        REQUIRE(contains_source(correspondence, 0, 0));
+        CHECK_FALSE(contains_source(correspondence, 0, 2));
+        CHECK_FALSE(contains_source(correspondence, 0, 3));
+    }
 }
 
 TEST_CASE("find_source_triangles ignores components with no surviving vertex", "[dag_builder][correspondence]") {
