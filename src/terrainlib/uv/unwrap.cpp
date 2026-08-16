@@ -21,6 +21,8 @@
 #include "build_config.h"
 #include "unwrap.h"
 #include "fit.h"
+#include "mesh/connectivity/connected_components.h"
+#include "mesh/connectivity/manifold.h"
 #include "mesh/connectivity/topology.h"
 
 namespace uv {
@@ -208,15 +210,24 @@ std::vector<glm::dvec2> decode_uv_map(const UvMap &map, size_t vertex_count) {
 }
 }
 
+bool can_unwrap(
+    const std::span<const glm::uvec3> triangles,
+    const std::span<const glm::dvec3> positions) {
+    const mesh::View mesh(triangles, positions);
+    return mesh::is_single_component(mesh) &&
+        mesh::is_manifold(mesh) &&
+        mesh::compute_topology(mesh).is_disk(true);
+}
+
 tl::expected<Map, UnwrapError> unwrap(
     const std::span<const glm::uvec3> triangles,
     const std::span<const glm::dvec3> positions,
     Algorithm algorithm,
     Border border) {
     const mesh::View mesh(triangles, positions);
-    mesh::validate_manifold(mesh);
-    DEBUG_ASSERT(mesh::compute_topology(mesh).is_disk(true));
-    
+    mesh::validate_unconnected(mesh);
+    DEBUG_ASSERT(can_unwrap(triangles, positions));
+
     cgal::Mesh cgal_mesh = convert::to_cgal_mesh(mesh);
     auto result = parameterize_mesh(cgal_mesh, algorithm, border);
     if (!result) {
