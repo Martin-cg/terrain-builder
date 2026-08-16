@@ -137,7 +137,7 @@ Args cli::parse(int argc, const char *const *argv) {
         .target_ratio = std::nullopt,
         .target_error = std::nullopt,
         .sizing_options = {},
-        .texture_gutter = 1,
+        .texture_gutter = 2,
         .write_debug_meshes = false,
         .parallelize = false,
         .include_mode = dag::IncludeMode::CurrentOnly,
