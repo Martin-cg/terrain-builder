@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <initializer_list>
 #include <opencv2/core.hpp>
 #include <optional>
 #include <vector>
@@ -15,6 +16,9 @@ public:
 
     TextureSet() = default;
     TextureSet(std::vector<Texture> textures) : _textures(std::move(textures)) {}
+    // Without this a braced list of textures reaches cv::Mat's conversion to std::vector, which
+    // reads the image's pixels as if they were the elements.
+    TextureSet(std::initializer_list<Texture> textures) : _textures(textures) {}
 
     size_t size() const noexcept {
         return this->_textures.size();
