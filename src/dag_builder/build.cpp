@@ -376,13 +376,20 @@ std::vector<octree::Id> find_relevant_input_nodes(
     return result;
 }
 
-// Nodes one level finer that may hold data belonging to the given node.
-octree::IdRect find_relevant_dag_nodes(
+// The region that may hold clusters belonging to the given node. Reaches past its own bounds, since ownership is based on group centroids.
+radix::geometry::Aabb3d find_cluster_search_bounds(
     const octree::Id &target_id,
     const octree::OddLevelShifted &shifted_space) {
     // We cannot rely on the intersecting nodes on the next level, since some neighbours clusters may has a centroid in this node's bounds. This can happen when the groups is split at the end of the pipeline.
     const radix::geometry::Aabb3d padded_bounds = geometry::pad_bounds_relative(shifted_space.get_node_bounds(target_id), 0.5 - 1e-6);
-    const radix::geometry::Aabb3d search_bounds = radix::geometry::intersection(padded_bounds, shifted_space.bounds());
+    return radix::geometry::intersection(padded_bounds, shifted_space.bounds());
+}
+
+// Nodes one level finer that may hold data belonging to the given node.
+octree::IdRect find_relevant_dag_nodes(
+    const octree::Id &target_id,
+    const octree::OddLevelShifted &shifted_space) {
+    const radix::geometry::Aabb3d search_bounds = find_cluster_search_bounds(target_id, shifted_space);
     return shifted_space.get_intersecting_nodes_on_level(search_bounds, target_id.level() + 1);
 }
 
