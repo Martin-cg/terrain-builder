@@ -11,6 +11,7 @@ option(ALP_BUILD_MESH_CONVERT "Build mesh-convert" ON)
 option(ALP_BUILD_SF_INDEX_BROWSER "Build sf-index-browser" ON)
 option(ALP_BUILD_DAG_BUILDER "Build dag-builder" ON)
 option(ALP_BUILD_DAG_CONVERT_DEBUG "Build dag-convert-debug" ON)
+option(ALP_BUILD_BVH_BUILDER "Build bvh-builder" ON)
 option(ALP_BUILD_SF_BROWSER "Build sf-browser" ON)
 option(ALP_BUILD_UNITTESTS "Build unit tests for enabled components" ON)
 

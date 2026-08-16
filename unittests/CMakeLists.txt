@@ -111,6 +111,16 @@ if(TARGET dagbuilderlib)
     atb_configure_test(unittests_dagbuilder)
 endif()
 
+if(TARGET bvhbuilderlib)
+    add_executable(unittests_bvhbuilder
+        catch2_helpers.h
+        temp_directory.h
+        bvh_builder/traverse.cpp
+    )
+    target_link_libraries(unittests_bvhbuilder PUBLIC bvhbuilderlib Catch2::Catch2WithMain)
+    atb_configure_test(unittests_bvhbuilder)
+endif()
+
 if(TARGET sfmergerlib)
     add_executable(unittests_sfmerger
         catch2_helpers.h
