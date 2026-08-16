@@ -62,6 +62,7 @@ add_executable(unittests_terrainlib
     terrainlib/tiny_vector.cpp
     terrainlib/union_find.cpp
     terrainlib/uv_atlas.cpp
+    terrainlib/zpp_bits_utils.cpp
 )
 target_link_libraries(unittests_terrainlib PRIVATE terrainlib Catch2::Catch2WithMain)
 atb_configure_test(unittests_terrainlib)
