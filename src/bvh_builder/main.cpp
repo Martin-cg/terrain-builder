@@ -1,9 +1,11 @@
 #include <cstdlib>
 #include <exception>
 
+#include "build_frontier.h"
 #include "cli.h"
 #include "flatten_dag.h"
 #include "log.h"
+#include "octree/OddLevelShifted.h"
 #include "octree/storage/open.h"
 
 #include "../dag_builder/storage.h"
@@ -29,7 +31,24 @@ int main(int argc, char **argv) {
         }
 
         LOG_INFO("Flattened {} into {} node batches", args.input_path.string(), nodes.size());
-        return nodes.save() ? EXIT_SUCCESS : EXIT_FAILURE;
+        if (!nodes.save()) {
+            return EXIT_FAILURE;
+        }
+
+        std::filesystem::create_directories(args.output_path / "frontier");
+        frontier::RunStorage run(args.output_path / "frontier");
+
+        const bvh::Bounds scene = octree::OddLevelShifted::earth().bounds();
+        const auto built = frontier::build_from_leaves(nodes, scene, run, frontier::BuildOptions{
+            .max_batch_bytes = args.max_batch_bytes,
+        });
+        if (!built) {
+            LOG_ERROR("Failed to build the frontier: {}", built.error());
+            return EXIT_FAILURE;
+        }
+
+        LOG_INFO("Built a frontier of {} batches", run.size());
+        return run.save() ? EXIT_SUCCESS : EXIT_FAILURE;
     } catch (const std::exception &e) {
         LOG_ERROR("{}", e.what());
         return EXIT_FAILURE;

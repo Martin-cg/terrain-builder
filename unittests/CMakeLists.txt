@@ -115,6 +115,8 @@ if(TARGET bvhbuilderlib)
     add_executable(unittests_bvhbuilder
         catch2_helpers.h
         temp_directory.h
+        bvh_builder/build_frontier.cpp
+        bvh_builder/flat_traverse.cpp
         bvh_builder/traverse.cpp
         bvh_builder/traverse_dag.cpp
     )
