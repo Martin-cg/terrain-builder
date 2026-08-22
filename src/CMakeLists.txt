@@ -14,7 +14,12 @@ target_include_directories(Eigen3 SYSTEM INTERFACE ${eigen_SOURCE_DIR})
 alp_setup_cmake_project(boost URL https://github.com/boostorg/boost.git COMMITISH "boost-1.88.0" CMAKE_ARGUMENTS -DBOOST_ENABLE_PYTHON=OFF -DBUILD_TESTING=OFF "-DBOOST_INCLUDE_LIBRARIES='graph\;multiprecision\;heap\;format\;logic'")
 find_package(Boost CONFIG REQUIRED)
 
-alp_setup_cmake_project(tbb URL https://github.com/uxlfoundation/oneTBB.git COMMITISH v2023.1.0 CMAKE_ARGUMENTS -DTBB_TEST=OFF -DTBBMALLOC_BUILD=OFF)
+set(ALP_TBB_ARGUMENTS -DTBB_TEST=OFF -DTBBMALLOC_BUILD=OFF)
+if(ALP_ENABLE_THREAD_SANITIZER)
+    # gcc cannot instrument the standalone fences of tbb, and tbb builds warnings as errors.
+    list(APPEND ALP_TBB_ARGUMENTS -DTBB_STRICT=OFF)
+endif()
+alp_setup_cmake_project(tbb URL https://github.com/uxlfoundation/oneTBB.git COMMITISH v2023.1.0 CMAKE_ARGUMENTS ${ALP_TBB_ARGUMENTS})
 find_package(TBB REQUIRED)
 
 include(../cmake/SetupGDAL.cmake)
