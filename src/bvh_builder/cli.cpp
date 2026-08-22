@@ -1,6 +1,3 @@
-#include "cli.h"
-
-#include "batch_store.h"
 
 #include <CLI/CLI.hpp>
 #include <libassert/assert.hpp>
@@ -9,6 +6,9 @@
 #include <cstdlib>
 #include <string>
 #include <unordered_map>
+
+#include "cli.h"
+#include "bvh/Storage.h"
 
 using namespace cli;
 
@@ -32,12 +32,7 @@ Args cli::parse(int argc, const char *const *argv) {
     CLI::App app{"bvh_builder"};
     app.allow_windows_style_options();
 
-    Args args{
-        .log_level = spdlog::level::level_enum::info,
-        .input_path = {},
-        .output_path = {},
-        .max_batch_bytes = default_max_batch_bytes,
-    };
+    Args args;
 
     app.add_option("--input", args.input_path, "Path to the dag dataset to flatten")
         ->required()

@@ -16,6 +16,8 @@
 #include "build.h"
 #include "metadata.h"
 #include "../dag_builder/storage.h"
+#include "try.h"
+#include "visitor.h"
 
 namespace dag {
 
@@ -26,24 +28,7 @@ struct FlatNode {
     double parent_error;
 };
 
-// A visitor returning false stops the walk.
-template <typename Visitor>
-concept NodeVisitor = std::invocable<Visitor, const FlatNode &> &&
-    (std::same_as<std::invoke_result_t<Visitor, const FlatNode &>, void> ||
-     std::same_as<std::invoke_result_t<Visitor, const FlatNode &>, bool>);
-
 namespace detail {
-
-template <NodeVisitor Visitor>
-bool invoke(Visitor &visitor, const FlatNode &node) {
-    if constexpr (std::same_as<std::invoke_result_t<Visitor, const FlatNode &>, void>) {
-        visitor(node);
-        return true;
-    } else {
-        return visitor(node);
-    }
-}
-
 // A cluster carries the group it belongs to in the node storing it.
 inline FlatNode make_flat_node(const Id &id, const NodeMetadata &metadata, const double parent_error) {
     const uint32_t group_index = metadata.group_assignment[id.cluster_index];
@@ -64,12 +49,13 @@ inline uint32_t find_coarsest_level(const octree::IndexMap &index) {
     }
     return coarsest;
 }
-
-}
+} // namespace detail
 
 // Visits every cluster in the dag. False if the visitor stopped the walk before its end.
-template <NodeVisitor Visitor>
-tl::expected<bool, io::Error> traverse_nodes(const octree::IndexedDagMetaStorage &dag, Visitor &&visitor) {
+template <typename F>
+tl::expected<bool, io::Error> traverse_nodes(const octree::IndexedDagMetaStorage& dag, F&& v) {
+    visitor::FallibleVisitor<io::Error, F&> visitor(v);
+
     const octree::IndexMap &index = dag.index();
     const uint32_t coarsest_level = detail::find_coarsest_level(index);
 
@@ -83,24 +69,20 @@ tl::expected<bool, io::Error> traverse_nodes(const octree::IndexedDagMetaStorage
             continue;
         }
 
-        const auto parent_result = dag.load(parent_id);
-        if (!parent_result) {
-            return tl::unexpected(parent_result.error());
-        }
-        const auto &parent = parent_result.value();
+        TRY(const auto &parent, dag.load(parent_id));
         cluster_count += parent.group_assignment.size();
 
         // We assume that every root node is at the coarsest level.
         if (parent_id.level() == coarsest_level) {
             for (const uint32_t cluster_index : range(parent.group_assignment.size())) {
-                const Id id {
+                const Id id{
                     .source_batch = parent_id,
-                    .cluster_index = cluster_index
-                };
+                    .cluster_index = cluster_index};
                 const double inf = std::numeric_limits<double>::infinity();
                 const FlatNode root = detail::make_flat_node(id, parent, inf);
                 visit_count++;
-                if (!detail::invoke(visitor, root)) {
+                TRY(const bool keep_going, visitor(root));
+                if (!keep_going) {
                     return false;
                 }
             }
@@ -109,14 +91,12 @@ tl::expected<bool, io::Error> traverse_nodes(const octree::IndexedDagMetaStorage
         // Handle all children but now the current node (except if root).
         for (const Group &group : parent.groups) {
             for (const Id &child : group.children) {
-                const auto result = dag.load(child.source_batch);
-                if (!result) {
-                    return tl::unexpected(result.error());
-                }
+                TRY(const auto &metadata, dag.load(child.source_batch));
 
-                const FlatNode node = detail::make_flat_node(child, result.value(), group.error);
+                const FlatNode node = detail::make_flat_node(child, metadata, group.error);
                 visit_count++;
-                if (!detail::invoke(visitor, node)) {
+                TRY(const bool keep_going, visitor(node));
+                if (!keep_going) {
                     return false;
                 }
             }

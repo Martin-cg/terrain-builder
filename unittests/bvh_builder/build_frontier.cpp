@@ -1,16 +1,14 @@
 #include "../catch2_helpers.h"
 #include "../temp_directory.h"
-#include "build_frontier.h"
-
+ 
 #include <vector>
 
-#include "bvh_utils.h"
-#include "storage.h"
-#include "traverse.h"
+#include "bvh/utils.h"
+#include "frontier/build.h"
+#include "frontier/Storage.h"
+#include "frontier/traverse.h"
 
 namespace {
-
-const bvh::Bounds scene{glm::dvec3{0.0}, glm::dvec3{1.0}};
 
 bvh::Bounds cube_at(const glm::dvec3 &centre, const double size) {
     return bvh::Bounds{centre - size * 0.5, centre + size * 0.5};
@@ -29,15 +27,15 @@ bvh::NodeHeader header_at(const bvh::Bounds &bounds, const uint32_t triangle_cou
 void write_nodes(bvh::Storage &nodes, const std::vector<bvh::Bounds> &bounds) {
     bvh::Batch batch = nodes.create_batch();
     for (const auto &[index, node_bounds] : enumerate<uint32_t>(bounds)) {
-        emit_leaf_node(batch, header_at(node_bounds, index), dag::Id{octree::Id::root(), index});
+        batch.add_leaf_node(header_at(node_bounds, index), dag::Id{octree::Id::root(), index});
     }
     REQUIRE(nodes.write(batch).has_value());
-    REQUIRE(nodes.save().has_value());
+    REQUIRE(nodes.save_index().has_value());
 }
 
-std::vector<frontier::Entry> read_run(const frontier::RunStorage &run) {
+std::vector<frontier::Entry> read_run(const frontier::Storage &run) {
     std::vector<frontier::Entry> entries;
-    const auto result = frontier::traverse(run, [&](const frontier::Entry &entry) { entries.push_back(entry); });
+    const auto result = frontier::traverse_entries(run, [&](const frontier::Entry &entry) { entries.push_back(entry); });
     REQUIRE(result.has_value());
     return entries;
 }
@@ -51,9 +49,9 @@ TEST_CASE("every stored node enters the frontier carrying its header and referen
     write_nodes(nodes, {cube_at(glm::dvec3{0.25}, 0.1), cube_at(glm::dvec3{0.75}, 0.1)});
 
     std::filesystem::create_directories(directory.path() / "frontier");
-    frontier::RunStorage run(directory.path() / "frontier");
-    REQUIRE(frontier::build_from_leaves(nodes, scene, run).has_value());
-    REQUIRE(run.save().has_value());
+    frontier::Storage run(directory.path() / "frontier");
+    REQUIRE(frontier::build_from_leaves(nodes, run).has_value());
+    REQUIRE(run.save_index().has_value());
 
     const std::vector<frontier::Entry> entries = read_run(run);
     REQUIRE(entries.size() == 2);
@@ -80,9 +78,9 @@ TEST_CASE("the entry's morton code comes from the bounds centre", "[frontier]") 
     });
 
     std::filesystem::create_directories(directory.path() / "frontier");
-    frontier::RunStorage run(directory.path() / "frontier");
-    REQUIRE(frontier::build_from_leaves(nodes, scene, run).has_value());
-    REQUIRE(run.save().has_value());
+    frontier::Storage run(directory.path() / "frontier");
+    REQUIRE(frontier::build_from_leaves(nodes, run).has_value());
+    REQUIRE(run.save_index().has_value());
 
     const std::vector<frontier::Entry> entries = read_run(run);
     REQUIRE(entries.size() == 3);
@@ -102,10 +100,10 @@ TEST_CASE("the byte budget splits the frontier into batches", "[frontier]") {
     write_nodes(nodes, bounds);
 
     std::filesystem::create_directories(directory.path() / "frontier");
-    frontier::RunStorage run(directory.path() / "frontier");
+    frontier::Storage run(directory.path() / "frontier");
     const frontier::BuildOptions options{.max_batch_bytes = 2 * sizeof(frontier::Entry)};
-    REQUIRE(frontier::build_from_leaves(nodes, scene, run, options).has_value());
-    REQUIRE(run.save().has_value());
+    REQUIRE(frontier::build_from_leaves(nodes, run, options).has_value());
+    REQUIRE(run.save_index().has_value());
 
     CHECK(run.size() == 3);
     CHECK(read_run(run).size() == 5);
@@ -117,9 +115,9 @@ TEST_CASE("an empty store yields an empty frontier", "[frontier]") {
     const bvh::Storage nodes(directory.path() / "nodes");
 
     std::filesystem::create_directories(directory.path() / "frontier");
-    frontier::RunStorage run(directory.path() / "frontier");
-    REQUIRE(frontier::build_from_leaves(nodes, scene, run).has_value());
-    REQUIRE(run.save().has_value());
+    frontier::Storage run(directory.path() / "frontier");
+    REQUIRE(frontier::build_from_leaves(nodes, run).has_value());
+    REQUIRE(run.save_index().has_value());
 
     CHECK(run.size() == 0);
 }

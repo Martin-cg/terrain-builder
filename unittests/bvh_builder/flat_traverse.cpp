@@ -1,11 +1,11 @@
 #include "../catch2_helpers.h"
 #include "../temp_directory.h"
-#include "flat_traverse.h"
 
 #include <vector>
 
-#include "bvh_utils.h"
-#include "storage.h"
+#include "bvh/utils.h"
+#include "bvh/Storage.h"
+#include "bvh/flat_traverse.h"
 
 namespace {
 
@@ -25,12 +25,12 @@ std::vector<uint32_t> write_nodes(bvh::Storage &nodes, const std::vector<uint32_
         bvh::Batch batch = nodes.create_batch();
         for (uint32_t i = 0; i < count; i++) {
             const auto triangle_count = static_cast<uint32_t>(written.size());
-            emit_leaf_node(batch, header_with(triangle_count), dag::Id{octree::Id::root(), triangle_count});
+            batch.add_leaf_node(header_with(triangle_count), dag::Id{octree::Id::root(), triangle_count});
             written.push_back(triangle_count);
         }
         REQUIRE(nodes.write(batch).has_value());
     }
-    REQUIRE(nodes.save().has_value());
+    REQUIRE(nodes.save_index().has_value());
     return written;
 }
 

@@ -39,7 +39,7 @@ tl::expected<std::vector<uint8_t>, Error> write_to_bytes(const T &value) {
 template <typename T>
 tl::expected<T, Error> read_from_bytes(const std::span<const uint8_t> bytes) {
     zpp::bits::in in(bytes);
-    T value;
+    T value = zpp::bits::access::make<T>();
     const auto result = in(value);
     if (zpp::bits::failure(result)) {
         std::error_code error_code = std::make_error_code(result);

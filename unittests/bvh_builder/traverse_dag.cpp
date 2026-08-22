@@ -1,6 +1,5 @@
 #include "../catch2_helpers.h"
 #include "../temp_directory.h"
-#include "traverse_dag.h"
 
 #include <limits>
 #include <unordered_map>
@@ -10,6 +9,7 @@
 #include "../dag_builder/encoded.h"
 #include "../dag_builder/storage.h"
 #include "octree/storage/open.h"
+#include "traverse_dag.h"
 
 namespace {
 
