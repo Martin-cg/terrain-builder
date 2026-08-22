@@ -61,6 +61,7 @@ add_executable(unittests_terrainlib
     terrainlib/texture_dilate_colors.cpp
     terrainlib/tiny_vector.cpp
     terrainlib/union_find.cpp
+    terrainlib/unique_resource.cpp
     terrainlib/uv_atlas.cpp
     terrainlib/zpp_bits_utils.cpp
 )
