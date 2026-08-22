@@ -58,6 +58,7 @@ add_executable(unittests_terrainlib
     terrainlib/range.cpp
     terrainlib/range_utils.cpp
     terrainlib/spatial_lookup.cpp
+    terrainlib/spsc_channel.cpp
     terrainlib/string_utils.cpp
     terrainlib/texture_dilate_colors.cpp
     terrainlib/tiny_vector.cpp
