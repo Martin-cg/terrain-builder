@@ -122,6 +122,7 @@ if(TARGET bvhbuilderlib)
         temp_directory.h
         bvh_builder/build_frontier.cpp
         bvh_builder/flat_traverse.cpp
+        bvh_builder/merging_receiver.cpp
         bvh_builder/sort_frontier.cpp
         bvh_builder/traverse.cpp
         bvh_builder/traverse_dag.cpp
