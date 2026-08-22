@@ -8,14 +8,14 @@
 
 #include "containers/OnceCell.h"
 
-TEST_CASE("OnceCell holds nothing before it is set") {
+TEST_CASE("OnceCell holds nothing before it is set", "[once_cell]") {
     const OnceCell<int> cell;
 
     CHECK(cell.get() == nullptr);
     CHECK_FALSE(cell.is_set());
 }
 
-TEST_CASE("OnceCell keeps the value it was set to") {
+TEST_CASE("OnceCell keeps the value it was set to", "[once_cell]") {
     OnceCell<int> cell;
 
     CHECK(cell.set(7));
@@ -25,7 +25,7 @@ TEST_CASE("OnceCell keeps the value it was set to") {
     CHECK(*cell.get() == 7);
 }
 
-TEST_CASE("OnceCell drops every set after the first") {
+TEST_CASE("OnceCell drops every set after the first", "[once_cell]") {
     OnceCell<int> cell;
 
     REQUIRE(cell.set(1));
@@ -35,7 +35,7 @@ TEST_CASE("OnceCell drops every set after the first") {
     CHECK(*cell.get() == 1);
 }
 
-TEST_CASE("OnceCell moves the value in instead of copying it") {
+TEST_CASE("OnceCell moves the value in instead of copying it", "[once_cell]") {
     OnceCell<std::string> cell;
 
     std::string value(64, 'x');
@@ -45,7 +45,7 @@ TEST_CASE("OnceCell moves the value in instead of copying it") {
     CHECK(cell.get()->data() == buffer);
 }
 
-TEST_CASE("OnceCell hands the slot to exactly one of many threads") {
+TEST_CASE("OnceCell hands the slot to exactly one of many threads", "[once_cell]") {
     constexpr uint32_t thread_count = 8;
 
     OnceCell<uint32_t> cell;
@@ -68,7 +68,7 @@ TEST_CASE("OnceCell hands the slot to exactly one of many threads") {
     CHECK(*cell.get() < thread_count);
 }
 
-TEST_CASE("OnceCell never shows a value that is only half written") {
+TEST_CASE("OnceCell never shows a value that is only half written", "[once_cell]") {
     constexpr uint32_t reader_count = 4;
     const std::string expected(4096, 'a');
 
