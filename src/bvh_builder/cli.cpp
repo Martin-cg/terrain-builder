@@ -14,6 +14,11 @@ using namespace cli;
 
 namespace {
 
+const std::unordered_map<std::string, Mode> mode_names{
+    {"lbvh", Mode::Lbvh},
+    {"ploc", Mode::Ploc},
+};
+
 const std::unordered_map<std::string, spdlog::level::level_enum> log_level_names{
     {"off", spdlog::level::level_enum::off},
     {"critical", spdlog::level::level_enum::critical},
@@ -41,6 +46,13 @@ Args cli::parse(int argc, const char *const *argv) {
     app.add_option("--output", args.output_path, "Path to write the bvh run to")
         ->required();
 
+    app.add_option("--scratch", args.scratch_path, "Path to keep the intermediate runs under")
+        ->default_str("<output>-scratch");
+
+    app.add_option("--mode", args.mode, "Which algorithm builds the tree over the frontier")
+        ->transform(CLI::CheckedTransformer(mode_names, CLI::ignore_case))
+        ->default_val("ploc");
+
     app.add_option("--max-batch-size", args.max_batch_bytes, "Maximum size a batch file, e.g. 512MB or 1GB")
         ->transform(CLI::AsSizeValue(false))
         ->default_str("64MB")
@@ -54,6 +66,17 @@ Args cli::parse(int argc, const char *const *argv) {
         app.parse(argc, argv);
     } catch (const CLI::ParseError &e) {
         std::exit(app.exit(e));
+    }
+
+    // Kept beside the output, which is the one disk the caller has already chosen for this run.
+    if (args.scratch_path.empty()) {
+        args.scratch_path = args.output_path;
+        // A trailing separator leaves no filename to extend, and would name a directory inside the output.
+        if (!args.scratch_path.has_filename()) {
+            args.scratch_path = args.scratch_path.parent_path();
+        }
+
+        args.scratch_path += "-scratch";
     }
 
     return args;

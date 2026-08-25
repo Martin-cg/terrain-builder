@@ -1,9 +1,16 @@
 #include <cstdlib>
 #include <exception>
+#include <utility>
+
+#include <libassert/assert.hpp>
+#include <tl/expected.hpp>
 
 #include "frontier/build.h"
 #include "cli.h"
+#include "build/lbvh.h"
+#include "build/ploc.h"
 #include "bvh/flatten_dag.h"
+#include "io/Error.h"
 #include "log.h"
 #include "octree/OddLevelShifted.h"
 #include "octree/storage/open.h"
@@ -11,6 +18,27 @@
 #include "bvh/Storage.h"
 #include "bvh/earth.h"
 #include "frontier/Storage.h"
+#include "frontier/sort.h"
+
+namespace {
+
+// Builds the tree over the sorted frontier with the algorithm the mode names.
+tl::expected<bvh::Reference, io::Error> build_tree(
+    const cli::Args &args, frontier::Storage sorted, bvh::Storage &nodes) {
+    switch (args.mode) {
+    case cli::Mode::Lbvh:
+        return lbvh::build(sorted, nodes, lbvh::Options{
+            .max_batch_bytes = args.max_batch_bytes,
+        });
+    case cli::Mode::Ploc:
+        return ploc::build(std::move(sorted), nodes, args.scratch_path / "rounds", ploc::Options{
+            .max_batch_bytes = args.max_batch_bytes,
+        });
+    }
+    UNREACHABLE("unknown build mode");
+}
+
+}
 
 int main(int argc, char **argv) {
     const cli::Args args = cli::parse(argc, argv);
@@ -20,8 +48,7 @@ int main(int argc, char **argv) {
     try {
         const octree::IndexedDagMetaStorage dag = octree::open_folder_indexed<dag::NodeMetadata>(args.input_path);
 
-        std::filesystem::create_directories(args.output_path / "nodes");
-        bvh::Storage nodes(args.output_path / "nodes");
+        bvh::Storage nodes(args.output_path);
 
         const auto flattened = bvh::flatten_dag(dag, nodes, bvh::FlattenOptions{
             .max_batch_bytes = args.max_batch_bytes,
@@ -36,8 +63,7 @@ int main(int argc, char **argv) {
             return EXIT_FAILURE;
         }
 
-        std::filesystem::create_directories(args.output_path / "frontier");
-        frontier::Storage run(args.output_path / "frontier");
+        frontier::Storage run(args.scratch_path / "leaves");
 
         const auto built = frontier::build_from_leaves(nodes, run, frontier::BuildOptions{
             .max_batch_bytes = args.max_batch_bytes,
@@ -49,7 +75,33 @@ int main(int argc, char **argv) {
         }
 
         LOG_INFO("Built a frontier of {} batches", run.size());
-        return run.save_index() ? EXIT_SUCCESS : EXIT_FAILURE;
+        if (!run.save_index()) {
+            return EXIT_FAILURE;
+        }
+
+        frontier::Storage sorted(args.scratch_path / "sorted");
+
+        const auto sorted_result = frontier::sort_by_morton(run, sorted, frontier::SortOptions{
+            .max_batch_bytes = args.max_batch_bytes,
+        });
+        if (!sorted_result) {
+            LOG_ERROR("Failed to sort the frontier: {}", sorted_result.error());
+            return EXIT_FAILURE;
+        }
+        if (!sorted.save_index()) {
+            return EXIT_FAILURE;
+        }
+
+        LOG_INFO("Sorted the frontier into {} batches", sorted.size());
+
+        const auto root = build_tree(args, std::move(sorted), nodes);
+        if (!root) {
+            LOG_ERROR("Failed to build the tree: {}", root.error());
+            return EXIT_FAILURE;
+        }
+
+        LOG_INFO("Built the tree, with its root in batch {} at node {}", root->batch, root->node);
+        return EXIT_SUCCESS;
     } catch (const std::exception &e) {
         LOG_ERROR("{}", e.what());
         return EXIT_FAILURE;
