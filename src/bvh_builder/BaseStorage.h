@@ -31,17 +31,17 @@ public:
     BaseStorage(BaseStorage &&other) noexcept
         : _directory(std::move(other._directory)),
           _next(other._next.load()),
-          _dirty(std::exchange(other._dirty, false)) {}
+          _dirty(other._dirty.exchange(false)) {}
 
     BaseStorage &operator=(BaseStorage &&other) noexcept {
         this->_directory = std::move(other._directory);
         this->_next.store(other._next.load());
-        this->_dirty = std::exchange(other._dirty, false);
+        this->_dirty.store(other._dirty.exchange(false));
         return *this;
     }
 
     ~BaseStorage() {
-        if (!this->_dirty) {
+        if (!this->_dirty.load()) {
             return;
         }
 
@@ -90,6 +90,6 @@ private:
 
     std::filesystem::path _directory;
     std::atomic<uint32_t> _next = 0;
-    mutable bool _dirty = false;
+    mutable std::atomic<bool> _dirty = false;
 };
 
