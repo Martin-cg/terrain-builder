@@ -53,6 +53,12 @@ T compute_surface_area(const radix::geometry::Aabb<n_dims, T> &bounds) {
     return glm::compAdd(size) * glm::compAdd(size) - glm::compAdd(size * size);
 }
 
+// The mean of the extents, as a single measure of how large the bounds are.
+template <glm::length_t n_dims, typename T>
+T compute_mean_extent(const radix::geometry::Aabb<n_dims, T> &bounds) {
+    return glm::compAdd(bounds.size()) / static_cast<T>(n_dims);
+}
+
 // Normalize a set of positions into the range of [-1,1] based on maximum extents of the bounding box.
 // Outputs are written as float coordinates.
 // Optionally outputs the computed AABB if out_bounds is provided.

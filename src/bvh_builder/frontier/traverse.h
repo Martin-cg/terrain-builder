@@ -14,9 +14,9 @@
 
 namespace frontier {
 
-// Streams the run's batches one at a time.
+// Streams the run's batches one at a time. Reports whether it reached the end.
 template <typename F>
-tl::expected<void, io::Error> traverse_batches(const Storage &run, F &&f, const AnyRange<uint32_t> batches = RangeFull{}) {
+tl::expected<bool, io::Error> traverse_batches(const Storage &run, F &&f, const AnyRange<uint32_t> batches = RangeFull{}) {
     visitor::FallibleVisitor<io::Error, F &> visitor(f);
 
     const Range<uint32_t> range = batches.to_range(run.size());
@@ -25,16 +25,17 @@ tl::expected<void, io::Error> traverse_batches(const Storage &run, F &&f, const 
         TRY(const Batch &batch, run.read(index));
         TRY(const bool keep_going, visitor(batch));
         if (!keep_going) {
-            break;
+            return false;
         }
     }
 
-    return {};
+    return true;
 }
 
 // Streams the run's batches one at a time, visiting every entry in order.
+// Reports whether it reached the end.
 template <typename F>
-tl::expected<void, io::Error> traverse_entries(const Storage &run, F &&f, const AnyRange<uint32_t> batches = RangeFull{}) {
+tl::expected<bool, io::Error> traverse_entries(const Storage &run, F &&f, const AnyRange<uint32_t> batches = RangeFull{}) {
     visitor::FallibleVisitor<io::Error, F &> visitor(f);
 
     return traverse_batches(run, [&](const Batch &batch) -> tl::expected<bool, io::Error> {

@@ -125,6 +125,7 @@ if(TARGET bvhbuilderlib)
         bvh_builder/lbvh.cpp
         bvh_builder/merging_receiver.cpp
         bvh_builder/merging_writer.cpp
+        bvh_builder/ploc.cpp
         bvh_builder/sort_frontier.cpp
         bvh_builder/traverse.cpp
         bvh_builder/traverse_dag.cpp

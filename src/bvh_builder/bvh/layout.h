@@ -20,6 +20,8 @@ using NodeIndex = uint32_t;
 struct Reference {
     BatchIndex batch;
     NodeIndex node;
+
+    auto operator<=>(const Reference &) const = default;
 };
 
 struct NodeHeader {
