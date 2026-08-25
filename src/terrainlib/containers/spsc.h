@@ -5,7 +5,6 @@
 #include <bit>
 #include <cstddef>
 #include <cstdint>
-#include <exception>
 #include <memory>
 #include <optional>
 #include <span>
@@ -16,7 +15,6 @@
 #include <tl/expected.hpp>
 
 #include "containers/FixedArray.h"
-#include "containers/OnceCell.h"
 #include "containers/UniqueResource.h"
 
 namespace spsc {
@@ -39,8 +37,7 @@ inline constexpr size_t cache_line = 64;
 // How far one end of the channel has got, together with the flags that end can raise.
 struct Cursor {
     static constexpr uint64_t ended = uint64_t{1} << 63;
-    static constexpr uint64_t poisoned = uint64_t{1} << 62;
-    static constexpr uint64_t count_mask = poisoned - 1;
+    static constexpr uint64_t count_mask = ended - 1;
 
     uint64_t raw = 0;
 
@@ -54,11 +51,6 @@ struct Cursor {
     [[nodiscard]]
     bool has_ended() const {
         return (this->raw & ended) != 0;
-    }
-
-    [[nodiscard]]
-    bool is_poisoned() const {
-        return (this->raw & poisoned) != 0;
     }
 };
 
@@ -110,7 +102,7 @@ struct State {
     Cursor wait_for_space(const uint64_t position) {
         Cursor observed = this->load_head(std::memory_order_acquire);
         while (position - observed.count() == this->capacity) {
-            if (observed.has_ended() || observed.is_poisoned()) {
+            if (observed.has_ended()) {
                 break;
             }
 
@@ -124,7 +116,7 @@ struct State {
     Cursor wait_for_data(const uint64_t position) {
         Cursor observed = this->load_tail(std::memory_order_acquire);
         while (observed.count() == position) {
-            if (observed.has_ended() || observed.is_poisoned()) {
+            if (observed.has_ended()) {
                 break;
             }
 
@@ -134,33 +126,12 @@ struct State {
         return observed;
     }
 
-    void set_failure(std::exception_ptr thrown) {
-        if (!this->failure.set(std::move(thrown))) {
-            return;
-        }
-
-        this->tail.fetch_or(Cursor::poisoned, std::memory_order_release);
-        this->tail.notify_all();
-        this->head.fetch_or(Cursor::poisoned, std::memory_order_release);
-        this->head.notify_all();
-    }
-
-    [[noreturn]]
-    void rethrow_failure() const {
-        const std::exception_ptr *held = this->failure.get();
-        DEBUG_ASSERT(held != nullptr, "poisoned without a failure");
-        std::rethrow_exception(*held);
-    }
-
     const size_t capacity;
     FixedArray<T> buffer;
 
     // Kept apart so that publishing does not invalidate the line the other end reads from.
     alignas(cache_line) std::atomic<uint64_t> tail = 0;
     alignas(cache_line) std::atomic<uint64_t> head = 0;
-
-    // Only the first failure is kept, whichever end poisons the channel.
-    OnceCell<std::exception_ptr> failure;
 };
 
 // Tells a blocked receiver that nothing more will be published.
@@ -200,9 +171,6 @@ public:
         uint64_t position = state.load_tail(std::memory_order_relaxed).count();
         while (!remaining.empty()) {
             const detail::Cursor head = state.wait_for_space(position);
-            if (head.is_poisoned()) {
-                state.rethrow_failure();
-            }
             if (head.has_ended()) {
                 return tl::make_unexpected(Disconnected{});
             }
@@ -229,13 +197,6 @@ public:
     // Ends the stream; dropping the sender does the same.
     void close() && {
         this->_state.reset();
-    }
-
-    // Makes every later push and pop on the channel rethrow the failure.
-    void poison(std::exception_ptr failure) {
-        DEBUG_ASSERT(this->_state.is_held(), "the sender was already closed");
-        detail::State<T> &state = *this->_state.get();
-        state.set_failure(std::move(failure));
     }
 
 private:
@@ -265,9 +226,6 @@ public:
 
         const uint64_t position = state.load_head(std::memory_order_relaxed).count();
         const detail::Cursor tail = state.wait_for_data(position);
-        if (tail.is_poisoned()) {
-            state.rethrow_failure();
-        }
 
         const size_t queued = tail.count() - position;
         const size_t count = std::min(queued, out.size());
@@ -292,11 +250,9 @@ public:
         return value;
     }
 
-    // Makes every later push and pop on the channel rethrow the failure.
-    void poison(std::exception_ptr failure) {
-        DEBUG_ASSERT(this->_state.is_held(), "the receiver was already dropped");
-        detail::State<T> &state = *this->_state.get();
-        state.set_failure(std::move(failure));
+    // Disconnects the channel; dropping the receiver does the same.
+    void close() && {
+        this->_state.reset();
     }
 
     [[nodiscard]]

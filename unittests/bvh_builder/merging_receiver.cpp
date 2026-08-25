@@ -94,16 +94,6 @@ TEST_CASE("a source longer than the prefetch is drained in order", "[merging_rec
     CHECK(drain(merging) == stream);
 }
 
-TEST_CASE("a poisoned source makes the merge throw", "[merging_receiver]") {
-    auto [senders, merging] = make_merging_channels<int, 2>(16);
-
-    REQUIRE(senders[0].push(1));
-    std::move(senders[0]).close();
-    senders[1].poison(std::make_exception_ptr(std::runtime_error("source failed")));
-
-    CHECK_THROWS_AS(merging.pop(), std::runtime_error);
-}
-
 TEST_CASE("end to end, four sorted streams merge into one", "[merging_receiver]") {
     constexpr size_t source_count = 4;
     constexpr size_t per_source = 500;

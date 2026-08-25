@@ -193,56 +193,32 @@ TEST_CASE("a batch larger than the ring is published in pieces", "[spsc_channel]
     CHECK(received == batch);
 }
 
-TEST_CASE("poison makes a later push and pop throw", "[spsc_channel]") {
+TEST_CASE("closing the receiver disconnects the channel", "[spsc_channel]") {
     auto [sender, receiver] = spsc::make_channel<uint32_t>(8);
 
-    REQUIRE(sender.push(1));
-    receiver.poison(std::make_exception_ptr(std::runtime_error("sink failed")));
+    std::move(receiver).close();
 
-    CHECK_THROWS_AS(sender.push(2), std::runtime_error);
-    CHECK_THROWS_AS(receiver.pop(), std::runtime_error);
+    CHECK_FALSE(sender.push(1).has_value());
 }
 
-TEST_CASE("poison wakes a blocked receiver", "[spsc_channel]") {
-    auto [sender, receiver] = spsc::make_channel<uint32_t>(8);
-
-    std::atomic<bool> threw = false;
-    std::thread consumer([&receiver, &threw] {
-        try {
-            const std::optional<uint32_t> value = receiver.pop();
-            CHECK_FALSE(value.has_value());
-        } catch (const std::runtime_error &) {
-            threw = true;
-        }
-    });
-
-    sender.poison(std::make_exception_ptr(std::runtime_error("aborted")));
-    consumer.join();
-
-    CHECK(threw);
-}
-
-TEST_CASE("poison wakes a blocked sender", "[spsc_channel]") {
+TEST_CASE("closing the receiver wakes a blocked sender", "[spsc_channel]") {
     auto [sender, receiver] = spsc::make_channel<uint32_t>(4);
 
-    std::atomic<bool> threw = false;
-    std::thread producer([&sender, &threw] {
-        try {
-            for (uint32_t i = 0; i < 1000; i++) {
-                if (!sender.push(i)) {
-                    return;
-                }
+    std::atomic<bool> disconnected = false;
+    std::thread producer([&sender, &disconnected] {
+        for (uint32_t i = 0; i < 1000; i++) {
+            if (!sender.push(i).has_value()) {
+                disconnected = true;
+                return;
             }
-        } catch (const std::runtime_error &) {
-            threw = true;
         }
     });
 
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    receiver.poison(std::make_exception_ptr(std::runtime_error("aborted")));
+    std::move(receiver).close();
     producer.join();
 
-    CHECK(threw);
+    CHECK(disconnected);
 }
 
 TEST_CASE("pop waits for a value instead of reporting the end", "[spsc_channel]") {
