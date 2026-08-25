@@ -14,6 +14,7 @@
 
 #include "containers/FixedArray.h"
 #include "containers/UniqueResource.h"
+#include "log.h"
 
 
 // A run of elements with some of its neighbours kept on either side.
@@ -187,7 +188,7 @@ class ChunkedRingBuffer {
 
     struct AbandonChunk {
         void operator()(RentedChunk &chunk) const noexcept {
-            DEBUG_ASSERT(false, "write lease was neither committed nor abandoned");
+            LOG_WARN("write lease was neither committed nor abandoned, aborting the stream");
             chunk.buffer->abandon_chunk(chunk.index);
         }
     };
@@ -199,9 +200,17 @@ public:
         Aborted,
     };
 
-    enum class RentError {
+    // How a stream finished.
+    enum class StreamEnd : uint8_t {
+        Completed,
+        Aborted,
+    };
+
+    // Why a rent was refused.
+    enum class RentError : uint8_t {
         WouldBlock,
         Completed,
+        Aborted,
     };
     
     ChunkedRingBuffer(const size_t chunk_size, const size_t num_chunks, const size_t padding) :
@@ -237,6 +246,7 @@ public:
             chunk.buffer->commit_chunk(chunk.index, written, true);
         }
 
+        // Aborts the stream, discarding the chunk.
         void abandon() && {
             const RentedChunk chunk = this->_chunk.take();
             chunk.buffer->abandon_chunk(chunk.index);
@@ -282,33 +292,33 @@ public:
         return this->_stream_state.load(std::memory_order_acquire);
     }
 
-    // Blocks until the ring has room. Empty once the stream has been completed.
+    // Blocks until the ring has room. Reports how the stream ended once it has.
     [[nodiscard]]
-    std::optional<WriteLease> rent_for_writing() {
+    tl::expected<WriteLease, StreamEnd> rent_for_writing() {
         while (true) {
             const uint32_t seen = this->_writable_epoch.load(std::memory_order_acquire);
-            tl::expected<WriteLease, RentError> lease = this->try_rent_for_writing();
-            if (lease.has_value()) {
-                return std::move(lease).value();
+            tl::expected<WriteLease, RentError> result = this->try_rent_for_writing();
+            if (result.has_value()) {
+                return std::move(result).value();
             }
-            if (lease.error() == RentError::Completed) {
-                return std::nullopt;
+            if (result.error() != RentError::WouldBlock) {
+                return tl::make_unexpected(get_stream_end(result.error()));
             }
             this->_writable_epoch.wait(seen, std::memory_order_acquire);
         }
     }
 
-    // Blocks until the next chunk can be read. Empty at the end of the stream.
+    // Blocks until the next chunk can be read. Reports how the stream ended once it has.
     [[nodiscard]]
-    std::optional<ReadLease> rent_for_reading() {
+    tl::expected<ReadLease, StreamEnd> rent_for_reading() {
         while (true) {
             const uint32_t seen = this->_readable_epoch.load(std::memory_order_acquire);
-            tl::expected<ReadLease, RentError> lease = this->try_rent_for_reading();
-            if (lease.has_value()) {
-                return std::move(lease).value();
+            tl::expected<ReadLease, RentError> result = this->try_rent_for_reading();
+            if (result.has_value()) {
+                return std::move(result).value();
             }
-            if (lease.error() == RentError::Completed) {
-                return std::nullopt;
+            if (result.error() != RentError::WouldBlock) {
+                return tl::make_unexpected(get_stream_end(result.error()));
             }
             this->_readable_epoch.wait(seen, std::memory_order_acquire);
         }
@@ -318,8 +328,9 @@ public:
     tl::expected<WriteLease, RentError> try_rent_for_writing() {
         size_t chunk_index = this->_next_write_chunk.load(std::memory_order_relaxed);
         while (true) {
-            if (this->_stream_state.load(std::memory_order_acquire) != StreamState::Running) {
-                return tl::make_unexpected(RentError::Completed);
+            const StreamState state = this->_stream_state.load(std::memory_order_acquire);
+            if (state != StreamState::Running) {
+                return tl::make_unexpected(get_rent_error(state));
             }
             if (!this->is_slot_free(chunk_index)) {
                 return tl::make_unexpected(RentError::WouldBlock);
@@ -330,14 +341,34 @@ public:
         }
     }
 
+    // Drops the rest of the stream, leaving both sides nothing to wait for.
+    void abort() {
+        std::unique_lock lock(this->_advance_mutex);
+        this->end_stream(StreamState::Aborted);
+        lock.unlock();
+
+        this->wake_after_write(0, true);
+    }
+
+    // Ends the stream on the chunks committed so far.
+    void complete() {
+        std::unique_lock lock(this->_advance_mutex);
+        DEBUG_ASSERT(this->_next_write_chunk.load(std::memory_order_relaxed) == this->_next_written_chunk.load(std::memory_order_relaxed), "a chunk is still rented for writing");
+        this->end_stream(StreamState::Completed);
+        lock.unlock();
+
+        this->wake_after_write(0, true);
+    }
+
     [[nodiscard]]
     tl::expected<ReadLease, RentError> try_rent_for_reading() {
         size_t chunk_index = this->_next_read_chunk.load(std::memory_order_relaxed);
         while (true) {
             const size_t written = this->_next_written_chunk.load(std::memory_order_acquire);
-            const bool ended = this->_stream_state.load(std::memory_order_acquire) != StreamState::Running;
+            const StreamState state = this->_stream_state.load(std::memory_order_acquire);
+            const bool ended = state != StreamState::Running;
             if (ended && chunk_index >= this->_final_chunk_count) {
-                return tl::make_unexpected(RentError::Completed);
+                return tl::make_unexpected(get_rent_error(state));
             }
 
             // A chunk can be read once the one after it exists, or once the stream ends on it.
@@ -353,6 +384,36 @@ public:
     }
 
 private:
+    // How a rent reports a stream that is no longer running.
+    static RentError get_rent_error(const StreamState state) noexcept {
+        DEBUG_ASSERT(state != StreamState::Running);
+        return state == StreamState::Aborted ? RentError::Aborted : RentError::Completed;
+    }
+
+    // How the stream ended, for a rent that was refused because it had.
+    static StreamEnd get_stream_end(const RentError error) noexcept {
+        DEBUG_ASSERT(error != RentError::WouldBlock);
+        return error == RentError::Aborted ? StreamEnd::Aborted : StreamEnd::Completed;
+    }
+
+    // Ends the stream after `chunk_count` chunks, of which the last holds `final_size` entries.
+    void end_stream(const StreamState state, const size_t chunk_count, const size_t final_size) {
+        DEBUG_ASSERT(state != StreamState::Running);
+        if (this->_stream_state.load(std::memory_order_relaxed) != StreamState::Running) {
+            return;
+        }
+
+        this->_final_chunk_size = final_size;
+        this->_final_chunk_count = chunk_count;
+        this->_stream_state.store(state, std::memory_order_release);
+    }
+
+    // Ends the stream on the chunks committed so far.
+    void end_stream(const StreamState state) {
+        const size_t chunk_count = this->_next_written_chunk.load(std::memory_order_relaxed);
+        this->end_stream(state, chunk_count, this->_ring.chunk_size());
+    }
+
     // A writer may take the slot once no reader can still reach into it from either side.
     bool is_slot_free(const size_t chunk_index) const noexcept {
         const size_t retired = this->_retired_read_chunk.load(std::memory_order_acquire);
@@ -398,10 +459,7 @@ private:
         std::unique_lock lock(this->_advance_mutex);
 
         if (is_final) {
-            DEBUG_ASSERT(this->_stream_state.load(std::memory_order_relaxed) == StreamState::Running, "the stream was already completed");
-            this->_final_chunk_size = written;
-            this->_final_chunk_count = chunk_index + 1;
-            this->_stream_state.store(StreamState::Completed, std::memory_order_release);
+            this->end_stream(StreamState::Completed, chunk_index + 1, written);
         }
 
         this->_slot_state[this->_ring.get_slot_index(chunk_index)] = SlotState::Written;
@@ -448,9 +506,7 @@ private:
         while (chunk_index < rented) {
             const SlotState state = this->_slot_state[this->_ring.get_slot_index(chunk_index)];
             if (state == SlotState::Abandoned) {
-                this->_final_chunk_size = this->_ring.chunk_size();
-                this->_final_chunk_count = chunk_index;
-                this->_stream_state.store(StreamState::Aborted, std::memory_order_release);
+                this->end_stream(StreamState::Aborted, chunk_index, this->_ring.chunk_size());
                 break;
             }
             if (state != SlotState::Written) {

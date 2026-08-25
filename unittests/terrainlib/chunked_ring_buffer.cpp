@@ -26,7 +26,7 @@ void fill_chunk(const std::span<uint32_t> data, const size_t index, const size_t
 }
 
 void write_chunk(Buffer &buffer, const size_t index) {
-    std::optional<Buffer::WriteLease> lease = buffer.rent_for_writing();
+    auto lease = buffer.rent_for_writing();
     REQUIRE(lease.has_value());
 
     fill_chunk(lease->span(), index, lease->span().size());
@@ -34,7 +34,7 @@ void write_chunk(Buffer &buffer, const size_t index) {
 }
 
 void write_final_chunk(Buffer &buffer, const size_t index, const size_t size) {
-    std::optional<Buffer::WriteLease> lease = buffer.rent_for_writing();
+    auto lease = buffer.rent_for_writing();
     REQUIRE(lease.has_value());
 
     fill_chunk(lease->span(), index, size);
@@ -52,7 +52,7 @@ void try_write_chunk(Buffer &buffer, const size_t index) {
 
 // Ends the stream at the chunk before `index`, as a producer that cannot continue would.
 void abandon_chunk(Buffer &buffer, const size_t index) {
-    std::optional<Buffer::WriteLease> lease = buffer.rent_for_writing();
+    auto lease = buffer.rent_for_writing();
     REQUIRE(lease.has_value());
     REQUIRE(lease->chunk_index() == index);
 
@@ -61,7 +61,7 @@ void abandon_chunk(Buffer &buffer, const size_t index) {
 
 // Reads and immediately retires the next chunk.
 void skip_chunk(Buffer &buffer, const size_t index) {
-    const std::optional<Buffer::ReadLease> lease = buffer.rent_for_reading();
+    const auto lease = buffer.rent_for_reading();
     REQUIRE(lease.has_value());
     REQUIRE(lease->chunk_index() == index);
 }
@@ -72,7 +72,7 @@ TEST_CASE("ChunkedRingBuffer returns the elements that were written", "[chunked_
     Buffer buffer(4, 4, 0);
     write_final_chunk(buffer, 0, 4);
 
-    const std::optional<Buffer::ReadLease> lease = buffer.rent_for_reading();
+    const auto lease = buffer.rent_for_reading();
     REQUIRE(lease.has_value());
     CHECK(lease->chunk_index() == 0);
     CHECK(lease->view().size() == 4);
@@ -87,7 +87,7 @@ TEST_CASE("ChunkedRingBuffer gives an interior chunk its neighbours as halo", "[
 
     skip_chunk(buffer, 0);
 
-    const std::optional<Buffer::ReadLease> lease = buffer.rent_for_reading();
+    const auto lease = buffer.rent_for_reading();
     REQUIRE(lease.has_value());
     CHECK(lease->view().left_padding() == 2);
     CHECK(lease->view().right_padding() == 2);
@@ -102,7 +102,7 @@ TEST_CASE("ChunkedRingBuffer gives the first chunk no left halo", "[chunked_ring
     write_chunk(buffer, 0);
     write_final_chunk(buffer, 1, 4);
 
-    const std::optional<Buffer::ReadLease> lease = buffer.rent_for_reading();
+    const auto lease = buffer.rent_for_reading();
     REQUIRE(lease.has_value());
     CHECK(lease->view().left_padding() == 0);
     CHECK(lease->view().right_padding() == 2);
@@ -116,7 +116,7 @@ TEST_CASE("ChunkedRingBuffer gives the final chunk no right halo", "[chunked_rin
 
     skip_chunk(buffer, 0);
 
-    const std::optional<Buffer::ReadLease> lease = buffer.rent_for_reading();
+    const auto lease = buffer.rent_for_reading();
     REQUIRE(lease.has_value());
     CHECK(lease->view().left_padding() == 2);
     CHECK(lease->view().right_padding() == 0);
@@ -128,7 +128,7 @@ TEST_CASE("ChunkedRingBuffer gives a single chunk stream no halo at all", "[chun
     Buffer buffer(4, 4, 2);
     write_final_chunk(buffer, 0, 3);
 
-    const std::optional<Buffer::ReadLease> lease = buffer.rent_for_reading();
+    const auto lease = buffer.rent_for_reading();
     REQUIRE(lease.has_value());
     CHECK(lease->view().left_padding() == 0);
     CHECK(lease->view().right_padding() == 0);
@@ -140,7 +140,7 @@ TEST_CASE("ChunkedRingBuffer shortens the halo before a final chunk shorter than
     write_chunk(buffer, 0);
     write_final_chunk(buffer, 1, 1);
 
-    const std::optional<Buffer::ReadLease> lease = buffer.rent_for_reading();
+    const auto lease = buffer.rent_for_reading();
     REQUIRE(lease.has_value());
     CHECK(lease->chunk_index() == 0);
     CHECK(lease->view().right_padding() == 1);
@@ -162,7 +162,7 @@ TEST_CASE("ChunkedRingBuffer keeps the halo of the last slot across a wrap", "[c
     skip_chunk(buffer, 2);
 
     // Chunk 3 sits in the last slot, so its right halo is the copy after the ring.
-    const std::optional<Buffer::ReadLease> lease = buffer.rent_for_reading();
+    const auto lease = buffer.rent_for_reading();
     REQUIRE(lease.has_value());
     CHECK(lease->chunk_index() == 3);
     CHECK(std::ranges::equal(lease->view().span(), std::vector<uint32_t>{11, 12, 13, 14, 15, 16, 17, 18}));
@@ -183,7 +183,7 @@ TEST_CASE("ChunkedRingBuffer keeps the halo of the first slot across a wrap", "[
     write_final_chunk(buffer, 5, 4);
 
     // Chunk 4 sits in the first slot, so its left halo is the copy before the ring.
-    const std::optional<Buffer::ReadLease> lease = buffer.rent_for_reading();
+    const auto lease = buffer.rent_for_reading();
     REQUIRE(lease.has_value());
     CHECK(lease->chunk_index() == 4);
     CHECK(std::ranges::equal(lease->view().span(), std::vector<uint32_t>{15, 16, 17, 18, 19, 20, 21, 22}));
@@ -217,7 +217,7 @@ TEST_CASE("ChunkedRingBuffer ends the stream at an abandoned chunk", "[chunked_r
     skip_chunk(buffer, 0);
 
     // Chunk 1 is the last one the stream ever had, so it gets no right halo.
-    const std::optional<Buffer::ReadLease> last = buffer.rent_for_reading();
+    const auto last = buffer.rent_for_reading();
     REQUIRE(last.has_value());
     CHECK(last->chunk_index() == 1);
     CHECK(last->view().size() == 4);
@@ -273,7 +273,7 @@ TEST_CASE("ChunkedRingBuffer holds back a chunk whose successor is still being w
 
     skip_chunk(buffer, 0);
     skip_chunk(buffer, 1);
-    const std::optional<Buffer::ReadLease> last = buffer.rent_for_reading();
+    const auto last = buffer.rent_for_reading();
     REQUIRE(last.has_value());
     CHECK(last->chunk_index() == 2);
     CHECK(!buffer.rent_for_reading().has_value());
@@ -292,7 +292,7 @@ TEST_CASE("ChunkedRingBuffer passes a whole stream through a ring that holds it"
 
     std::vector<uint32_t> read;
     size_t expected_index = 0;
-    while (const std::optional<Buffer::ReadLease> lease = buffer.rent_for_reading()) {
+    while (const auto lease = buffer.rent_for_reading()) {
         REQUIRE(lease->chunk_index() == expected_index);
         std::ranges::copy(lease->view().data(), std::back_inserter(read));
         expected_index++;
@@ -327,7 +327,7 @@ TEST_CASE("ChunkedRingBuffer passes a stream from a producer to three consumers"
     std::vector<std::thread> consumers;
     for (size_t i = 0; i < 3; i++) {
         consumers.emplace_back([&] {
-            while (const std::optional<Buffer::ReadLease> lease = buffer.rent_for_reading()) {
+            while (const auto lease = buffer.rent_for_reading()) {
                 const size_t index = lease->chunk_index();
                 const bool is_final = index + 1 == chunk_count;
                 const size_t successor_size = index + 2 == chunk_count ? final_size : chunk_size;
@@ -362,9 +362,9 @@ TEST_CASE("ChunkedRingBuffer releases a parked writer when the stream ends", "[c
     // A ring of three holds two chunks before a writer has to wait for a reader.
     Buffer buffer(4, 3, 0);
 
-    std::optional<Buffer::WriteLease> first = buffer.rent_for_writing();
+    auto first = buffer.rent_for_writing();
     REQUIRE(first.has_value());
-    std::optional<Buffer::WriteLease> second = buffer.rent_for_writing();
+    auto second = buffer.rent_for_writing();
     REQUIRE(second.has_value());
 
     std::future<bool> parked = std::async(std::launch::async, [&buffer] {
