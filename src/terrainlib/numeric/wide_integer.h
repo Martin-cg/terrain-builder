@@ -15,6 +15,7 @@ using wide_limb_t = std::uint64_t;
 using wide_limb_t = std::uint32_t;
 #endif
 
+// zpp bits serialization
 #include <fmt/ostream.h>
 template <auto Width, typename LimbType, typename AllocatorType, bool IsSigned>
 struct fmt::formatter<::math::wide_integer::uintwide_t<Width, LimbType, AllocatorType, IsSigned>> : fmt::ostream_formatter {};
@@ -64,3 +65,15 @@ constexpr auto serialize(Archive &archive, uintwide_t<Width, LimbType, Allocator
 }
 
 }
+
+// is_wide_integer
+template <typename T>
+struct is_wide_integer : std::false_type {};
+
+template <auto Width, typename Limb, typename Allocator, bool Signed>
+struct is_wide_integer<
+    math::wide_integer::uintwide_t<Width, Limb, Allocator, Signed>>
+    : std::true_type {};
+
+template <typename T>
+inline constexpr bool is_wide_integer_v = is_wide_integer<std::remove_cvref_t<T>>::value;

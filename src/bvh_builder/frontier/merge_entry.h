@@ -4,20 +4,56 @@
 #include <cstddef>
 #include <ranges>
 #include <span>
+#include <utility>
 #include <vector>
 
-#include "range_utils.h"
+#include <tl/expected.hpp>
 
+#include "io/Error.h"
+#include "range_utils.h"
+#include "try.h"
+
+#include "bvh/BatchWriter.h"
 #include "bvh/layout.h"
 #include "bvh/utils.h"
 #include "frontier/layout.h"
 
 namespace frontier {
 
+namespace detail {
+
+// Writes the parent of both entries and returns it, at the code `compute_morton` gives it.
+template <typename F>
+inline tl::expected<Entry, io::Error> merge_entries(bvh::BatchWriter &sink, F &&compute_morton, const Entry &left, const Entry &right) {
+    const std::array children{left, right};
+    auto child_headers = std::views::transform(children, &Entry::header);
+    auto child_refs = std::views::transform(children, &Entry::ref);
+
+    bvh::NodeHeader header = bvh::merge_headers(child_headers);
+    TRY(const bvh::Reference ref, sink.write_inner(header, child_refs));
+    return Entry{
+        .morton = compute_morton(header),
+        .header = std::move(header),
+        .ref = ref,
+    };
+}
+
+} // namespace detail
+
+// Writes the parent of both entries and returns it, at `morton`.
+inline tl::expected<Entry, io::Error> merge_entries(bvh::BatchWriter &sink, const morton::Code morton, const Entry &left, const Entry &right) {
+    return detail::merge_entries(sink, [morton](const bvh::NodeHeader &) { return morton; }, left, right);
+}
+
+// Writes the parent of both entries and returns it, at the code of its own bounds.
+inline tl::expected<Entry, io::Error> merge_entries(bvh::BatchWriter &sink, const bvh::Bounds &scene, const Entry &left, const Entry &right) {
+    return detail::merge_entries(sink, [&scene](const bvh::NodeHeader &h) { return morton::encode(scene, h); }, left, right);
+}
+
 // Merge two frontier entries into an inner node in a batch.
-inline bvh::NodeIndex make_inner_node(bvh::Batch &batch, const morton::Code morton, const Entry &a, const Entry &b) {
+inline bvh::NodeIndex make_inner_node(bvh::Batch &batch, const Entry &a, const Entry &b) {
     const bvh::NodeHeader header = bvh::merge_headers(std::array{a.header, b.header});
-    const bvh::NodeIndex node_index = bvh::make_inner_node(batch, header, std::array{a.ref, b.ref});
+    const bvh::NodeIndex node_index = batch.add_inner_node(header, std::array{a.ref, b.ref});
     return node_index;
 }
 
@@ -26,15 +62,15 @@ template <std::ranges::forward_range R>
 inline bvh::NodeIndex make_inner_node(bvh::Batch &batch, R &&entries) {
     const auto child_headers = entries | std::views::transform(&Entry::header);
     const bvh::NodeHeader header = bvh::merge_headers(child_headers);
-    const auto child_eferences = entries | std::views::transform(&Entry::ref);
-    const bvh::NodeIndex node_index = bvh::make_inner_node(batch, header, child_references);
+    const auto child_references = entries | std::views::transform(&Entry::ref);
+    const bvh::NodeIndex node_index = batch.add_inner_node(header, child_references);
     return node_index;
 }
 
 // Merge two frontier entries into an inner node in a batch.
 inline Entry merge_entries(bvh::Batch &batch, const bvh::BatchIndex batch_index, const morton::Code morton, const Entry &a, const Entry &b) {
     const bvh::NodeHeader header = bvh::merge_headers(std::array{a.header, b.header});
-    const bvh::NodeIndex node_index = bvh::make_inner_node(batch, header, std::array{a.ref, b.ref});
+    const bvh::NodeIndex node_index = batch.add_inner_node(header, std::array{a.ref, b.ref});
 
     return Entry{
         .morton = morton,
@@ -49,7 +85,7 @@ inline Entry merge_entries(bvh::Batch &batch, const bvh::BatchIndex batch_index,
     const auto child_headers = entries | std::views::transform(&Entry::header);
     const bvh::NodeHeader header = bvh::merge_headers(child_headers);
     const auto references = entries | std::views::transform(&Entry::ref);
-    const bvh::NodeIndex node_index = bvh::make_inner_node(batch, header, references);
+    const bvh::NodeIndex node_index = batch.add_inner_node(header, references);
 
     return Entry{
         .morton = morton,
