@@ -136,23 +136,23 @@ public:
     }
 
     [[nodiscard]]
-    const Resource &get() const noexcept {
-        DEBUG_ASSERT(this->is_held(), "nothing held by an empty resource");
-        return *this->_storage;
+    auto &get(this auto &&self) noexcept {
+        DEBUG_ASSERT(self.is_held(), "nothing held by an empty resource");
+        return *self._storage;
     }
 
-    auto operator->() const noexcept {
+    auto operator->(this auto &&self) noexcept {
         if constexpr (std::is_pointer_v<Resource>) {
-            return this->get();
+            return self.get();
         } else {
-            return &this->get();
+            return &self.get();
         }
     }
 
-    auto &operator*() const noexcept
+    auto &operator*(this auto &&self) noexcept
         requires std::is_pointer_v<Resource>
     {
-        return *this->get();
+        return *self.get();
     }
 
 private:
