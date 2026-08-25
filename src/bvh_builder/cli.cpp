@@ -48,7 +48,7 @@ Args cli::parse(int argc, const char *const *argv) {
 
     app.add_option("--verbosity", args.log_level, "Verbosity level of logging")
         ->transform(CLI::CheckedTransformer(log_level_names, CLI::ignore_case))
-        ->default_val(args.log_level);
+        ->default_val("info");
 
     try {
         app.parse(argc, argv);
