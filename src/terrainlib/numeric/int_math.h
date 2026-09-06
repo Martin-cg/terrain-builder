@@ -83,6 +83,30 @@ template <std::integral A, std::integral B>
     }
 }
 
+// Signed division rounded to the nearest integer, with halves going away from zero.
+template <typename T>
+[[nodiscard]] constexpr T int_div_round(T numerator, T denominator) noexcept {
+    DEBUG_ASSERT(denominator != 0);
+
+    if (denominator < 0) {
+        numerator = -numerator;
+        denominator = -denominator;
+    }
+
+    const bool negative = numerator < 0;
+    const T magnitude = negative ? -numerator : numerator;
+
+    T quotient = magnitude / denominator;
+    const T remainder = magnitude % denominator;
+
+    // Comparing without doubling the remainder keeps a near-maximal denominator from overflowing.
+    if (remainder >= denominator - remainder) {
+        quotient++;
+    }
+
+    return negative ? -quotient : quotient;
+}
+
 namespace detail {
 template <std::integral T>
 [[nodiscard]] constexpr bool add_overflow_fallback(const T lhs, const T rhs, T &result) noexcept {

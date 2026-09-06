@@ -2,19 +2,37 @@
 
 #include <cassert>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <type_traits>
 
+#include "numeric/number_types.h"
+
 namespace fixed {
+
+namespace detail {
+
+// `a * b / c` rounded to nearest, formed at the width a product of `FractionBits`-scaled values needs.
+template <int FractionBits, typename T>
+[[nodiscard]] constexpr T mul_div_round(const T a, const T b, const T c) noexcept {
+    constexpr std::size_t product_bits = std::numeric_limits<T>::digits + FractionBits + 1;
+    using wide = typename integer_for_width<storage_bits_v<product_bits>, std::is_signed_v<T>>::type;
+
+    const wide wide_a = a;
+    const wide wide_b = b;
+    const wide wide_c = c;
+    return static_cast<T>(int_div_round<wide>(wide_a * wide_b, wide_c));
+}
+
+} // namespace detail
 
 template <int FractionBits, class Rep = std::int64_t>
 struct Q {
     static_assert(std::is_signed_v<Rep>);
     static_assert(FractionBits > 0);
 
-    // Keep headroom for intermediate signed arithmetic.
-    static_assert(FractionBits < std::numeric_limits<Rep>::digits - 2);
+    static_assert(FractionBits < std::numeric_limits<Rep>::digits);
 
     using repr_t = Rep;
 
@@ -39,37 +57,14 @@ struct Q {
         return double(value) / double(scale);
     }
 
-    // Signed integer division rounded to the nearest integer.
-    static constexpr repr_t round_div(repr_t numerator, repr_t denominator) noexcept {
-        assert(denominator != 0);
-
-        if (denominator < 0) {
-            numerator = -numerator;
-            denominator = -denominator;
-        }
-
-        const bool negative = numerator < 0;
-        const repr_t n = negative ? -numerator : numerator;
-
-        repr_t quotient = n / denominator;
-        const repr_t remainder = n % denominator;
-
-        if (remainder * 2 >= denominator) {
-            ++quotient;
-        }
-
-        return negative ? -quotient : quotient;
-    }
-
     // Multiplies two fixed-point values and rescales the result.
     static constexpr repr_t mul(repr_t a, repr_t b) noexcept {
-        return round_div(a * b, scale);
+        return detail::mul_div_round<FractionBits>(a, b, scale);
     }
 
     // Divides two fixed-point values while preserving fixed-point scale.
     static constexpr repr_t div(repr_t a, repr_t b) noexcept {
-        assert(b != 0);
-        return round_div(a * scale, b);
+        return detail::mul_div_round<FractionBits>(a, scale, b);
     }
 };
 

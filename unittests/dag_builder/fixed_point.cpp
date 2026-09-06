@@ -5,30 +5,6 @@
 #include "fixed.h"
 #include "fixed_point.h"
 
-TEST_CASE("round_div rounds half away from zero", "[dag_builder][fixed_point]") {
-    using Q = fixed::Q<16>;
-
-    // Positive half rounds up
-    CHECK(Q::round_div(1, 2) == 1);
-    CHECK(Q::round_div(3, 2) == 2);
-
-    // Negative half rounds away from zero (down in absolute value)
-    CHECK(Q::round_div(-1, 2) == -1);
-    CHECK(Q::round_div(-3, 2) == -2);
-
-    // Below half rounds down
-    CHECK(Q::round_div(7, 3) == 2);
-    CHECK(Q::round_div(-7, 3) == -2);
-
-    // Above half rounds up
-    CHECK(Q::round_div(7, 4) == 2);
-    CHECK(Q::round_div(-7, 4) == -2);
-
-    // Negative denominator normalizes correctly
-    CHECK(Q::round_div(7, -4) == Q::round_div(-7, 4));
-    CHECK(Q::round_div(-7, -4) == Q::round_div(7, 4));
-}
-
 TEST_CASE("fixed::Q mul performs fixed-point multiplication with rounding", "[dag_builder][fixed_point]") {
     using Q = fixed::Q<16>;
 
@@ -71,6 +47,29 @@ TEST_CASE("fixed::Q div performs fixed-point division with rounding", "[dag_buil
     const auto two = Q::from_integer(2).value;
     const auto half = Q::div(one, two);
     CHECK(half == Q::from_real(0.5).value);
+}
+
+TEST_CASE("fixed::Q mul is exact where a narrow product would overflow", "[dag_builder][fixed_point]") {
+    using Q = fixed::Q<10, std::int64_t>;
+
+    // Squaring an Earth-scale coordinate reaches ~4.3e19 before the rescale, against an int64 max of 9.2e18.
+    const std::int64_t earth_scale = Q::from_integer(6400000).value;
+    const std::int64_t expected = Q::from_integer(6400000LL * 6400000LL).value;
+
+    CHECK(Q::mul(earth_scale, earth_scale) == expected);
+    CHECK(Q::mul(-earth_scale, earth_scale) == -expected);
+    CHECK(Q::mul(-earth_scale, -earth_scale) == expected);
+}
+
+TEST_CASE("fixed::Q div is exact where a narrow numerator would overflow", "[dag_builder][fixed_point]") {
+    using Q = fixed::Q<10, std::int64_t>;
+
+    // Scaling this numerator by 1024 reaches ~1.0e19, past the int64 max.
+    const std::int64_t numerator = 10000000000000000LL;
+    const std::int64_t two = Q::from_integer(2).value;
+
+    CHECK(Q::div(numerator, two) == numerator / 2);
+    CHECK(Q::div(-numerator, two) == -(numerator / 2));
 }
 
 TEST_CASE("fp::orient detects triangle winding and collinearity", "[dag_builder][fixed_point]") {
