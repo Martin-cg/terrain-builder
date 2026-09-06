@@ -72,6 +72,27 @@ TEST_CASE("fixed::Q div is exact where a narrow numerator would overflow", "[dag
     CHECK(Q::div(-numerator, two) == -(numerator / 2));
 }
 
+TEST_CASE("fixed::Q from_real rounds in the requested direction", "[dag_builder][fixed_point]") {
+    using Q = fixed::Q<10, std::int64_t>;
+
+    // 1.5 grid steps, so the three modes disagree.
+    const double between = 1.5 / static_cast<double>(Q::scale);
+    CHECK(Q::from_real(between).value == 2);
+    CHECK(Q::from_real<std::round_to_nearest>(between).value == 2);
+    CHECK(Q::from_real<std::round_toward_neg_infinity>(between).value == 1);
+    CHECK(Q::from_real<std::round_toward_infinity>(between).value == 2);
+
+    // Negative values round toward the named infinity, not toward zero.
+    CHECK(Q::from_real<std::round_toward_neg_infinity>(-between).value == -2);
+    CHECK(Q::from_real<std::round_toward_infinity>(-between).value == -1);
+
+    // A value already on the grid is fixed under every mode.
+    const double on_grid = 4.0 / static_cast<double>(Q::scale);
+    CHECK(Q::from_real<std::round_to_nearest>(on_grid).value == 4);
+    CHECK(Q::from_real<std::round_toward_neg_infinity>(on_grid).value == 4);
+    CHECK(Q::from_real<std::round_toward_infinity>(on_grid).value == 4);
+}
+
 TEST_CASE("fp::orient detects triangle winding and collinearity", "[dag_builder][fixed_point]") {
     using Q = fixed::Q<16>;
     using FixedPoint = fp::Vec2<Q>;

@@ -1,9 +1,25 @@
 #pragma once
 
 #include <cmath>
+#include <limits>
 #include <type_traits>
 
 #include <glm/glm.hpp>
+
+template <std::float_round_style Rounding, typename T>
+T round_by_style(const T x) {
+    if constexpr (Rounding == std::round_toward_neg_infinity) {
+        return std::floor(x);
+    } else if constexpr (Rounding == std::round_toward_infinity) {
+        return std::ceil(x);
+    } else if constexpr (Rounding == std::round_toward_zero) {
+        return std::trunc(x);
+    } else if constexpr (Rounding == std::round_indeterminate) {
+        return std::nearbyint(x);
+    } else {
+        return std::round(x);
+    }
+}
 
 template <typename T>
 T quantize_round(const T x, const T epsilon) {

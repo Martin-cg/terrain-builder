@@ -8,6 +8,7 @@
 #include <type_traits>
 
 #include "numeric/number_types.h"
+#include "numeric/quantize.h"
 
 namespace fixed {
 
@@ -47,9 +48,11 @@ struct Q {
         return Q{x * scale};
     }
 
-    // Converts a floating-point coordinate to the nearest fixed-point value.
+    // Converts a floating-point coordinate to a fixed-point value, rounded in `Rounding`'s direction.
+    template <std::float_round_style Rounding = std::round_to_nearest>
     static Q from_real(double x) {
-        return Q{static_cast<repr_t>(std::llround(x * double(scale)))};
+        const double scaled = x * static_cast<double>(scale);
+        return Q{static_cast<repr_t>(round_by_style<Rounding>(scaled))};
     }
 
     // Converts fixed-point storage back to floating-point form.

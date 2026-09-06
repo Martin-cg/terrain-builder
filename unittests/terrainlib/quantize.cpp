@@ -4,6 +4,38 @@
 #include "../catch2_helpers.h"
 #include "numeric/quantize.h"
 
+TEST_CASE("round_by_style rounds in each direction", "[quantize]") {
+    CHECK(round_by_style<std::round_toward_neg_infinity>(1.5) == 1.0);
+    CHECK(round_by_style<std::round_toward_infinity>(1.5) == 2.0);
+    CHECK(round_by_style<std::round_toward_zero>(1.5) == 1.0);
+    CHECK(round_by_style<std::round_to_nearest>(1.5) == 2.0);
+
+    CHECK(round_by_style<std::round_toward_neg_infinity>(-1.5) == -2.0);
+    CHECK(round_by_style<std::round_toward_infinity>(-1.5) == -1.0);
+    CHECK(round_by_style<std::round_toward_zero>(-1.5) == -1.0);
+    CHECK(round_by_style<std::round_to_nearest>(-1.5) == -2.0);
+}
+
+TEST_CASE("round_by_style leaves whole values alone", "[quantize]") {
+    CHECK(round_by_style<std::round_toward_neg_infinity>(4.0) == 4.0);
+    CHECK(round_by_style<std::round_toward_infinity>(4.0) == 4.0);
+    CHECK(round_by_style<std::round_toward_zero>(-4.0) == -4.0);
+    CHECK(round_by_style<std::round_to_nearest>(-4.0) == -4.0);
+}
+
+TEST_CASE("round_by_style brackets the true value", "[quantize]") {
+    for (int step = -2000; step <= 2000; step++) {
+        const double x = static_cast<double>(step) * 0.37;
+
+        const double floored = round_by_style<std::round_toward_neg_infinity>(x);
+        const double ceiled = round_by_style<std::round_toward_infinity>(x);
+
+        REQUIRE(floored <= x);
+        REQUIRE(ceiled >= x);
+        REQUIRE(ceiled - floored <= 1.0);
+    }
+}
+
 TEST_CASE("quantize_floor scalar", "[quantize]") {
     CHECK(quantize_floor(3, 2) == 2);
     CHECK(quantize_floor(-2, 2) == -2);
