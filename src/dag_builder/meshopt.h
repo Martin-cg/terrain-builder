@@ -134,12 +134,12 @@ inline BuildMeshletsResult build_meshlets(
 
     // Compute maximum number of meshlets needed
     const size_t index_count = indices.size();
-    const uint32_t max_meshlets = meshopt_buildMeshletsBound(index_count, max_vertices, max_triangles);
+    const uint32_t max_meshlets = meshopt_buildMeshletsBound(index_count, max_vertices, min_triangles);
 
     // Allocate buffers
     std::vector<meshopt_Meshlet> meshlets(max_meshlets);
-    std::vector<uint32_t> meshlet_vertices(max_meshlets * max_vertices);
-    std::vector<glm::tvec3<uint8_t>> meshlet_triangles(max_meshlets * max_triangles);
+    std::vector<uint32_t> meshlet_vertices(index_count);
+    std::vector<glm::tvec3<uint8_t>> meshlet_triangles(triangles.size());
     std::span<uint8_t> meshlet_indices = flatten(meshlet_triangles);
 
     // Build meshlets
@@ -150,7 +150,7 @@ inline BuildMeshletsResult build_meshlets(
         indices.data(),
         index_count,
         positions_flat.data(),
-        meshlet_vertices.size(),
+        positions.size(),
         sizeof(glm::vec3),
         max_vertices,
         min_triangles,
