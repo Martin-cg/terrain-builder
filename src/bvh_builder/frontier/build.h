@@ -8,7 +8,7 @@
 
 #include "io/Error.h"
 
-#include "batch_limits.h"
+#include "storage/batch_limits.h"
 #include "bvh/Storage.h"
 #include "bvh/flat_traverse.h"
 #include "bvh/layout.h"

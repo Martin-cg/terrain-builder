@@ -20,7 +20,7 @@
 #include "frontier/traverse.h"
 #include "frontier/layout.h"
 #include "frontier/Storage.h"
-#include "batch_limits.h"
+#include "storage/batch_limits.h"
 #include "try.h"
 
 namespace frontier {

@@ -5,7 +5,7 @@
 
 #include <tl/expected.hpp>
 
-#include "BaseStorage.h"
+#include "storage/BaseStorage.h"
 #include "bvh/layout.h"
 #include "io/Error.h"
 #include "log.h"
@@ -16,6 +16,8 @@ class Storage : private BaseStorage {
     using Base = BaseStorage;
 
 public:
+    using Batch = bvh::Batch;
+
     explicit Storage(std::filesystem::path directory) : Base(std::move(directory)) {}
 
     Storage(const Storage &) = delete;
@@ -35,11 +37,11 @@ public:
     tl::expected<void, io::Error> write(const Batch &batch) const {
         ASSERT(batch.index() < this->size());
         this->mark_dirty();
-        return io::write_to_path(batch, this->batch_path(batch.index()));
+        return io::write_to_path(batch, this->get_batch_path(batch.index()));
     }
 
     tl::expected<Batch, io::Error> read(const uint32_t index) const {
-        auto result = io::read_from_path<Batch>(this->batch_path(index));
+        auto result = io::read_from_path<Batch>(this->get_batch_path(index));
         if (result) {
             ASSERT(result->index() == index);
         }

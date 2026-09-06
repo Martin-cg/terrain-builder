@@ -26,7 +26,7 @@
 #include "try.h"
 #include "WorkerGroup.h"
 
-#include "batch_limits.h"
+#include "storage/batch_limits.h"
 #include "build/merge_cost.h"
 #include "bvh/BatchWriter.h"
 #include "bvh/Storage.h"

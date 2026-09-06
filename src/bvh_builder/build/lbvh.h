@@ -16,7 +16,7 @@
 #include "numeric/wide_integer.h"
 #include "try.h"
 
-#include "batch_limits.h"
+#include "storage/batch_limits.h"
 #include "bvh/BatchWriter.h"
 #include "bvh/Storage.h"
 #include "bvh/layout.h"

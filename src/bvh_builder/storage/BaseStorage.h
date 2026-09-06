@@ -19,7 +19,7 @@ public:
     };
 
     explicit BaseStorage(std::filesystem::path directory) : _directory(std::move(directory)) {
-        const auto stored = io::read_from_path<Index>(this->index_path());
+        const auto stored = io::read_from_path<Index>(this->get_index_path());
         if (stored) {
             this->_next.store(stored->batch_count);
         }
@@ -58,7 +58,7 @@ public:
             .batch_count = this->_next.load(),
         };
 
-        auto result = io::write_to_path(index, this->index_path());
+        auto result = io::write_to_path(index, this->get_index_path());
         if (result) {
             this->_dirty = false;
         }
@@ -79,12 +79,12 @@ protected:
         this->_dirty = true;
     }
 
-    std::filesystem::path batch_path(const uint32_t index) const {
+    std::filesystem::path get_batch_path(const uint32_t index) const {
         return this->_directory / fmt::format("batch-{:08}.bin", index);
     }
 
 private:
-    std::filesystem::path index_path() const {
+    std::filesystem::path get_index_path() const {
         return this->_directory / "index.bin";
     }
 
