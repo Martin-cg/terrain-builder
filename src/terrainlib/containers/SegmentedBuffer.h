@@ -76,6 +76,11 @@ public:
         this->resize_last_segment(size, value);
     }
 
+    // Adds a new segment holding no elements.
+    void push_empty_segment() {
+        this->push_new_segment(index_type{0});
+    }
+
     // Pushes a new segment and copies all elements from a container into it.
     template <std::ranges::input_range Range>
     void push_new_segment(const Range& range) {
@@ -119,6 +124,23 @@ public:
         const segment_index last_segment = this->segment_count() - 1;
         this->_offsets.set_end(last_segment, this->total_size());
         this->_offsets.append_segment(0);
+    }
+
+    // Removes the last segment and the elements it holds.
+    void pop_segment() {
+        this->pop_segments(1);
+    }
+
+    // Removes multiple segments, counted from the last one, and the elements they hold.
+    void pop_segments(const segment_index count) {
+        // Emptying the buffer leaves it as construction does, with one segment nobody asked for.
+        if (count == this->segment_count()) {
+            this->reset();
+            return;
+        }
+
+        this->_offsets.pop_segments(count);
+        this->_data.resize(this->_offsets.total_size());
     }
 
     // Removes all empty segments while preserving the order of non-empty segments.

@@ -2,10 +2,13 @@
 
 #include <cstdint>
 #include <limits>
+#include <span>
+#include <variant>
 #include <vector>
 
 #include <radix/geometry.h>
 
+#include "variant_utils.h"
 #include "zpp_bits_utils.h"
 
 #include "dag_id.h"
@@ -47,6 +50,47 @@ struct Node {
     }
 };
 
+class NodeView {
+public:
+    using Children = std::span<const Reference>;
+    using Contents = std::variant<Children, dag::Id>;
+
+    NodeView(const NodeHeader &header, const Contents contents)
+        : _header(header), _contents(contents) {}
+
+    const NodeHeader &header() const {
+        return this->_header;
+    }
+
+    bool is_leaf() const {
+        return std::holds_alternative<dag::Id>(this->_contents);
+    }
+
+    bool is_inner() const {
+        return !this->is_leaf();
+    }
+
+    Children children() const {
+        DEBUG_ASSERT(this->is_inner());
+        return std::get<Children>(this->_contents);
+    }
+
+    dag::Id leaf() const {
+        DEBUG_ASSERT(this->is_leaf());
+        return std::get<dag::Id>(this->_contents);
+    }
+
+    // Calls whichever of `visitors` matches what the node holds.
+    template <typename... F>
+    decltype(auto) visit(F &&...visitors) const {
+        return match(this->_contents, std::forward<F>(visitors)...);
+    }
+
+private:
+    NodeHeader _header;
+    Contents _contents;
+};
+
 class Batch {
 public:
     static constexpr BatchIndex unbound_index = std::numeric_limits<BatchIndex>::max();
@@ -65,13 +109,39 @@ public:
     std::span<const Node> nodes() const {
         return this->_nodes;
     }
+    const Node &node(const NodeIndex index) const {
+        DEBUG_ASSERT(index < this->_nodes.size());
+        return this->_nodes[index];
+    }
 
     std::span<const Reference> children() const {
         return this->_children;
     }
+    std::span<const Reference> children(const NodeIndex start, const NodeIndex count) const {
+        DEBUG_ASSERT(start + count <= this->_children.size());
+        return std::span<const Reference>{this->_children}.subspan(start, count);
+    }
 
     std::span<const dag::Id> leaves() const {
         return this->_leaves;
+    }
+    const dag::Id& leaf(const NodeIndex index) const {
+        DEBUG_ASSERT(index < this->_leaves.size());
+        return this->_leaves[index];
+    }
+
+    NodeView resolve(const Node &node) const {
+        if (node.is_leaf()) {
+            return NodeView{node.header, this->leaf(node.child_start)};
+        } else {
+            return NodeView{node.header, this->children(node.child_start, node.child_count)};
+        }
+    }
+
+    // Calls whichever of `visitors` matches what `node` holds.
+    template <typename... F>
+    decltype(auto) visit(const Node &node, F &&...visitors) const {
+        return this->resolve(node).visit(std::forward<F>(visitors)...);
     }
 
     NodeIndex add_leaf_node(NodeHeader header, const dag::Id id) {

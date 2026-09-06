@@ -189,3 +189,68 @@ TEST_CASE("OffsetTable clear then re-add elements") {
     CHECK(r1.begin == 4);
     CHECK(r1.end == 10);
 }
+
+TEST_CASE("OffsetTable pop_segment drops the last segment") {
+    OffsetTable table;
+
+    table.append_segment(3);
+    table.append_segment(5);
+
+    table.pop_segment();
+
+    REQUIRE(table.size() == 1);
+    CHECK(table.total_size() == 3);
+    CHECK(table.segment_range(0).end == 3);
+}
+
+TEST_CASE("OffsetTable pop_segments drops several at once") {
+    OffsetTable table;
+
+    table.append_segment(3);
+    table.append_segment(5);
+    table.append_segment(7);
+
+    table.pop_segments(2);
+
+    REQUIRE(table.size() == 1);
+    CHECK(table.total_size() == 3);
+}
+
+TEST_CASE("OffsetTable pop_segments can empty the table") {
+    OffsetTable table;
+
+    table.append_segment(3);
+    table.append_segment(5);
+
+    table.pop_segments(2);
+
+    CHECK(table.empty());
+    CHECK(table.size() == 0);
+    CHECK(table.total_size() == 0);
+}
+
+TEST_CASE("OffsetTable pop_segments rejects more than it holds") {
+    OffsetTable table;
+
+    table.append_segment(3);
+
+    CHECK_THROWS_AS(table.pop_segments(2), std::out_of_range);
+    CHECK(table.size() == 1);
+}
+
+TEST_CASE("OffsetTable appends after popping continue from the shortened end") {
+    OffsetTable table;
+
+    table.append_segment(3);
+    table.append_segment(5);
+
+    table.pop_segment();
+    table.append_segment(2);
+
+    REQUIRE(table.size() == 2);
+    CHECK(table.total_size() == 5);
+
+    const auto range = table.segment_range(1);
+    CHECK(range.begin == 3);
+    CHECK(range.end == 5);
+}

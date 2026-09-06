@@ -19,6 +19,7 @@
 #include "bvh/earth.h"
 #include "frontier/Storage.h"
 #include "frontier/sort.h"
+#include "widen/build.h"
 
 namespace {
 
@@ -48,7 +49,8 @@ int main(int argc, char **argv) {
     try {
         const octree::IndexedDagMetaStorage dag = octree::open_folder_indexed<dag::NodeMetadata>(args.input_path);
 
-        bvh::Storage nodes(args.output_path);
+        // The binary tree is what widening consumes, so only its widened form is the run being asked for.
+        bvh::Storage nodes(args.scratch_path / "binary");
 
         const auto flattened = bvh::flatten_dag(dag, nodes, bvh::FlattenOptions{
             .max_batch_bytes = args.max_batch_bytes,
@@ -101,6 +103,19 @@ int main(int argc, char **argv) {
         }
 
         LOG_INFO("Built the tree, with its root in batch {} at node {}", root->batch, root->node);
+
+        bvh::Storage wide(args.output_path);
+
+        const auto wide_root = widen::build(nodes, *root, wide, args.scratch_path, widen::Options{
+            .max_batch_bytes = args.max_batch_bytes,
+            .max_resident_bytes = 4 * args.max_batch_bytes,
+        });
+        if (!wide_root) {
+            LOG_ERROR("Failed to widen the tree: {}", wide_root.error());
+            return EXIT_FAILURE;
+        }
+
+        LOG_INFO("Widened the tree into {} batches, with its root in batch {} at node {}", wide.size(), wide_root->batch, wide_root->node);
         return EXIT_SUCCESS;
     } catch (const std::exception &e) {
         LOG_ERROR("{}", e.what());

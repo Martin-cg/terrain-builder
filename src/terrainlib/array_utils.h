@@ -1,9 +1,23 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <functional>
+#include <span>
 #include <type_traits>
+
+#include <libassert/assert.hpp>
+
+// The `N` elements of `input`, which has to hold exactly that many.
+template <size_t N, typename T>
+std::array<T, N> to_array(const std::span<const T> input) {
+    ASSERT(input.size() == N, "the span does not hold the expected number of elements");
+
+    std::array<T, N> result{};
+    std::ranges::copy(input, result.begin());
+    return result;
+}
 
 template <typename T, size_t N, typename Func>
 auto transform_array(const std::array<T, N> &input, Func transform) {

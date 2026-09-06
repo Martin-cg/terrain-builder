@@ -113,6 +113,20 @@ public:
         this->_offsets[segment + 1] = new_end;
     }
 
+    // Drop the last segment.
+    void pop_segment() {
+        this->pop_segments(1);
+    }
+
+    // Drop multiple segments, counted from the last one.
+    void pop_segments(const index_type count) {
+        if (count > this->size()) {
+            throw std::out_of_range("segment out of range");
+        }
+
+        this->_offsets.resize(this->_offsets.size() - count);
+    }
+
     void remove_empty_segments() {
         const auto new_end = std::unique(this->_offsets.begin(), this->_offsets.end());
         this->_offsets.erase(new_end, this->_offsets.end());

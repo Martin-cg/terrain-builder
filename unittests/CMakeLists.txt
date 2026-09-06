@@ -128,9 +128,12 @@ if(TARGET bvhbuilderlib)
         bvh_builder/merging_writer.cpp
         bvh_builder/node_cache.cpp
         bvh_builder/ploc.cpp
+        bvh_builder/row_buffer.cpp
         bvh_builder/sort_frontier.cpp
+        bvh_builder/tabulate_splits.cpp
         bvh_builder/traverse.cpp
         bvh_builder/traverse_dag.cpp
+        bvh_builder/write_wide_nodes.cpp
     )
     target_link_libraries(unittests_bvhbuilder PUBLIC bvhbuilderlib Catch2::Catch2WithMain)
     atb_configure_test(unittests_bvhbuilder)
