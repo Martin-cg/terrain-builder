@@ -11,11 +11,11 @@ TEST_CASE("OffsetTable default construction") {
     CHECK(table.total_size() == 0);
 }
 
-TEST_CASE("OffsetTable append_length") {
+TEST_CASE("OffsetTable append_segment") {
     OffsetTable table;
-    table.append_length(3);
-    table.append_length(5);
-    table.append_length(2);
+    table.append_segment(3);
+    table.append_segment(5);
+    table.append_segment(2);
 
     CHECK(table.size() == 3);
     CHECK(table.total_size() == 10);
@@ -33,10 +33,10 @@ TEST_CASE("OffsetTable append_length") {
     CHECK(r2.end == 10);
 }
 
-TEST_CASE("OffsetTable append_lengths via span") {
+TEST_CASE("OffsetTable append_segments via span") {
     OffsetTable table;
     std::array<size_t, 3> lengths = {3, 5, 2};
-    table.append_lengths(lengths);
+    table.append_segments(lengths);
 
     CHECK(table.size() == 3);
     CHECK(table.total_size() == 10);
@@ -56,9 +56,9 @@ TEST_CASE("OffsetTable append_lengths via span") {
 
 TEST_CASE("OffsetTable element_size") {
     OffsetTable table;
-    table.append_length(3);
-    table.append_length(5);
-    table.append_length(2);
+    table.append_segment(3);
+    table.append_segment(5);
+    table.append_segment(2);
 
     CHECK(table.segment_size(0) == 3);
     CHECK(table.segment_size(1) == 5);
@@ -67,9 +67,9 @@ TEST_CASE("OffsetTable element_size") {
 
 TEST_CASE("OffsetTable locate") {
     OffsetTable table;
-    table.append_length(3);
-    table.append_length(5);
-    table.append_length(2);
+    table.append_segment(3);
+    table.append_segment(5);
+    table.append_segment(2);
 
     {
         auto result = table.locate(0);
@@ -105,9 +105,9 @@ TEST_CASE("OffsetTable locate") {
 
 TEST_CASE("OffsetTable locate out of range throws") {
     OffsetTable table;
-    table.append_length(3);
-    table.append_length(5);
-    table.append_length(2);
+    table.append_segment(3);
+    table.append_segment(5);
+    table.append_segment(2);
 
     CHECK_THROWS_AS(table.locate(10), std::out_of_range);
     CHECK_THROWS_AS(table.locate(100), std::out_of_range);
@@ -115,8 +115,8 @@ TEST_CASE("OffsetTable locate out of range throws") {
 
 TEST_CASE("OffsetTable range out of range throws") {
     OffsetTable table;
-    table.append_length(3);
-    table.append_length(5);
+    table.append_segment(3);
+    table.append_segment(5);
 
     CHECK_THROWS_AS(table.segment_range(2), std::out_of_range);
     CHECK_THROWS_AS(table.segment_range(100), std::out_of_range);
@@ -124,9 +124,9 @@ TEST_CASE("OffsetTable range out of range throws") {
 
 TEST_CASE("OffsetTable set_end on last element to extend") {
     OffsetTable table;
-    table.append_length(3);
-    table.append_length(5);
-    table.append_length(2);
+    table.append_segment(3);
+    table.append_segment(5);
+    table.append_segment(2);
 
     table.set_end(2, 15);
 
@@ -138,9 +138,9 @@ TEST_CASE("OffsetTable set_end on last element to extend") {
 
 TEST_CASE("OffsetTable set_begin on non-first element") {
     OffsetTable table;
-    table.append_length(3);
-    table.append_length(5);
-    table.append_length(2);
+    table.append_segment(3);
+    table.append_segment(5);
+    table.append_segment(2);
 
     table.set_begin(1, 4);
 
@@ -155,16 +155,16 @@ TEST_CASE("OffsetTable set_begin on non-first element") {
 
 TEST_CASE("OffsetTable set_begin on element 0 throws") {
     OffsetTable table;
-    table.append_length(3);
-    table.append_length(5);
+    table.append_segment(3);
+    table.append_segment(5);
 
     CHECK_THROWS_AS(table.set_begin(0, 1), std::out_of_range);
 }
 
 TEST_CASE("OffsetTable clear then re-add elements") {
     OffsetTable table;
-    table.append_length(3);
-    table.append_length(5);
+    table.append_segment(3);
+    table.append_segment(5);
 
     CHECK(table.size() == 2);
     CHECK(table.total_size() == 8);
@@ -175,8 +175,8 @@ TEST_CASE("OffsetTable clear then re-add elements") {
     CHECK(table.size() == 0);
     CHECK(table.total_size() == 0);
 
-    table.append_length(4);
-    table.append_length(6);
+    table.append_segment(4);
+    table.append_segment(6);
 
     CHECK(table.size() == 2);
     CHECK(table.total_size() == 10);

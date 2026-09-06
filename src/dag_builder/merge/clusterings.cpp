@@ -108,7 +108,7 @@ OffsetTable build_offset_table(const std::span<const Clustering> clusterings) {
     OffsetTable offsets(clusterings.size());
 
     for (const Clustering &clustering : clusterings) {
-        offsets.append_length(clustering.vertex_count());
+        offsets.append_segment(clustering.vertex_count());
     }
 
     return offsets;

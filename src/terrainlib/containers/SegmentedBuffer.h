@@ -24,7 +24,7 @@ public:
         this->reset();
     }
     SegmentedBuffer(std::vector<value_type> segment) : _data(std::move(segment)) {
-        this->_offsets.append_length(this->_data.size());
+        this->_offsets.append_segment(this->_data.size());
         this->_is_first_segment_implicit = false;
     }
 
@@ -33,7 +33,7 @@ public:
         this->_offsets.clear();
         this->_data.clear();
 
-        this->_offsets.append_length(0);
+        this->_offsets.append_segment(0);
         this->_is_first_segment_implicit = true;
     }
 
@@ -47,7 +47,7 @@ public:
         this->_offsets.clear();
         this->_data.clear();
 
-        this->_offsets.append_lengths(segment_sizes);
+        this->_offsets.append_segments(segment_sizes);
         this->_data.resize(this->_offsets.total_size(), value);
         this->_is_first_segment_implicit = false;
     }
@@ -118,7 +118,7 @@ public:
 
         const segment_index last_segment = this->segment_count() - 1;
         this->_offsets.set_end(last_segment, this->total_size());
-        this->_offsets.append_length(0);
+        this->_offsets.append_segment(0);
     }
 
     // Removes all empty segments while preserving the order of non-empty segments.

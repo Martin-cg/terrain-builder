@@ -59,18 +59,18 @@ public:
     }
 
     // Append an segment given its length.
-    void append_length(const index_type length) {
+    void append_segment(const index_type length) {
         const index_type next_offset = this->_offsets.back() + length;
         this->_offsets.push_back(next_offset);
     }
 
     // Append multiple segments given their lengths.
-    void append_lengths(const std::span<const index_type> lengths) {
+    void append_segments(const std::span<const index_type> lengths) {
         const size_t current_size = this->_offsets.size();
         this->_offsets.reserve(current_size + lengths.size());
 
         for (const index_type length : lengths) {
-            this->append_length(length);
+            this->append_segment(length);
         }
     }
 
