@@ -86,7 +86,7 @@ public:
         const index_type prev_boundary = this->_offsets[segment - 1];
         const index_type next_boundary = this->_offsets[segment + 1];
         if (new_begin < prev_boundary || new_begin > next_boundary) {
-            throw std::invalid_argument("new_begin out of valid adjacent boundaries");
+            throw std::out_of_range("segment begin out of range");
         }
 
         this->_offsets[segment] = new_begin;
@@ -102,11 +102,11 @@ public:
         if (segment + 1 < this->size()) {
             const index_type next_boundary = this->_offsets[segment + 2];
             if (new_end < prev_boundary || new_end > next_boundary) {
-                throw std::invalid_argument("new_end out of valid adjacent boundaries");
+                throw std::out_of_range("segment end out of range");
             }
         } else {
             if (new_end < prev_boundary) {
-                throw std::invalid_argument("new_end cannot be less than section begin");
+                throw std::out_of_range("segment end out of range");
             }
         }
 
