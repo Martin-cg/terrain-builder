@@ -7,11 +7,14 @@
 namespace io::envelope {
 namespace detail {
 
+using ArchiveByteOrder = zpp::bits::endian::little;
+using ArchiveAllocationLimit = zpp::bits::alloc_limit<default_max_decompressed_size>;
+
 template <typename Value>
 tl::expected<Bytes, Error> serialize_to_bytes(const Value &value)
 {
     Bytes bytes;
-    zpp::bits::out output(bytes, zpp::bits::alloc_limit<default_max_decompressed_size>());
+    zpp::bits::out output(bytes, ArchiveByteOrder{}, ArchiveAllocationLimit{});
     const zpp::bits::errc result = output(value);
     if (zpp::bits::failure(result)) {
         return tl::unexpected(Error{ErrorCode::SerializationFailed, result.code});
@@ -23,7 +26,7 @@ template <typename Value>
 tl::expected<Value, Error> deserialize_from_bytes(const std::span<const std::byte> bytes)
 {
     Value value{};
-    zpp::bits::in input(bytes, zpp::bits::alloc_limit<default_max_decompressed_size>());
+    zpp::bits::in input(bytes, ArchiveByteOrder{}, ArchiveAllocationLimit{});
     const zpp::bits::errc result = input(value);
     if (zpp::bits::failure(result) || input.position() != bytes.size()) {
         return tl::unexpected(Error{

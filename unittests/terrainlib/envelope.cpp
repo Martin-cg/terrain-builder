@@ -84,7 +84,7 @@ template <typename Value>
 io::envelope::Bytes encode_value(const Value &value)
 {
     io::envelope::Bytes bytes;
-    zpp::bits::out output(bytes);
+    zpp::bits::out output(bytes, io::envelope::detail::ArchiveByteOrder{}, io::envelope::detail::ArchiveAllocationLimit{});
     output(value).or_throw();
     return bytes;
 }
@@ -97,7 +97,7 @@ io::envelope::Bytes encode_envelope(const io::envelope::Envelope &envelope)
 io::envelope::Envelope decode_envelope(const io::envelope::Bytes &bytes)
 {
     io::envelope::Envelope envelope{};
-    zpp::bits::in input(bytes);
+    zpp::bits::in input(bytes, io::envelope::detail::ArchiveByteOrder{}, io::envelope::detail::ArchiveAllocationLimit{});
     input(envelope).or_throw();
     return envelope;
 }
