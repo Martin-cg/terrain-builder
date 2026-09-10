@@ -83,6 +83,30 @@ template <std::integral A, std::integral B>
     }
 }
 
+template <std::integral A, std::integral B>
+    requires(std::is_signed_v<A> == std::is_signed_v<B>)
+[[nodiscard]] constexpr auto int_div_floor(const A a, const B b) {
+    using T = std::common_type_t<A, B>;
+    ASSERT(b != 0);
+
+    const T a_t = static_cast<T>(a);
+    const T b_t = static_cast<T>(b);
+
+    if constexpr (std::unsigned_integral<T>) {
+        return a_t / b_t;
+    } else {
+        const T q = a_t / b_t;
+        const T r = a_t % b_t;
+
+        // Opposite signs truncate toward zero, which is one above the floor unless the division was exact.
+        if (r != 0 && ((a_t < 0) != (b_t < 0))) {
+            return q - 1;
+        }
+
+        return q;
+    }
+}
+
 // Signed division rounded to the nearest integer, with halves going away from zero.
 template <typename T>
 [[nodiscard]] constexpr T int_div_round(T numerator, T denominator) noexcept {
@@ -105,6 +129,20 @@ template <typename T>
     }
 
     return negative ? -quotient : quotient;
+}
+
+// Integer division rounded in `Rounding`'s direction.
+template <std::float_round_style Rounding, std::integral T>
+[[nodiscard]] constexpr T int_div_by_style(const T numerator, const T denominator) {
+    if constexpr (Rounding == std::round_toward_neg_infinity) {
+        return int_div_floor(numerator, denominator);
+    } else if constexpr (Rounding == std::round_toward_infinity) {
+        return int_div_ceil(numerator, denominator);
+    } else if constexpr (Rounding == std::round_toward_zero) {
+        return numerator / denominator;
+    } else {
+        return int_div_round(numerator, denominator);
+    }
 }
 
 namespace detail {

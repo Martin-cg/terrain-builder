@@ -24,6 +24,29 @@ TEST_CASE("int_div_round rounds half away from zero", "[int_math]") {
     CHECK(int_div_round(-7, -4) == int_div_round(7, 4));
 }
 
+TEST_CASE("int_div_floor rounds toward negative infinity", "[int_math]") {
+    CHECK(int_div_floor(7, 2) == 3);
+    CHECK(int_div_floor(-7, 2) == -4);
+    CHECK(int_div_floor(7, -2) == -4);
+    CHECK(int_div_floor(-7, -2) == 3);
+
+    // Exact division is its own floor in every sign combination.
+    CHECK(int_div_floor(-8, 2) == -4);
+    CHECK(int_div_floor(8, -2) == -4);
+}
+
+TEST_CASE("int_div_by_style rounds in the requested direction", "[int_math]") {
+    CHECK(int_div_by_style<std::round_toward_neg_infinity>(-7, 2) == -4);
+    CHECK(int_div_by_style<std::round_toward_infinity>(-7, 2) == -3);
+    CHECK(int_div_by_style<std::round_toward_zero>(-7, 2) == -3);
+    CHECK(int_div_by_style<std::round_to_nearest>(-7, 2) == -4);
+
+    CHECK(int_div_by_style<std::round_toward_neg_infinity>(7, 2) == 3);
+    CHECK(int_div_by_style<std::round_toward_infinity>(7, 2) == 4);
+    CHECK(int_div_by_style<std::round_toward_zero>(7, 2) == 3);
+    CHECK(int_div_by_style<std::round_to_nearest>(7, 2) == 4);
+}
+
 TEST_CASE("int_div_round does not overflow on a near-maximal denominator", "[int_math]") {
     constexpr std::int64_t maximum = std::numeric_limits<std::int64_t>::max();
 
