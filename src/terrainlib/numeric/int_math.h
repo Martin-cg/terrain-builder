@@ -31,7 +31,7 @@ template <std::integral T, std::unsigned_integral Exp>
     return result;
 }
 template <std::integral T, std::unsigned_integral Exp>
-[[nodiscard]] constexpr T ipow2(Exp exp) noexcept {
+[[nodiscard]] constexpr T ipow2(const Exp exp) noexcept {
     DEBUG_ASSERT(exp < static_cast<Exp>(std::numeric_limits<T>::digits));
     return static_cast<T>(T{1} << exp);
 }
@@ -40,23 +40,23 @@ static_assert(ipow2<uint32_t>(10u) == 1024);
 static_assert(ipow(3, 4u) == 81);
 
 template <std::integral T>
-[[nodiscard]] constexpr bool is_even(T value) noexcept {
+[[nodiscard]] constexpr bool is_even(const T value) noexcept {
     return value % 2 == 0;
 }
 template <std::integral T>
-[[nodiscard]] constexpr bool is_odd(T value) noexcept {
+[[nodiscard]] constexpr bool is_odd(const T value) noexcept {
     return !is_even(value);
 }
 
 // Smallest integer not below the given real value.
 template <std::integral T = uint32_t, std::floating_point F>
-[[nodiscard]] T int_ceil(F value) {
+[[nodiscard]] T int_ceil(const F value) {
     return static_cast<T>(std::ceil(value));
 }
 
 template <std::integral A, std::integral B>
     requires(std::is_signed_v<A> == std::is_signed_v<B>)
-[[nodiscard]] constexpr auto int_div_ceil(A a, B b) {
+[[nodiscard]] constexpr auto int_div_ceil(const A a, const B b) {
     using T = std::common_type_t<A, B>;
     ASSERT(b != 0);
 
@@ -261,25 +261,25 @@ template <std::integral T>
     }
 }
 
-[[nodiscard]] inline constexpr uint32_t next_power_of_two(uint32_t n) noexcept {
+[[nodiscard]] inline constexpr uint32_t next_power_of_two(const uint32_t n) noexcept {
     DEBUG_ASSERT(n <= (uint32_t{1} << 31));
     return std::bit_ceil(n);
 }
 
-[[nodiscard]] inline constexpr uint64_t next_power_of_two(uint64_t n) noexcept {
+[[nodiscard]] inline constexpr uint64_t next_power_of_two(const uint64_t n) noexcept {
     DEBUG_ASSERT(n <= (uint64_t{1} << 63));
     return std::bit_ceil(n);
 }
 
-[[nodiscard]] inline constexpr uint32_t prev_power_of_two(uint32_t n) noexcept {
+[[nodiscard]] inline constexpr uint32_t prev_power_of_two(const uint32_t n) noexcept {
     return std::bit_floor(n);
 }
 
-[[nodiscard]] inline constexpr uint64_t prev_power_of_two(uint64_t n) noexcept {
+[[nodiscard]] inline constexpr uint64_t prev_power_of_two(const uint64_t n) noexcept {
     return std::bit_floor(n);
 }
 
-[[nodiscard]] inline constexpr uint32_t nearest_power_of_two(uint32_t n) noexcept {
+[[nodiscard]] inline constexpr uint32_t nearest_power_of_two(const uint32_t n) noexcept {
     DEBUG_ASSERT(n <= (uint32_t{1} << 31));
     const uint32_t lower = prev_power_of_two(n);
     if (n == lower) {
@@ -290,7 +290,7 @@ template <std::integral T>
 }
 
 #if defined(HAS_UINT128)
-[[nodiscard]] inline constexpr uint64_t nearest_power_of_two(uint64_t n) noexcept {
+[[nodiscard]] inline constexpr uint64_t nearest_power_of_two(const uint64_t n) noexcept {
     DEBUG_ASSERT(n <= (uint64_t{1} << 63));
 
     const uint64_t lower = prev_power_of_two(n);
@@ -302,21 +302,21 @@ template <std::integral T>
 }
 #endif
 
-[[nodiscard]] inline constexpr bool is_power_of_two(uint32_t n) noexcept {
+[[nodiscard]] inline constexpr bool is_power_of_two(const uint32_t n) noexcept {
     return std::has_single_bit(n);
 }
 
-[[nodiscard]] inline constexpr bool is_power_of_two(uint64_t n) noexcept {
+[[nodiscard]] inline constexpr bool is_power_of_two(const uint64_t n) noexcept {
     return std::has_single_bit(n);
 }
 
 template <std::unsigned_integral T>
-[[nodiscard]] inline constexpr T align_down(T value, T alignment) noexcept {
+[[nodiscard]] inline constexpr T align_down(const T value, const T alignment) noexcept {
     return value - value % alignment;
 }
 
 template <std::unsigned_integral T>
-[[nodiscard]] inline constexpr T align_up(T value, T alignment) noexcept {
+[[nodiscard]] inline constexpr T align_up(const T value, const T alignment) noexcept {
     return value + (alignment - value % alignment) % alignment;
 }
 
