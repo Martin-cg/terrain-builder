@@ -37,6 +37,7 @@ add_executable(unittests_terrainlib
     terrainlib/geometry_bounds.cpp
     terrainlib/geometry_compare.cpp
     terrainlib/geometry_frames.cpp
+    terrainlib/glm_utils.cpp
     terrainlib/grid.cpp
     terrainlib/hash_utils.cpp
     terrainlib/hybrid_index_pair_map.cpp
