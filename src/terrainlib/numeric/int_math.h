@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <concepts>
 #include <cstdint>
@@ -317,4 +318,25 @@ template <std::unsigned_integral T>
 template <std::unsigned_integral T>
 [[nodiscard]] inline constexpr T align_up(T value, T alignment) noexcept {
     return value + (alignment - value % alignment) % alignment;
+}
+
+// The bytes needed to hold `bits` bits.
+[[nodiscard]] inline constexpr uint32_t bytes_for_bits(const uint32_t bits) noexcept {
+    return int_div_ceil(bits, 8u);
+}
+
+// The width of the narrowest integer type holding `bits` bits: 8, 16, 32, 64 or a wider power of two.
+[[nodiscard]] inline constexpr uint32_t int_width_for_bits(const uint32_t bits) noexcept {
+    return 8 * next_power_of_two(std::max(bytes_for_bits(bits), 1u));
+}
+
+// The largest value `bits` bits can hold.
+template <std::unsigned_integral T = uint64_t>
+[[nodiscard]] inline constexpr T max_for_bits(const uint32_t bits) noexcept {
+    DEBUG_ASSERT(bits <= std::numeric_limits<T>::digits);
+
+    if (bits == std::numeric_limits<T>::digits) {
+        return std::numeric_limits<T>::max();
+    }
+    return static_cast<T>((T{1} << bits) - 1);
 }

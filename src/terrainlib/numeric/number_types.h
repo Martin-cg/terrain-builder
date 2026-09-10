@@ -61,7 +61,7 @@ using float64_t = double;
 #include "numeric/wide_integer.h"
 
 template <std::size_t Bits>
-inline constexpr std::size_t storage_bits_v = next_power_of_two(Bits < 8 ? 8 : Bits);
+inline constexpr std::size_t storage_bits_v = int_width_for_bits(Bits);
 
 template <std::size_t Width, bool Signed>
 struct integer_for_width;
