@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 #include <span>
 #include <vector>
@@ -294,10 +295,11 @@ inline std::vector<T> decode_vertex_buffer(size_t vertex_count, const std::span<
 
 inline std::vector<uint8_t> encode_index_buffer(const std::span<const uint32_t> indices) {
     const size_t index_count = indices.size();
-    const size_t buffer_bound = meshopt_encodeIndexBufferBound(index_count, sizeof(uint32_t));
+    const size_t vertex_count = indices.empty() ? 0 : size_t{std::ranges::max(indices)} + 1;
+    const size_t buffer_bound = meshopt_encodeIndexBufferBound(index_count, vertex_count);
     std::vector<uint8_t> buf(buffer_bound);
     const size_t written = meshopt_encodeIndexBuffer(buf.data(), buf.size(), indices.data(), index_count);
-    DEBUG_ASSERT(written <= buf.size());
+    ASSERT(written != 0);
     buf.resize(written);
     return buf;
 }
