@@ -4,6 +4,29 @@
 #include "../catch2_helpers.h"
 #include "numeric/quantize.h"
 
+TEST_CASE("quantize_normalized spans the target's full range", "[quantize]") {
+    CHECK(quantize_normalized<uint16_t>(0.0) == 0);
+    CHECK(quantize_normalized<uint16_t>(1.0) == 65535);
+    CHECK(quantize_normalized<uint8_t>(1.0) == 255);
+
+    // The midpoint lands on the nearest step rather than truncating.
+    CHECK(quantize_normalized<uint16_t>(0.5) == 32768);
+}
+
+TEST_CASE("quantize_normalized round-trips every representable step", "[quantize]") {
+    for (uint32_t step = 0; step <= 255; step++) {
+        const uint8_t quantized = static_cast<uint8_t>(step);
+        REQUIRE(quantize_normalized<uint8_t>(dequantize_normalized(quantized)) == quantized);
+    }
+}
+
+TEST_CASE("quantize_normalized maps every component of a vector", "[quantize]") {
+    const glm::vec2 uv = {0.0f, 1.0f};
+
+    CHECK(quantize_normalized<uint16_t>(uv) == glm::u16vec2{0, 65535});
+    CHECK(dequantize_normalized(glm::u16vec2{0, 65535}) == glm::dvec2{0.0, 1.0});
+}
+
 TEST_CASE("round_by_style rounds in each direction", "[quantize]") {
     CHECK(round_by_style<std::round_toward_neg_infinity>(1.5) == 1.0);
     CHECK(round_by_style<std::round_toward_infinity>(1.5) == 2.0);
