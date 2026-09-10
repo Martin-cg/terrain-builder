@@ -126,13 +126,13 @@ struct PayloadSchema {
 };
 
 template <typename Schema, std::uint32_t VersionNumber>
-std::expected<Bytes, Error> serialize(
+tl::expected<Bytes, Error> serialize(
     const typename Schema::template payload_type<VersionNumber> &payload,
     CompressionAlgorithm compression_algorithm = CompressionAlgorithm::ZstdBestCompressionWithChecksum,
     ChecksumAlgorithm checksum_algorithm = ChecksumAlgorithm::HandledByCompressionLib);
 
 template <typename Schema>
-std::expected<typename Schema::latest_type, Error> deserialize(
+tl::expected<typename Schema::latest_type, Error> deserialize(
     std::span<const std::byte> bytes,
     std::size_t max_decompressed_size = default_max_decompressed_size);
 

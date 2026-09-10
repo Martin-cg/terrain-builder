@@ -7,7 +7,7 @@
 #include <system_error>
 #include <vector>
 
-#include <expected>
+#include <tl/expected.hpp>
 
 namespace io::envelope {
 
@@ -53,12 +53,12 @@ struct CompressedData {
     std::string checksum;
 };
 
-std::expected<CompressedData, Error> compress_with_checksum(
+tl::expected<CompressedData, Error> compress_with_checksum(
     const Bytes &uncompressed_data,
     CompressionAlgorithm compression_algorithm,
     ChecksumAlgorithm checksum_algorithm);
 
-std::expected<Bytes, Error> checked_decompress(
+tl::expected<Bytes, Error> checked_decompress(
     const Bytes &compressed_data,
     CompressionAlgorithm compression_algorithm,
     ChecksumAlgorithm checksum_algorithm,

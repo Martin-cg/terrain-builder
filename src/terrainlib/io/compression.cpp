@@ -47,7 +47,7 @@ std::string crc32c_checksum(const Bytes &data)
     return checksum;
 }
 
-std::expected<void, Error> validate_algorithms(
+tl::expected<void, Error> validate_algorithms(
     const CompressionAlgorithm compression_algorithm,
     const ChecksumAlgorithm checksum_algorithm)
 {
@@ -57,7 +57,7 @@ std::expected<void, Error> validate_algorithms(
     case ChecksumAlgorithm::Crc32c:
         break;
     default:
-        return std::unexpected(Error{ErrorCode::UnsupportedChecksumAlgorithm});
+        return tl::unexpected(Error{ErrorCode::UnsupportedChecksumAlgorithm});
     }
 
     switch (compression_algorithm) {
@@ -65,7 +65,7 @@ std::expected<void, Error> validate_algorithms(
     case CompressionAlgorithm::ZstdBestCompressionWithChecksum:
         break;
     default:
-        return std::unexpected(Error{ErrorCode::UnsupportedCompressionAlgorithm});
+        return tl::unexpected(Error{ErrorCode::UnsupportedCompressionAlgorithm});
     }
 
     const bool no_compression = compression_algorithm == CompressionAlgorithm::None
@@ -76,7 +76,7 @@ std::expected<void, Error> validate_algorithms(
         && (checksum_algorithm == ChecksumAlgorithm::HandledByCompressionLib
             || checksum_algorithm == ChecksumAlgorithm::Crc32c);
     if (!no_compression && !zstd_with_checksum) {
-        return std::unexpected(Error{ErrorCode::InvalidAlgorithmCombination});
+        return tl::unexpected(Error{ErrorCode::InvalidAlgorithmCombination});
     }
 
     return {};
@@ -84,16 +84,16 @@ std::expected<void, Error> validate_algorithms(
 
 } // namespace
 
-std::expected<CompressedData, Error> compress_with_checksum(
+tl::expected<CompressedData, Error> compress_with_checksum(
     const Bytes &uncompressed_data,
     const CompressionAlgorithm compression_algorithm,
     const ChecksumAlgorithm checksum_algorithm)
 {
     if (const auto validation = validate_algorithms(compression_algorithm, checksum_algorithm); !validation) {
-        return std::unexpected(validation.error());
+        return tl::unexpected(validation.error());
     }
     if (uncompressed_data.size() > default_max_decompressed_size) {
-        return std::unexpected(Error{ErrorCode::SizeLimitExceeded});
+        return tl::unexpected(Error{ErrorCode::SizeLimitExceeded});
     }
 
     const std::string checksum = checksum_algorithm == ChecksumAlgorithm::Crc32c
@@ -106,12 +106,12 @@ std::expected<CompressedData, Error> compress_with_checksum(
 
     CompressionContext context{ZSTD_createCCtx(), &ZSTD_freeCCtx};
     if (!context) {
-        return std::unexpected(Error{ErrorCode::CompressionFailed});
+        return tl::unexpected(Error{ErrorCode::CompressionFailed});
     }
 
     if (ZSTD_isError(ZSTD_CCtx_setParameter(context.get(), ZSTD_c_compressionLevel, ZSTD_maxCLevel()))
         || ZSTD_isError(ZSTD_CCtx_setParameter(context.get(), ZSTD_c_checksumFlag, 1))) {
-        return std::unexpected(Error{ErrorCode::CompressionFailed});
+        return tl::unexpected(Error{ErrorCode::CompressionFailed});
     }
 
     const std::size_t capacity = ZSTD_compressBound(uncompressed_data.size());
@@ -123,14 +123,14 @@ std::expected<CompressedData, Error> compress_with_checksum(
         uncompressed_data.data(),
         uncompressed_data.size());
     if (ZSTD_isError(compressed_size)) {
-        return std::unexpected(Error{ErrorCode::CompressionFailed});
+        return tl::unexpected(Error{ErrorCode::CompressionFailed});
     }
 
     compressed_data.resize(compressed_size);
     return CompressedData{std::move(compressed_data), checksum};
 }
 
-std::expected<Bytes, Error> checked_decompress(
+tl::expected<Bytes, Error> checked_decompress(
     const Bytes &compressed_data,
     const CompressionAlgorithm compression_algorithm,
     const ChecksumAlgorithm checksum_algorithm,
@@ -138,10 +138,10 @@ std::expected<Bytes, Error> checked_decompress(
     const std::size_t max_decompressed_size)
 {
     if (const auto validation = validate_algorithms(compression_algorithm, checksum_algorithm); !validation) {
-        return std::unexpected(validation.error());
+        return tl::unexpected(validation.error());
     }
     if (checksum_algorithm != ChecksumAlgorithm::Crc32c && !checksum.empty()) {
-        return std::unexpected(Error{ErrorCode::InvalidAlgorithmCombination});
+        return tl::unexpected(Error{ErrorCode::InvalidAlgorithmCombination});
     }
     if (checksum_algorithm == ChecksumAlgorithm::Crc32c
         && (checksum.size() != 8
@@ -149,7 +149,7 @@ std::expected<Bytes, Error> checked_decompress(
                    return (character >= '0' && character <= '9')
                        || (character >= 'a' && character <= 'f');
                }))) {
-        return std::unexpected(Error{ErrorCode::ChecksumMismatch});
+        return tl::unexpected(Error{ErrorCode::ChecksumMismatch});
     }
 
     const std::size_t effective_max_decompressed_size =
@@ -158,7 +158,7 @@ std::expected<Bytes, Error> checked_decompress(
     Bytes uncompressed_data;
     if (compression_algorithm == CompressionAlgorithm::None) {
         if (compressed_data.size() > effective_max_decompressed_size) {
-            return std::unexpected(Error{ErrorCode::SizeLimitExceeded});
+            return tl::unexpected(Error{ErrorCode::SizeLimitExceeded});
         }
         uncompressed_data = compressed_data;
     } else {
@@ -166,10 +166,10 @@ std::expected<Bytes, Error> checked_decompress(
         const std::size_t frame_header_result = ZSTD_getFrameHeader(
             &frame_header, compressed_data.data(), compressed_data.size());
         if (ZSTD_isError(frame_header_result) || frame_header_result != 0) {
-            return std::unexpected(Error{ErrorCode::DecompressionFailed});
+            return tl::unexpected(Error{ErrorCode::DecompressionFailed});
         }
         if (frame_header.checksumFlag == 0) {
-            return std::unexpected(Error{ErrorCode::ChecksumMismatch});
+            return tl::unexpected(Error{ErrorCode::ChecksumMismatch});
         }
 
         const unsigned long long frame_content_size =
@@ -177,12 +177,12 @@ std::expected<Bytes, Error> checked_decompress(
         if (frame_content_size == ZSTD_CONTENTSIZE_ERROR
             || (frame_content_size != ZSTD_CONTENTSIZE_UNKNOWN
                 && frame_content_size > std::numeric_limits<std::size_t>::max())) {
-            return std::unexpected(Error{ErrorCode::DecompressionFailed});
+            return tl::unexpected(Error{ErrorCode::DecompressionFailed});
         }
 
         const bool content_size_is_known = frame_content_size != ZSTD_CONTENTSIZE_UNKNOWN;
         if (content_size_is_known && frame_content_size > effective_max_decompressed_size) {
-            return std::unexpected(Error{ErrorCode::SizeLimitExceeded});
+            return tl::unexpected(Error{ErrorCode::SizeLimitExceeded});
         }
 
         const std::size_t allocation_size = content_size_is_known
@@ -196,16 +196,16 @@ std::expected<Bytes, Error> checked_decompress(
             compressed_data.size());
         if (ZSTD_isError(decompressed_size)) {
             if (ZSTD_getErrorCode(decompressed_size) == ZSTD_error_checksum_wrong) {
-                return std::unexpected(Error{ErrorCode::ChecksumMismatch});
+                return tl::unexpected(Error{ErrorCode::ChecksumMismatch});
             }
             if (!content_size_is_known
                 && ZSTD_getErrorCode(decompressed_size) == ZSTD_error_dstSize_tooSmall) {
-                return std::unexpected(Error{ErrorCode::SizeLimitExceeded});
+                return tl::unexpected(Error{ErrorCode::SizeLimitExceeded});
             }
-            return std::unexpected(Error{ErrorCode::DecompressionFailed});
+            return tl::unexpected(Error{ErrorCode::DecompressionFailed});
         }
         if (content_size_is_known && decompressed_size != uncompressed_data.size()) {
-            return std::unexpected(Error{ErrorCode::DecompressionFailed});
+            return tl::unexpected(Error{ErrorCode::DecompressionFailed});
         }
 
         uncompressed_data.resize(decompressed_size);
@@ -213,7 +213,7 @@ std::expected<Bytes, Error> checked_decompress(
 
     if (checksum_algorithm == ChecksumAlgorithm::Crc32c
         && crc32c_checksum(uncompressed_data) != checksum) {
-        return std::unexpected(Error{ErrorCode::ChecksumMismatch});
+        return tl::unexpected(Error{ErrorCode::ChecksumMismatch});
     }
     return uncompressed_data;
 }
