@@ -1,13 +1,16 @@
 #pragma once
 
+#include <cstdint>
 #include <span>
 #include <vector>
 
 #include <libassert/assert.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <meshoptimizer.h>
+#include <tl/expected.hpp>
 
 #include "glm_utils.h"
+#include "numeric/int_math.h"
 #include "range_utils.h"
 
 namespace meshopt {
@@ -231,16 +234,29 @@ inline PartitionClustersResult partition_clusters(
     return PartitionClustersResult{std::move(partitions), static_cast<uint32_t>(partition_count)};
 }
 
+// A decoder's failure, carrying the code meshopt returned.
+struct DecodeError {
+    int code = 0;
+
+    auto operator<=>(const DecodeError &) const = default;
+};
+
+// The level `meshopt_encodeVertexBuffer` encodes at.
+inline constexpr int DEFAULT_VERTEX_ENCODE_LEVEL = 2;
+// Defers to the version set through `meshopt_encodeVertexVersion`.
+inline constexpr int DEFAULT_VERTEX_ENCODE_VERSION = -1;
+
 template <typename T>
-inline std::vector<uint8_t> encode_vertex_buffer(const std::span<const T> data) {
+inline std::vector<uint8_t> encode_vertex_buffer(
+    const std::span<const T> data,
+    const int level = DEFAULT_VERTEX_ENCODE_LEVEL,
+    const int version = DEFAULT_VERTEX_ENCODE_VERSION) {
     static_assert(std::is_trivially_copyable_v<T>, "Vertex type must be trivially copyable");
 
-    const size_t vertex_count = data.size();
-    const size_t vertex_size = sizeof(T);
-    const size_t buffer_bound = meshopt_encodeVertexBufferBound(vertex_count, vertex_size);
-    std::vector<uint8_t> buf(buffer_bound);
-    const size_t written = meshopt_encodeVertexBuffer(buf.data(), buf.size(), data.data(), vertex_count, vertex_size);
-    DEBUG_ASSERT(written <= buffer_bound);
+    std::vector<uint8_t> buf(meshopt_encodeVertexBufferBound(data.size(), sizeof(T)));
+    const size_t written = meshopt_encodeVertexBufferLevel(buf.data(), buf.size(), data.data(), data.size(), sizeof(T), level, version);
+    ASSERT(written != 0);
+
     buf.resize(written);
     return buf;
 }
@@ -250,13 +266,19 @@ inline std::vector<uint8_t> encode_vertex_buffer(const std::vector<T>& data) {
 }
 
 template <typename T>
-inline void decode_vertex_buffer(std::span<T> data, const std::span<const uint8_t> encoded) {
+[[nodiscard]] inline tl::expected<void, DecodeError> try_decode_vertex_buffer(std::span<T> data, const std::span<const uint8_t> encoded) {
     static_assert(std::is_trivially_copyable_v<T>, "Vertex type must be trivially copyable");
 
-    const size_t vertex_count = data.size();
-    const size_t vertex_size = sizeof(T);
-    const int result = meshopt_decodeVertexBuffer(data.data(), vertex_count, vertex_size, encoded.data(), encoded.size());
-    ASSERT(result == 0, "Vertex buffer decoding failed");
+    const int code = meshopt_decodeVertexBuffer(data.data(), data.size(), sizeof(T), encoded.data(), encoded.size());
+    if (code != 0) {
+        return tl::unexpected(DecodeError{code});
+    }
+    return {};
+}
+template <typename T>
+inline void decode_vertex_buffer(std::span<T> data, const std::span<const uint8_t> encoded) {
+    const tl::expected<void, DecodeError> result = try_decode_vertex_buffer(data, encoded);
+    ASSERT(result.has_value(), "Vertex buffer decoding failed");
 }
 template <typename T>
 inline void decode_vertex_buffer(std::vector<T>& data, size_t vertex_count, const std::span<const uint8_t> encoded) {
@@ -300,6 +322,88 @@ inline std::vector<glm::uvec3> decode_index_buffer(const size_t triangle_count, 
     std::vector<glm::uvec3> triangles;
     decode_index_buffer(triangles, triangle_count, encoded);
     return triangles;
+}
+
+// Encodes one meshlet: its references into a shared vertex buffer, and its triangles as indices into those references.
+inline std::vector<uint8_t> encode_meshlet(const std::span<const uint32_t> vertices, const std::span<const glm::tvec3<uint8_t>> triangles) {
+    const std::span<const uint8_t> indices = flatten(triangles);
+
+    std::vector<uint8_t> buf(meshopt_encodeMeshletBound(vertices.size(), triangles.size()));
+    const size_t written = meshopt_encodeMeshlet(buf.data(), buf.size(), vertices.data(), vertices.size(), indices.data(), triangles.size());
+    ASSERT(written != 0);
+
+    buf.resize(written);
+    return buf;
+}
+
+namespace detail {
+
+// The number of references the meshlet decoder may write when asked for `vertex_count` of them.
+[[nodiscard]] inline size_t get_meshlet_decode_vertex_bound(const size_t vertex_count) {
+    // The decoder writes whole 4-byte blocks.
+    return align_up(vertex_count * sizeof(uint16_t), size_t{4}) / sizeof(uint16_t);
+}
+
+// The number of triangles the meshlet decoder may write when asked for `triangle_count` of them.
+[[nodiscard]] inline size_t get_meshlet_decode_triangle_bound(const size_t triangle_count) {
+    // The decoder writes whole 4-byte blocks, which need not end on a whole triangle.
+    return int_div_ceil(align_up(triangle_count * sizeof(glm::tvec3<uint8_t>), size_t{4}), sizeof(glm::tvec3<uint8_t>));
+}
+
+// Decodes a meshlet into the front of `vertices` and `triangles`, which must hold at least the decode bounds.
+[[nodiscard]] inline tl::expected<void, DecodeError> try_decode_meshlet(
+    const std::span<const uint8_t> encoded,
+    const size_t vertex_count,
+    const size_t triangle_count,
+    const std::span<uint16_t> vertices,
+    const std::span<glm::tvec3<uint8_t>> triangles) {
+    ASSERT(vertices.size() >= get_meshlet_decode_vertex_bound(vertex_count));
+    ASSERT(triangles.size() >= get_meshlet_decode_triangle_bound(triangle_count));
+
+    const int code = meshopt_decodeMeshlet(
+        vertices.data(),
+        vertex_count,
+        sizeof(uint16_t),
+        triangles.data(),
+        triangle_count,
+        sizeof(glm::tvec3<uint8_t>),
+        encoded.data(),
+        encoded.size());
+    if (code != 0) {
+        return tl::unexpected(DecodeError{code});
+    }
+    return {};
+}
+
+} // namespace detail
+
+// Appends the meshlet's references to `vertices` and its triangles to `triangles`; on failure both keep their previous contents.
+[[nodiscard]] inline tl::expected<void, DecodeError> try_decode_meshlet(
+    const std::span<const uint8_t> encoded,
+    const size_t vertex_count,
+    const size_t triangle_count,
+    std::vector<uint16_t> &vertices,
+    std::vector<glm::tvec3<uint8_t>> &triangles) {
+    const size_t vertex_offset = vertices.size();
+    const size_t triangle_offset = triangles.size();
+    vertices.resize(vertex_offset + detail::get_meshlet_decode_vertex_bound(vertex_count));
+    triangles.resize(triangle_offset + detail::get_meshlet_decode_triangle_bound(triangle_count));
+
+    const tl::expected<void, DecodeError> result = detail::try_decode_meshlet(
+        encoded,
+        vertex_count,
+        triangle_count,
+        std::span(vertices).subspan(vertex_offset),
+        std::span(triangles).subspan(triangle_offset));
+    if (!result) {
+        vertices.resize(vertex_offset);
+        triangles.resize(triangle_offset);
+        return result;
+    }
+
+    vertices.resize(vertex_offset + vertex_count);
+    triangles.resize(triangle_offset + triangle_count);
+    return result;
 }
 
 } // namespace meshopt
