@@ -1,9 +1,11 @@
 #pragma once
 
 #include "fixed.h"
+#include "glm_utils.h"
 
 #include <algorithm>
 #include <compare>
+#include <concepts>
 #include <glm/glm.hpp>
 #include <glm/vector_relational.hpp>
 #include <libassert/assert.hpp>
@@ -35,42 +37,58 @@ struct Scalar {
     constexpr auto operator<=>(const Scalar&) const noexcept = default;
 };
 
-template <typename Q>
-struct Vec2 {
-    using repr_t = glm::vec<2, typename Q::repr_t>;
+template <glm::length_t N, typename Q>
+struct Vec {
+    using repr_t = glm::vec<N, typename Q::repr_t>;
 
     repr_t raw{};
 
-    static Vec2 from_real(double x, double y) {
-        return {{Q::from_real(x).value, Q::from_real(y).value}};
-    }
-    static Vec2 from_real(glm::dvec2 p) { return from_real(p.x, p.y); }
-
-    glm::dvec2 real() const { return {Q{this->raw.x}.real(), Q{this->raw.y}.real()}; }
-
-    // Addition and subtraction are raw (same scale) -- delegate to glm.
-    constexpr Vec2 operator+(Vec2 rhs) const noexcept { return {this->raw + rhs.raw}; }
-    constexpr Vec2 operator-(Vec2 rhs) const noexcept { return {this->raw - rhs.raw}; }
-    constexpr Vec2 operator-() const noexcept { return {-this->raw}; }
-
-    constexpr Vec2& operator+=(Vec2 rhs) noexcept { this->raw += rhs.raw; return *this; }
-
-    // Scaling rescales each component through Q::mul.
-    constexpr Vec2 operator*(Scalar<Q> s) const noexcept {
-        return {{Q::mul(this->raw.x, s.v), Q::mul(this->raw.y, s.v)}};
+    template <std::float_round_style Rounding = std::round_to_nearest>
+    static Vec from_real(glm::vec<N, double> p) {
+        return {transform(p, [](const auto& c) { return Q::template from_real<Rounding>(c).value; })};
     }
 
-    // dot and cross use fixed-point multiply so the result is in the same scale.
-    constexpr Scalar<Q> dot(Vec2 rhs) const noexcept {
-        return {Q::mul(this->raw.x, rhs.raw.x) + Q::mul(this->raw.y, rhs.raw.y)};
+    template <std::float_round_style Rounding = std::round_to_nearest, typename... Components>
+        requires(sizeof...(Components) == N && (std::convertible_to<Components, double> && ...))
+    static Vec from_real(Components... components) {
+        return from_real<Rounding>(glm::vec<N, double>(components...));
     }
-    constexpr Scalar<Q> cross(Vec2 rhs) const noexcept {
+
+    glm::vec<N, double> real() const {
+        return transform(this->raw, [](const auto& c) { return Q{c}.real(); });
+    }
+
+    constexpr Vec operator+(Vec rhs) const noexcept { return {this->raw + rhs.raw}; }
+    constexpr Vec operator-(Vec rhs) const noexcept { return {this->raw - rhs.raw}; }
+    constexpr Vec operator-() const noexcept { return {-this->raw}; }
+
+    constexpr Vec& operator+=(Vec rhs) noexcept { this->raw += rhs.raw; return *this; }
+
+    constexpr Vec operator*(Scalar<Q> s) const noexcept {
+        return {transform(this->raw, [&](const auto& c) { return Q::mul(c, s.v); })};
+    }
+
+    constexpr Scalar<Q> dot(Vec rhs) const noexcept {
+        typename Q::repr_t sum = 0;
+        for (glm::length_t i = 0; i < N; i++) {
+            sum += Q::mul(this->raw[i], rhs.raw[i]);
+        }
+        return {sum};
+    }
+    constexpr Scalar<Q> cross(Vec rhs) const noexcept
+        requires(N == 2)
+    {
         return {Q::mul(this->raw.x, rhs.raw.y) - Q::mul(this->raw.y, rhs.raw.x)};
     }
     constexpr Scalar<Q> length2() const noexcept { return this->dot(*this); }
 
-    constexpr bool operator==(const Vec2&) const noexcept = default;
+    constexpr bool operator==(const Vec&) const noexcept = default;
 };
+
+template <typename Q>
+using Vec2 = Vec<2, Q>;
+template <typename Q>
+using Vec3 = Vec<3, Q>;
 
 // Signed area test. Positive means p is left of directed edge a -> b.
 template <typename Q>
@@ -93,34 +111,34 @@ constexpr bool right_of(Vec2<Q> a, Vec2<Q> b, Vec2<Q> p) noexcept {
     return orient(a, b, p) < Scalar<Q>::zero();
 }
 
-template <typename Q>
-constexpr Scalar<Q> distance2(Vec2<Q> a, Vec2<Q> b) noexcept {
+template <glm::length_t N, typename Q>
+constexpr Scalar<Q> distance2(Vec<N, Q> a, Vec<N, Q> b) noexcept {
     return (b - a).length2();
 }
 
-template <typename Q>
-bool inside_box(Vec2<Q> lo, Vec2<Q> hi, Vec2<Q> p) noexcept {
+template <glm::length_t N, typename Q>
+bool inside_box(Vec<N, Q> lo, Vec<N, Q> hi, Vec<N, Q> p) noexcept {
     return glm::all(glm::lessThanEqual(lo.raw, p.raw)) &&
            glm::all(glm::lessThanEqual(p.raw, hi.raw));
 }
 
-template <typename Q>
-Vec2<Q> min(Vec2<Q> a, Vec2<Q> b) noexcept {
+template <glm::length_t N, typename Q>
+Vec<N, Q> min(Vec<N, Q> a, Vec<N, Q> b) noexcept {
     return {glm::min(a.raw, b.raw)};
 }
 
-template <typename Q, typename... Rest>
-Vec2<Q> min(Vec2<Q> a, Vec2<Q> b, Rest... rest) noexcept {
+template <glm::length_t N, typename Q, typename... Rest>
+Vec<N, Q> min(Vec<N, Q> a, Vec<N, Q> b, Rest... rest) noexcept {
     return min(min(a, b), rest...);
 }
 
-template <typename Q>
-Vec2<Q> max(Vec2<Q> a, Vec2<Q> b) noexcept {
+template <glm::length_t N, typename Q>
+Vec<N, Q> max(Vec<N, Q> a, Vec<N, Q> b) noexcept {
     return {glm::max(a.raw, b.raw)};
 }
 
-template <typename Q, typename... Rest>
-Vec2<Q> max(Vec2<Q> a, Vec2<Q> b, Rest... rest) noexcept {
+template <glm::length_t N, typename Q, typename... Rest>
+Vec<N, Q> max(Vec<N, Q> a, Vec<N, Q> b, Rest... rest) noexcept {
     return max(max(a, b), rest...);
 }
 
@@ -130,8 +148,8 @@ bool on_segment(Vec2<Q> a, Vec2<Q> b, Vec2<Q> p) noexcept {
 }
 
 // Interpolates from a to b using fixed-point parameter t in [0, Scalar::one()].
-template <typename Q>
-constexpr Vec2<Q> lerp(Vec2<Q> a, Vec2<Q> b, Scalar<Q> t) noexcept {
+template <glm::length_t N, typename Q>
+constexpr Vec<N, Q> lerp(Vec<N, Q> a, Vec<N, Q> b, Scalar<Q> t) noexcept {
     return a + (b - a) * t;
 }
 

@@ -93,6 +93,33 @@ TEST_CASE("fixed::Q from_real rounds in the requested direction", "[dag_builder]
     CHECK(Q::from_real<std::round_toward_infinity>(on_grid).value == 4);
 }
 
+TEST_CASE("fp::Vec3 converts and combines componentwise", "[dag_builder][fixed_point]") {
+    using Q = fixed::Q<16>;
+    using FixedPoint = fp::Vec3<Q>;
+
+    const auto a = FixedPoint::from_real(1.0, 2.0, 3.0);
+    const auto b = FixedPoint::from_real(0.5, 0.25, -1.0);
+
+    CHECK(a.real() == glm::dvec3{1.0, 2.0, 3.0});
+    CHECK((a + b).real() == glm::dvec3{1.5, 2.25, 2.0});
+    CHECK((a - b).real() == glm::dvec3{0.5, 1.75, 4.0});
+    CHECK(fp::min(a, b).real() == glm::dvec3{0.5, 0.25, -1.0});
+    CHECK(fp::max(a, b).real() == glm::dvec3{1.0, 2.0, 3.0});
+    CHECK((a * fp::Scalar<Q>::from_real(2.0)).real() == glm::dvec3{2.0, 4.0, 6.0});
+}
+
+TEST_CASE("fp::Vec3 rounds every component in the requested direction", "[dag_builder][fixed_point]") {
+    using Q = fixed::Q<10, std::int64_t>;
+    using FixedPoint = fp::Vec3<Q>;
+
+    // 1.5 grid steps on every axis, so the three modes disagree.
+    const double between = 1.5 / static_cast<double>(Q::scale);
+    const glm::dvec3 p = {between, -between, between};
+
+    CHECK(FixedPoint::from_real<std::round_toward_neg_infinity>(p).raw == glm::i64vec3{1, -2, 1});
+    CHECK(FixedPoint::from_real<std::round_toward_infinity>(p).raw == glm::i64vec3{2, -1, 2});
+}
+
 TEST_CASE("fp::orient detects triangle winding and collinearity", "[dag_builder][fixed_point]") {
     using Q = fixed::Q<16>;
     using FixedPoint = fp::Vec2<Q>;
