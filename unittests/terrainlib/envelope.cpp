@@ -138,7 +138,7 @@ io::envelope::Bytes bytes_from_string(const std::string_view text)
     io::envelope::Bytes bytes;
     bytes.reserve(text.size());
     for (const char character : text) {
-        bytes.push_back(static_cast<std::byte>(static_cast<unsigned char>(character)));
+        bytes.push_back(static_cast<std::uint8_t>(character));
     }
     return bytes;
 }
@@ -276,7 +276,7 @@ TEST_CASE("CRC-32C protects independently compressed data")
         CHECK(*result == original);
 
         auto corrupted = compressed->compressed_data;
-        corrupted.front() ^= std::byte{0x01};
+        corrupted.front() ^= std::uint8_t{0x01};
         check_error(
             io::envelope::checked_decompress(
                 corrupted,
@@ -359,7 +359,7 @@ TEST_CASE("Envelope round trips and upgrades payloads protected by CRC-32C")
         CHECK(*result == expected);
 
         auto corrupted = envelope;
-        corrupted.compressed_data.front() ^= std::byte{0x01};
+        corrupted.compressed_data.front() ^= std::uint8_t{0x01};
         check_error(io::envelope::deserialize<Schema>(encode_envelope(corrupted)),
                     io::envelope::ErrorCode::ChecksumMismatch);
     }
@@ -386,7 +386,7 @@ TEST_CASE("Envelope round trips and upgrades payloads protected by CRC-32C")
 
 TEST_CASE("Checked compression round trips and validates its checksum")
 {
-    const io::envelope::Bytes original(4096, std::byte{0x2a});
+    const io::envelope::Bytes original(4096, std::uint8_t{0x2a});
     const auto compressed = io::envelope::compress_with_checksum(
         original,
         io::envelope::CompressionAlgorithm::ZstdBestCompressionWithChecksum,
@@ -417,7 +417,7 @@ TEST_CASE("Checked compression round trips and validates its checksum")
     CHECK(empty_result->empty());
 
     auto corrupted = compressed->compressed_data;
-    corrupted.back() ^= std::byte{0x01};
+    corrupted.back() ^= std::uint8_t{0x01};
     check_error(
         io::envelope::checked_decompress(
             corrupted,
@@ -438,7 +438,7 @@ TEST_CASE("Checked compression round trips and validates its checksum")
 
 TEST_CASE("Checked decompression uses its maximum when the format omits the content size")
 {
-    const io::envelope::Bytes original(4096, std::byte{0x37});
+    const io::envelope::Bytes original(4096, std::uint8_t{0x37});
     const auto compressed_data = compress_without_content_size(original);
 
     const auto result = io::envelope::checked_decompress(
@@ -613,7 +613,7 @@ TEST_CASE("Envelope reports malformed serialized data")
 {
     SECTION("envelope")
     {
-        const io::envelope::Bytes malformed{std::byte{0x01}, std::byte{0x02}};
+        const io::envelope::Bytes malformed{std::uint8_t{0x01}, std::uint8_t{0x02}};
         check_error(io::envelope::deserialize<Schema>(malformed),
                     io::envelope::ErrorCode::DeserializationFailed);
     }
@@ -628,7 +628,7 @@ TEST_CASE("Envelope reports malformed serialized data")
             .checksum = {},
             .compression_algorithm = io::envelope::CompressionAlgorithm::None,
             .uncompressed_size = 1,
-            .compressed_data = {std::byte{0x01}},
+            .compressed_data = {std::uint8_t{0x01}},
         };
         check_error(io::envelope::deserialize<Schema>(encode_envelope(envelope)),
                     io::envelope::ErrorCode::DeserializationFailed);

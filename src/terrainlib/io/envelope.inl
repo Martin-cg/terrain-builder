@@ -23,7 +23,7 @@ tl::expected<Bytes, Error> serialize_to_bytes(const Value &value)
 }
 
 template <typename Value>
-tl::expected<Value, Error> deserialize_from_bytes(const std::span<const std::byte> bytes)
+tl::expected<Value, Error> deserialize_from_bytes(const std::span<const std::uint8_t> bytes)
 {
     Value value{};
     zpp::bits::in input(bytes, ArchiveByteOrder{}, ArchiveAllocationLimit{});
@@ -51,7 +51,7 @@ typename Schema::latest_type convert_to_latest(Current current)
 template <typename Schema, std::size_t Index = 0>
 tl::expected<typename Schema::latest_type, Error> deserialize_version(
     const std::uint32_t class_version,
-    const std::span<const std::byte> payload_bytes)
+    const std::span<const std::uint8_t> payload_bytes)
 {
     using CurrentVersion = typename Schema::template version_at<Index>;
     if (class_version == CurrentVersion::number) {
@@ -105,7 +105,7 @@ tl::expected<Bytes, Error> serialize(
 
 template <typename Schema>
 tl::expected<typename Schema::latest_type, Error> deserialize(
-    const std::span<const std::byte> bytes,
+    const std::span<const std::uint8_t> bytes,
     const std::size_t max_decompressed_size)
 {
     auto envelope = detail::deserialize_from_bytes<Envelope>(bytes);

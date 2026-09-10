@@ -133,7 +133,7 @@ tl::expected<Bytes, Error> serialize(
 
 template <typename Schema>
 tl::expected<typename Schema::latest_type, Error> deserialize(
-    std::span<const std::byte> bytes,
+    std::span<const std::uint8_t> bytes,
     std::size_t max_decompressed_size = default_max_decompressed_size);
 
 } // namespace io::envelope
