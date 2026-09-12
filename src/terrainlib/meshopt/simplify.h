@@ -81,8 +81,8 @@ inline SimplifyResult simplify_with_attributes(
     const size_t positions_stride = sizeof(glm::vec3);
     const size_t target_index_count = target_triangle_count * 3;
 
-    DEBUG_ASSERT(vertex_attributes.size() >= vertex_count * (vertex_attribute_stride / sizeof(float)));
-    DEBUG_ASSERT(vertex_locks.size() == vertex_count || vertex_locks.empty());
+    ASSERT(vertex_attributes.size() >= vertex_count * (vertex_attribute_stride / sizeof(float)));
+    ASSERT(vertex_locks.size() == vertex_count || vertex_locks.empty());
 
     SimplifyResult result;
     result.triangles.resize(triangle_count);
