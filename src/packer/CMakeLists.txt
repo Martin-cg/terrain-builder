@@ -1,0 +1,3 @@
+add_library(packerlib INTERFACE)
+target_include_directories(packerlib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(packerlib INTERFACE bvhbuilderlib dagbuilderlib)

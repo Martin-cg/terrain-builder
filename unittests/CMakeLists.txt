@@ -145,6 +145,19 @@ if(TARGET bvhbuilderlib)
     atb_configure_test(unittests_bvhbuilder)
 endif()
 
+if(TARGET packerlib)
+    add_executable(unittests_packer
+        catch2_helpers.h
+        packer/geometry/build.cpp
+        packer/geometry/codec.cpp
+        packer/geometry/format.cpp
+        packer/geometry/serialize.cpp
+        packer/quantize.cpp
+    )
+    target_link_libraries(unittests_packer PUBLIC packerlib Catch2::Catch2WithMain)
+    atb_configure_test(unittests_packer)
+endif()
+
 if(TARGET sfmergerlib)
     add_executable(unittests_sfmerger
         catch2_helpers.h
