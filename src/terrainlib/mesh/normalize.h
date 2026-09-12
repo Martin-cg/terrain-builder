@@ -22,10 +22,14 @@ void normalize_face_index_rotation(const std::span<uint32_t> face, const bool ke
 constexpr glm::uvec2 normalize_edge(glm::uvec2 edge);
 constexpr void normalize_edge_inplace(glm::uvec2 &edge);
 
-glm::uvec3 normalize_triangle(glm::uvec3 triangle, const bool keep_orientation = true);
-void normalize_triangle_inplace(glm::uvec3 &triangle, const bool keep_orientation = true);
-void normalize_triangles_inplace(std::span<glm::uvec3> triangles, const bool keep_orientation = true);
-void normalize_triangles_inplace(std::vector<glm::uvec3>& triangles, const bool keep_orientation = true);
+template <typename T>
+glm::vec<3, T> normalize_triangle(glm::vec<3, T> triangle, const bool keep_orientation = true);
+template <typename T>
+void normalize_triangle_inplace(glm::vec<3, T> &triangle, const bool keep_orientation = true);
+template <typename T>
+void normalize_triangles_inplace(std::span<glm::vec<3, T>> triangles, const bool keep_orientation = true);
+template <typename T>
+void normalize_triangles_inplace(std::vector<glm::vec<3, T>>& triangles, const bool keep_orientation = true);
 
 glm::uvec4 normalize_quad(glm::uvec4 quad, const bool keep_orientation = true);
 void normalize_quad_inplace(glm::uvec4 &quad, const bool keep_orientation = true);

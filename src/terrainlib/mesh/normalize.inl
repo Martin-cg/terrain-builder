@@ -34,8 +34,8 @@ void normalize_triangles(mesh::Simple_<n_dims, T> &mesh) {
 }
 
 namespace detail {
-template <size_t N>
-inline void normalize_face_index_rotation_impl(std::span<uint32_t, N> face, bool keep_orientation) {
+template <size_t N, typename T>
+void normalize_face_index_rotation_impl(std::span<T, N> face, bool keep_orientation) {
     if (keep_orientation) {
         if (face.empty()) {
             return;
@@ -73,19 +73,23 @@ inline constexpr glm::uvec2 normalize_edge(glm::uvec2 edge) {
     return edge;
 }
 
-inline void normalize_triangles_inplace(std::span<glm::uvec3> triangles, const bool keep_orientation) {
-    for (glm::uvec3 &triangle : triangles) {
+template <typename T>
+void normalize_triangles_inplace(std::span<glm::vec<3, T>> triangles, const bool keep_orientation) {
+    for (glm::vec<3, T> &triangle : triangles) {
         normalize_triangle_inplace(triangle, keep_orientation);
     }
 }
-inline void normalize_triangles_inplace(std::vector<glm::uvec3> &triangles, const bool keep_orientation) {
+template <typename T>
+void normalize_triangles_inplace(std::vector<glm::vec<3, T>> &triangles, const bool keep_orientation) {
     normalize_triangles_inplace(std::span(triangles), keep_orientation);
 }
-inline void normalize_triangle_inplace(glm::uvec3 &triangle, const bool keep_orientation) {
-    std::span<uint32_t, 3> data(glm::value_ptr(triangle), triangle.length());
+template <typename T>
+void normalize_triangle_inplace(glm::vec<3, T> &triangle, const bool keep_orientation) {
+    std::span<T, 3> data(glm::value_ptr(triangle), triangle.length());
     detail::normalize_face_index_rotation_impl<3>(data, keep_orientation);
 }
-inline glm::uvec3 normalize_triangle(glm::uvec3 triangle, const bool keep_orientation) {
+template <typename T>
+glm::vec<3, T> normalize_triangle(glm::vec<3, T> triangle, const bool keep_orientation) {
     normalize_triangle_inplace(triangle, keep_orientation);
     return triangle;
 }
