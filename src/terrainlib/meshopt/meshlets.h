@@ -9,12 +9,17 @@
 #include <libassert/assert.hpp>
 #include <meshoptimizer.h>
 
+#include "containers/SegmentedBuffer.h"
 #include "glm_utils.h"
 
 namespace meshopt {
 
 // The most vertices a meshlet can hold.
 inline constexpr size_t MAX_MESHLET_VERTICES = 256;
+// The most triangles meshopt's meshlet utilities accept.
+inline constexpr size_t MAX_MESHLET_TRIANGLES = 512;
+// The level `meshopt_optimizeMeshlet` optimizes at.
+inline constexpr int DEFAULT_MESHLET_OPTIMIZE_LEVEL = 0;
 
 // Meshlets over a shared vertex buffer, each meshlet's data following the previous one's.
 struct [[nodiscard]] BuildMeshletsResult {
@@ -91,18 +96,87 @@ inline BuildMeshletsResult build_meshlets(
         std::move(local_triangles)};
 }
 
-// Reorders a meshlet for locality.
+// Reorders a meshlet for locality; levels above 0 may also rotate triangle corners.
 // Every vertex in `vertex_indices` must be used by a triangle.
 inline void optimize_meshlet(
     const std::span<uint32_t> vertex_indices,
-    const std::span<glm::tvec3<uint8_t>> local_triangles) {
+    const std::span<glm::tvec3<uint8_t>> local_triangles,
+    const int level = DEFAULT_MESHLET_OPTIMIZE_LEVEL) {
+    ASSERT(vertex_indices.size() <= MAX_MESHLET_VERTICES);
+    ASSERT(local_triangles.size() <= MAX_MESHLET_TRIANGLES);
+    ASSERT(level >= 0 && level <= 9);
+
     const std::span<uint8_t> local_indices = flatten(local_triangles);
 
-    meshopt_optimizeMeshlet(
+    meshopt_optimizeMeshletLevel(
         vertex_indices.data(),
+        vertex_indices.size(),
         local_indices.data(),
         local_triangles.size(),
-        vertex_indices.size());
+        level);
+}
+
+namespace detail {
+
+// Extracts a meshlet from `triangles` into the front of `vertex_indices` and `local_triangles`, returning its vertex count.
+// `vertex_indices` must hold one element per index and `local_triangles` one per triangle.
+[[nodiscard]] inline size_t extract_meshlet_indices(
+    const std::span<const glm::uvec3> triangles,
+    const std::span<uint32_t> vertex_indices,
+    const std::span<glm::tvec3<uint8_t>> local_triangles) {
+    const std::span<const uint32_t> indices = flatten(triangles);
+    ASSERT(triangles.size() <= MAX_MESHLET_TRIANGLES);
+    ASSERT(vertex_indices.size() >= indices.size());
+    ASSERT(local_triangles.size() >= triangles.size());
+
+    const std::span<uint8_t> local_indices = flatten(local_triangles);
+    const size_t vertex_count = meshopt_extractMeshletIndices(
+        vertex_indices.data(),
+        local_indices.data(),
+        indices.data(),
+        indices.size());
+    ASSERT(vertex_count <= MAX_MESHLET_VERTICES);
+    return vertex_count;
+}
+
+} // namespace detail
+
+// Appends the meshlet's vertex indices to `vertex_indices` and its local triangles to `local_triangles`, returning how many vertex indices it appended.
+[[nodiscard]] inline size_t extract_meshlet_indices(
+    const std::span<const glm::uvec3> triangles,
+    std::vector<uint32_t> &vertex_indices,
+    std::vector<glm::tvec3<uint8_t>> &local_triangles) {
+    const size_t vertex_offset = vertex_indices.size();
+    const size_t triangle_offset = local_triangles.size();
+    const size_t index_count = triangles.size() * 3;
+    vertex_indices.resize(vertex_offset + index_count);
+    local_triangles.resize(triangle_offset + triangles.size());
+
+    const size_t vertex_count = detail::extract_meshlet_indices(
+        triangles,
+        std::span(vertex_indices).subspan(vertex_offset),
+        std::span(local_triangles).subspan(triangle_offset));
+
+    vertex_indices.resize(vertex_offset + vertex_count);
+    return vertex_count;
+}
+
+// Appends the meshlet's vertex indices as a new segment of `vertex_indices` and its local triangles as a new segment of `local_triangles`.
+template <typename Index>
+inline void extract_meshlet_indices(
+    const std::span<const glm::uvec3> triangles,
+    SegmentedBuffer<uint32_t, Index> &vertex_indices,
+    SegmentedBuffer<glm::tvec3<uint8_t>, Index> &local_triangles) {
+    const size_t index_count = triangles.size() * 3;
+    vertex_indices.push_new_segment(static_cast<Index>(index_count));
+    local_triangles.push_new_segment(static_cast<Index>(triangles.size()));
+
+    const size_t vertex_count = detail::extract_meshlet_indices(
+        triangles,
+        vertex_indices.last_segment(),
+        local_triangles.last_segment());
+
+    vertex_indices.resize_last_segment(static_cast<Index>(vertex_count));
 }
 
 } // namespace meshopt
