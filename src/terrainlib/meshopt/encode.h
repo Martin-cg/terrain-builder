@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <concepts>
 #include <cstdint>
 #include <span>
 #include <type_traits>
@@ -13,6 +14,7 @@
 
 #include "glm_utils.h"
 #include "numeric/int_math.h"
+#include "try.h"
 
 namespace meshopt {
 
@@ -27,6 +29,10 @@ struct DecodeError {
 inline constexpr int DEFAULT_VERTEX_ENCODE_LEVEL = 2;
 // Defers to the version set through `meshopt_encodeVertexVersion`.
 inline constexpr int DEFAULT_VERTEX_ENCODE_VERSION = -1;
+
+// An index type the meshopt decoders write natively.
+template <typename T>
+concept DecodableIndex = std::unsigned_integral<T> && (sizeof(T) == 2 || sizeof(T) == 4);
 
 // Encodes a vertex buffer with meshopt's vertex codec.
 template <typename T>
@@ -72,6 +78,13 @@ template <typename T>
     }
     return {};
 }
+// Decodes the `vertex_count` vertices held by `encoded` into a new vector.
+template <typename T>
+[[nodiscard]] inline tl::expected<std::vector<T>, DecodeError> try_decode_vertex_buffer(const size_t vertex_count, const std::span<const uint8_t> encoded) {
+    std::vector<T> data(vertex_count);
+    TRY(try_decode_vertex_buffer(std::span<T>(data), encoded));
+    return data;
+}
 // Decodes a vertex buffer into `data`, which must hold exactly as many vertices as were encoded; asserts that it decodes.
 template <typename T>
 inline void decode_vertex_buffer(std::span<T> data, const std::span<const uint8_t> encoded) {
@@ -87,9 +100,9 @@ inline void decode_vertex_buffer(std::vector<T>& data, size_t vertex_count, cons
 // Decodes a vertex buffer into a new vector.
 template <typename T>
 [[nodiscard]] inline std::vector<T> decode_vertex_buffer(size_t vertex_count, const std::span<const uint8_t> encoded) {
-    std::vector<T> data;
-    decode_vertex_buffer(data, vertex_count, encoded);
-    return data;
+    tl::expected<std::vector<T>, DecodeError> result = try_decode_vertex_buffer<T>(vertex_count, encoded);
+    ASSERT(result.has_value(), "Vertex buffer decoding failed");
+    return *std::move(result);
 }
 
 // Encodes a triangle list with meshopt's index codec.
@@ -108,31 +121,58 @@ template <typename T>
     return encode_index_buffer(indices);
 }
 
-// Decodes a triangle list into `indices`, which must hold exactly as many indices as were encoded; asserts that it decodes.
-inline void decode_index_buffer(std::span<uint32_t> indices, const std::span<const uint8_t> encoded) {
-    const int result = meshopt_decodeIndexBuffer(
+// Decodes a triangle list into `indices`, which must hold exactly as many indices as were encoded.
+template <DecodableIndex T>
+[[nodiscard]] inline tl::expected<void, DecodeError> try_decode_index_buffer(const std::span<T> indices, const std::span<const uint8_t> encoded) {
+    const int code = meshopt_decodeIndexBuffer(
         indices.data(),
         indices.size(),
-        sizeof(uint32_t),
+        sizeof(T),
         encoded.data(),
         encoded.size());
-    ASSERT(result == 0, "Index buffer decoding failed");
+    if (code != 0) {
+        return tl::unexpected(DecodeError{code});
+    }
+    return {};
+}
+// Decodes a triangle list into `triangles`, which must hold exactly as many triangles as were encoded.
+template <DecodableIndex T>
+[[nodiscard]] inline tl::expected<void, DecodeError> try_decode_index_buffer(const std::span<glm::vec<3, T>> triangles, const std::span<const uint8_t> encoded) {
+    const std::span<T> indices = flatten(triangles);
+    return try_decode_index_buffer(indices, encoded);
+}
+// Decodes the `triangle_count` triangles held by `encoded` into a new vector.
+template <DecodableIndex T = uint32_t>
+[[nodiscard]] inline tl::expected<std::vector<glm::vec<3, T>>, DecodeError> try_decode_index_buffer(const size_t triangle_count, const std::span<const uint8_t> encoded) {
+    std::vector<glm::vec<3, T>> triangles(triangle_count);
+    TRY(try_decode_index_buffer(std::span<glm::vec<3, T>>(triangles), encoded));
+    return triangles;
+}
+
+// Decodes a triangle list into `indices`, which must hold exactly as many indices as were encoded; asserts that it decodes.
+template <DecodableIndex T>
+inline void decode_index_buffer(const std::span<T> indices, const std::span<const uint8_t> encoded) {
+    const tl::expected<void, DecodeError> result = try_decode_index_buffer(indices, encoded);
+    ASSERT(result.has_value(), "Index buffer decoding failed");
 }
 // Decodes a triangle list into `triangles`, which must hold exactly as many triangles as were encoded; asserts that it decodes.
-inline void decode_index_buffer(std::span<glm::uvec3> triangles, const std::span<const uint8_t> encoded) {
-    std::span<uint32_t> indices = flatten(triangles);
-    decode_index_buffer(indices, encoded);
+template <DecodableIndex T>
+inline void decode_index_buffer(const std::span<glm::vec<3, T>> triangles, const std::span<const uint8_t> encoded) {
+    const tl::expected<void, DecodeError> result = try_decode_index_buffer(triangles, encoded);
+    ASSERT(result.has_value(), "Index buffer decoding failed");
 }
 // Replaces the contents of `triangles` with the decoded triangles.
-inline void decode_index_buffer(std::vector<glm::uvec3>& triangles, const size_t triangle_count, const std::span<const uint8_t> encoded) {
+template <DecodableIndex T>
+inline void decode_index_buffer(std::vector<glm::vec<3, T>>& triangles, const size_t triangle_count, const std::span<const uint8_t> encoded) {
     triangles.resize(triangle_count);
-    decode_index_buffer(std::span<glm::uvec3>(triangles), encoded);
+    decode_index_buffer(std::span<glm::vec<3, T>>(triangles), encoded);
 }
 // Decodes a triangle list into a new vector.
-[[nodiscard]] inline std::vector<glm::uvec3> decode_index_buffer(const size_t triangle_count, const std::span<const uint8_t> encoded) {
-    std::vector<glm::uvec3> triangles;
-    decode_index_buffer(triangles, triangle_count, encoded);
-    return triangles;
+template <DecodableIndex T = uint32_t>
+[[nodiscard]] inline std::vector<glm::vec<3, T>> decode_index_buffer(const size_t triangle_count, const std::span<const uint8_t> encoded) {
+    tl::expected<std::vector<glm::vec<3, T>>, DecodeError> result = try_decode_index_buffer<T>(triangle_count, encoded);
+    ASSERT(result.has_value(), "Index buffer decoding failed");
+    return *std::move(result);
 }
 
 // Encodes one meshlet with meshopt's meshlet codec.
@@ -159,10 +199,11 @@ inline void decode_index_buffer(std::vector<glm::uvec3>& triangles, const size_t
 namespace detail {
 
 // The number of vertex indices the meshlet decoder may write when asked for `vertex_count` of them.
+template <DecodableIndex T>
 [[nodiscard]] inline size_t get_meshlet_decode_vertex_bound(const size_t vertex_count) {
     // The decoder writes whole 4-byte blocks.
-    const size_t byte_bound = align_up(vertex_count * sizeof(uint16_t), size_t{4});
-    return byte_bound / sizeof(uint16_t);
+    const size_t byte_bound = align_up(vertex_count * sizeof(T), size_t{4});
+    return byte_bound / sizeof(T);
 }
 
 // The number of local triangles the meshlet decoder may write when asked for `triangle_count` of them.
@@ -173,19 +214,20 @@ namespace detail {
 }
 
 // Decodes a meshlet into the front of `vertex_indices` and `local_triangles`, which must hold at least the decode bounds.
+template <DecodableIndex T>
 [[nodiscard]] inline tl::expected<void, DecodeError> try_decode_meshlet(
     const std::span<const uint8_t> encoded,
     const size_t vertex_count,
     const size_t triangle_count,
-    const std::span<uint16_t> vertex_indices,
+    const std::span<T> vertex_indices,
     const std::span<glm::tvec3<uint8_t>> local_triangles) {
-    ASSERT(vertex_indices.size() >= get_meshlet_decode_vertex_bound(vertex_count));
+    ASSERT(vertex_indices.size() >= get_meshlet_decode_vertex_bound<T>(vertex_count));
     ASSERT(local_triangles.size() >= get_meshlet_decode_triangle_bound(triangle_count));
 
     const int code = meshopt_decodeMeshlet(
         vertex_indices.data(),
         vertex_count,
-        sizeof(uint16_t),
+        sizeof(T),
         local_triangles.data(),
         triangle_count,
         sizeof(glm::tvec3<uint8_t>),
@@ -200,15 +242,16 @@ namespace detail {
 } // namespace detail
 
 // Appends the decoded meshlet to `vertex_indices` and `local_triangles`; on failure both keep their previous contents.
+template <DecodableIndex T>
 [[nodiscard]] inline tl::expected<void, DecodeError> try_decode_meshlet(
     const std::span<const uint8_t> encoded,
     const size_t vertex_count,
     const size_t triangle_count,
-    std::vector<uint16_t> &vertex_indices,
+    std::vector<T> &vertex_indices,
     std::vector<glm::tvec3<uint8_t>> &local_triangles) {
     const size_t vertex_offset = vertex_indices.size();
     const size_t triangle_offset = local_triangles.size();
-    const size_t vertex_bound = detail::get_meshlet_decode_vertex_bound(vertex_count);
+    const size_t vertex_bound = detail::get_meshlet_decode_vertex_bound<T>(vertex_count);
     const size_t triangle_bound = detail::get_meshlet_decode_triangle_bound(triangle_count);
     vertex_indices.resize(vertex_offset + vertex_bound);
     local_triangles.resize(triangle_offset + triangle_bound);
