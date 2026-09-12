@@ -2,6 +2,9 @@
 
 #include <ostream>
 #include <span>
+#include <string>
+#include <utility>
+#include <variant>
 #include <vector>
 
 #include <tl/expected.hpp>
@@ -53,20 +56,13 @@ struct EncodeOptions {
     std::string texture_format = ".jpeg";
 };
 
-enum class EncodeError {
-    TextureEncode
+// Why encoding failed: the texture could not be encoded.
+struct EncodeError {
+    std::string message; // OpenCV's description
 };
 
 inline std::ostream& operator<<(std::ostream& os, const EncodeError& err) {
-    switch (err) {
-    case EncodeError::TextureEncode:
-        os << "Texture encoding failed";
-        break;
-    default:
-        os << "Unknown EncodeError";
-        break;
-    }
-    return os;
+    return os << "Texture encoding failed: " << err.message;
 }
 
 template <glm::length_t n_dims, typename T>
@@ -98,8 +94,7 @@ tl::expected<Encoded, EncodeError> encode(const Simple_<n_dims, T>& mesh, const 
         try {
             texture_buf = mesh::io::write_texture_to_encoded_buffer(mesh.texture.value(), options.texture_format);
         } catch (const cv::Exception &e) {
-            LOG_ERROR("Failed while encoding texture {}", e.what());
-            return tl::unexpected(EncodeError::TextureEncode);
+            return tl::unexpected(EncodeError{e.what()});
         }
     }
 
@@ -121,36 +116,50 @@ tl::expected<Encoded, EncodeError> encode(const Simple_<n_dims, T>& mesh, const 
 struct DecodeOptions {
 };
 
-enum class DecodeError {
-    IncompatibleData,
-    PositionDecode,
-    UvDecode,
-    TriangleDecode,
-    TextureDecode
+// The encoded header is for another version, dimension count or component type.
+struct IncompatibleData {};
+
+// A stream of an encoded mesh.
+enum class MeshStream {
+    Positions,
+    Uvs,
+    Triangles
 };
 
-inline std::ostream &operator<<(std::ostream &os, const DecodeError &err) {
-    switch (err) {
-    case DecodeError::IncompatibleData:
-        os << "Incompatible data";
-        break;
-    case DecodeError::PositionDecode:
-        os << "Position decoding failed";
-        break;
-    case DecodeError::UvDecode:
-        os << "UV decoding failed";
-        break;
-    case DecodeError::TriangleDecode:
-        os << "Triangle decoding failed";
-        break;
-    case DecodeError::TextureDecode:
-        os << "Texture decoding failed";
-        break;
-    default:
-        os << "Unknown DecodeError";
-        break;
+inline std::ostream &operator<<(std::ostream &os, const MeshStream stream) {
+    switch (stream) {
+    case MeshStream::Positions:
+        return os << "positions";
+    case MeshStream::Uvs:
+        return os << "uvs";
+    case MeshStream::Triangles:
+        return os << "triangles";
     }
-    return os;
+    return os << "unknown stream";
+}
+
+// A vertex or index stream that failed to decode.
+struct StreamDecodeError {
+    MeshStream stream;
+    meshopt::DecodeError error;
+};
+
+// The texture could not be decoded.
+struct TextureDecodeError {
+    std::string message; // OpenCV's description
+};
+
+using DecodeError = std::variant<IncompatibleData, StreamDecodeError, TextureDecodeError>;
+
+inline std::ostream &operator<<(std::ostream &os, const DecodeError &err) {
+    if (std::holds_alternative<IncompatibleData>(err)) {
+        return os << "Incompatible data";
+    }
+    if (const StreamDecodeError *stream_error = std::get_if<StreamDecodeError>(&err)) {
+        return os << "Decoding the " << stream_error->stream << " failed with meshopt code " << stream_error->error.code;
+    }
+    const TextureDecodeError &texture_error = std::get<TextureDecodeError>(err);
+    return os << "Texture decoding failed: " << texture_error.message;
 }
 
 
@@ -161,7 +170,7 @@ tl::expected<Simple_<n_dims, T>, DecodeError> decode(const Encoded &encoded, con
     if (header.version != 1 ||
         header.n_dims != n_dims ||
         header.component_type != expected_component_type) {
-        return tl::unexpected(DecodeError::IncompatibleData);
+        return tl::unexpected(IncompatibleData{});
     }
 
     using Mesh = Simple_<n_dims, T>;
@@ -172,7 +181,7 @@ tl::expected<Simple_<n_dims, T>, DecodeError> decode(const Encoded &encoded, con
     mesh.positions.resize(vertex_count);
     const tl::expected<void, meshopt::DecodeError> positions_result = meshopt::try_decode_vertex_buffer(std::span(mesh.positions), encoded.positions);
     if (!positions_result) {
-        return tl::unexpected(DecodeError::PositionDecode);
+        return tl::unexpected(StreamDecodeError{MeshStream::Positions, positions_result.error()});
     }
 
     // Decode uvs
@@ -180,7 +189,7 @@ tl::expected<Simple_<n_dims, T>, DecodeError> decode(const Encoded &encoded, con
         mesh.uvs.resize(vertex_count);
         const tl::expected<void, meshopt::DecodeError> uvs_result = meshopt::try_decode_vertex_buffer(std::span(mesh.uvs), encoded.uvs);
         if (!uvs_result) {
-            return tl::unexpected(DecodeError::UvDecode);
+            return tl::unexpected(StreamDecodeError{MeshStream::Uvs, uvs_result.error()});
         }
     }
 
@@ -189,16 +198,20 @@ tl::expected<Simple_<n_dims, T>, DecodeError> decode(const Encoded &encoded, con
     mesh.triangles.resize(face_count);
     const tl::expected<void, meshopt::DecodeError> triangles_result = meshopt::try_decode_index_buffer(std::span(mesh.triangles), encoded.triangles);
     if (!triangles_result) {
-        return tl::unexpected(DecodeError::TriangleDecode);
+        return tl::unexpected(StreamDecodeError{MeshStream::Triangles, triangles_result.error()});
     }
 
     // Decode texture
     if (!encoded.texture.empty()) {
         try {
-            mesh.texture = mesh::io::read_texture_from_encoded_bytes(encoded.texture);
+            cv::Mat texture = mesh::io::read_texture_from_encoded_bytes(encoded.texture);
+            // OpenCV reports bytes it cannot read as an image by returning an empty matrix, not by throwing.
+            if (texture.empty()) {
+                return tl::unexpected(TextureDecodeError{"the bytes are not an image OpenCV can read"});
+            }
+            mesh.texture = std::move(texture);
         } catch (const cv::Exception &e) {
-            LOG_ERROR("Failed while decoding texture {}", e.what());
-            return tl::unexpected(DecodeError::TextureDecode);
+            return tl::unexpected(TextureDecodeError{e.what()});
         }
     }
 

@@ -1,5 +1,6 @@
 #include <fstream>
 
+#include <fmt/ostream.h>
 #include <libassert/assert.hpp>
 
 #include "io/bytes.h"
@@ -113,7 +114,8 @@ tl::expected<std::vector<uint8_t>, SaveMeshError> save_to_buffer(const SimpleMes
     const auto encode_result = mesh::encode(mesh, mesh::EncodeOptions{
                                                       .texture_format = options.texture_format});
     if (!encode_result.has_value()) {
-        return tl::unexpected(SaveMeshErrorKind::UnsupportedFormat);
+        LOG_ERROR("Failed to encode mesh: {}", fmt::streamed(encode_result.error()));
+        return tl::unexpected(SaveMeshErrorKind::TextureEncode);
     }
     const mesh::Encoded encoded = encode_result.value();
 
@@ -135,6 +137,7 @@ tl::expected<SimpleMesh, LoadMeshError> load_from_buffer(const std::span<const u
 
     const auto decode_result = mesh::decode(encoded);
     if (!decode_result.has_value()) {
+        LOG_ERROR("Failed to decode mesh: {}", fmt::streamed(decode_result.error()));
         return tl::unexpected(LoadMeshErrorKind::InvalidFormat);
     }
     const mesh::Simple mesh = decode_result.value();

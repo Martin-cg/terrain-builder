@@ -56,7 +56,8 @@ enum class SaveMeshErrorKind {
     UnsupportedFormat,
     OpenFile,
     WriteFile,
-    OutOfMemory
+    OutOfMemory,
+    TextureEncode
 };
 
 class SaveMeshError {
@@ -91,6 +92,8 @@ public:
                 return "failed to write to output file";
             case SaveMeshErrorKind::OutOfMemory:
                 return "out of memory";
+            case SaveMeshErrorKind::TextureEncode:
+                return "failed to encode texture";
             default:
                 return "undefined error";
         }

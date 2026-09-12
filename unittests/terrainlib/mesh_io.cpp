@@ -17,6 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
+#include <variant>
+
 #include <opencv2/opencv.hpp>
 #include <fmt/core.h>
 
@@ -63,6 +65,67 @@ TEST_CASE("transcode roundtrip") {
     CHECK(roundtrip_mesh.triangles == mesh.triangles);
     CHECK(roundtrip_mesh.texture.has_value());
     CHECK(mat_equals(*roundtrip_mesh.texture, *mesh.texture));
+}
+
+TEST_CASE("mesh::decode rejects a header of another version") {
+    mesh::Simple mesh;
+    mesh.positions = {glm::dvec3(0, 0, 0), glm::dvec3(1, 0, 0), glm::dvec3(0, 1, 0)};
+    mesh.triangles = {glm::uvec3(0, 1, 2)};
+    const tl::expected<mesh::Encoded, mesh::EncodeError> encode_result = mesh::encode(mesh);
+    REQUIRE(encode_result.has_value());
+    mesh::Encoded encoded = *encode_result;
+    encoded.header.version = 2;
+
+    const tl::expected<mesh::Simple, mesh::DecodeError> decode_result = mesh::decode(encoded);
+
+    REQUIRE(!decode_result.has_value());
+    CHECK(std::holds_alternative<mesh::IncompatibleData>(decode_result.error()));
+}
+
+TEST_CASE("mesh::decode reports which stream failed to decode") {
+    mesh::Simple mesh;
+    mesh.positions = {glm::dvec3(0, 0, 0), glm::dvec3(1, 0, 0), glm::dvec3(0, 1, 0)};
+    mesh.triangles = {glm::uvec3(0, 1, 2)};
+    const tl::expected<mesh::Encoded, mesh::EncodeError> encode_result = mesh::encode(mesh);
+    REQUIRE(encode_result.has_value());
+    mesh::Encoded encoded = *encode_result;
+    encoded.positions.pop_back();
+
+    const tl::expected<mesh::Simple, mesh::DecodeError> decode_result = mesh::decode(encoded);
+
+    REQUIRE(!decode_result.has_value());
+    const mesh::StreamDecodeError *error = std::get_if<mesh::StreamDecodeError>(&decode_result.error());
+    REQUIRE(error != nullptr);
+    CHECK(error->stream == mesh::MeshStream::Positions);
+}
+
+TEST_CASE("mesh::decode reports a texture it cannot decode") {
+    mesh::Simple mesh;
+    mesh.positions = {glm::dvec3(0, 0, 0), glm::dvec3(1, 0, 0), glm::dvec3(0, 1, 0)};
+    mesh.triangles = {glm::uvec3(0, 1, 2)};
+    mesh.uvs = {glm::dvec2(0, 0), glm::dvec2(1, 0), glm::dvec2(0, 1)};
+    mesh.texture = cv::Mat3b(4, 4, cv::Vec3b(0, 0, 0));
+    const tl::expected<mesh::Encoded, mesh::EncodeError> encode_result = mesh::encode(mesh, mesh::EncodeOptions{.texture_format = ".png"});
+    REQUIRE(encode_result.has_value());
+    mesh::Encoded encoded = *encode_result;
+    encoded.texture = {1, 2, 3, 4};
+
+    const tl::expected<mesh::Simple, mesh::DecodeError> decode_result = mesh::decode(encoded);
+
+    REQUIRE(!decode_result.has_value());
+    CHECK(std::holds_alternative<mesh::TextureDecodeError>(decode_result.error()));
+}
+
+TEST_CASE("mesh::encode reports a texture it cannot encode") {
+    mesh::Simple mesh;
+    mesh.positions = {glm::dvec3(0, 0, 0), glm::dvec3(1, 0, 0), glm::dvec3(0, 1, 0)};
+    mesh.triangles = {glm::uvec3(0, 1, 2)};
+    mesh.uvs = {glm::dvec2(0, 0), glm::dvec2(1, 0), glm::dvec2(0, 1)};
+    mesh.texture = cv::Mat3b(4, 4, cv::Vec3b(0, 0, 0));
+
+    const tl::expected<mesh::Encoded, mesh::EncodeError> encode_result = mesh::encode(mesh, mesh::EncodeOptions{.texture_format = ".unknown"});
+
+    CHECK(!encode_result.has_value());
 }
 
 TEST_CASE("io roundtrip") {
