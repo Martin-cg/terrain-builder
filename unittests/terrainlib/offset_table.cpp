@@ -2,6 +2,8 @@
 #include "containers/OffsetTable.h"
 
 #include <array>
+#include <cstdint>
+#include <ranges>
 #include <vector>
 
 TEST_CASE("OffsetTable default construction") {
@@ -253,4 +255,58 @@ TEST_CASE("OffsetTable appends after popping continue from the shortened end") {
     const auto range = table.segment_range(1);
     CHECK(range.begin == 3);
     CHECK(range.end == 5);
+}
+
+TEST_CASE("build_offset_table fills a table up to the limit of its index type") {
+    const std::array<uint8_t, 3> lengths = {1, 0, 254};
+
+    const OffsetTable_<uint8_t> table = build_offset_table<uint8_t>(lengths);
+
+    REQUIRE(table.size() == 3);
+    CHECK(table.total_size() == 255);
+
+    const auto r0 = table.segment_range(0);
+    CHECK(r0.begin == 0);
+    CHECK(r0.end == 1);
+
+    const auto r1 = table.segment_range(1);
+    CHECK(r1.begin == 1);
+    CHECK(r1.end == 1);
+
+    const auto r2 = table.segment_range(2);
+    CHECK(r2.begin == 1);
+    CHECK(r2.end == 255);
+}
+
+TEST_CASE("build_offset_table totals narrow lengths in a wider index type") {
+    const std::array<uint8_t, 2> lengths = {200, 100};
+
+    const OffsetTable table = build_offset_table(lengths);
+
+    REQUIRE(table.size() == 2);
+    CHECK(table.total_size() == 300);
+    CHECK(table.segment_range(1).begin == 200);
+}
+
+TEST_CASE("build_offset_table takes lengths from a projected range") {
+    struct Item {
+        uint8_t count;
+    };
+    const std::array<Item, 3> items = {Item{3}, Item{5}, Item{2}};
+
+    const OffsetTable table = build_offset_table(items | std::views::transform(&Item::count));
+
+    REQUIRE(table.size() == 3);
+    CHECK(table.total_size() == 10);
+    CHECK(table.segment_range(1).begin == 3);
+    CHECK(table.segment_range(2).begin == 8);
+}
+
+TEST_CASE("build_offset_table of no lengths is empty") {
+    const std::array<uint8_t, 0> lengths = {};
+
+    const OffsetTable table = build_offset_table(lengths);
+
+    CHECK(table.empty());
+    CHECK(table.total_size() == 0);
 }

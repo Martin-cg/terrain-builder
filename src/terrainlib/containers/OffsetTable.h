@@ -1,10 +1,16 @@
 #pragma once
 
 #include <algorithm>
+#include <concepts>
 #include <cstddef>
+#include <limits>
+#include <ranges>
 #include <span>
 #include <stdexcept>
+#include <utility>
 #include <vector>
+
+#include <libassert/assert.hpp>
 
 template <typename Index>
 class OffsetTable_ {
@@ -213,3 +219,18 @@ private:
 };
 
 using OffsetTable = OffsetTable_<size_t>;
+
+// Builds an offset table with one segment per length in `lengths`; their total must fit in `Index`.
+template <typename Index = size_t, std::ranges::input_range Lengths>
+[[nodiscard]] OffsetTable_<Index> build_offset_table(Lengths &&lengths) {
+    OffsetTable_<Index> table;
+    for (const auto length : lengths) {
+        if constexpr (std::integral<std::ranges::range_value_t<Lengths>>) {
+            DEBUG_ASSERT(std::in_range<Index>(length));
+        }
+        const Index converted = static_cast<Index>(length);
+        DEBUG_ASSERT(converted <= std::numeric_limits<Index>::max() - table.total_size());
+        table.append_segment(converted);
+    }
+    return table;
+}
