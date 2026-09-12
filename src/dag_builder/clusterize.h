@@ -14,7 +14,7 @@
 #include <libassert/assert.hpp>
 
 #include "mesh/SimpleMesh.h"
-#include "meshopt.h"
+#include "meshopt/meshlets.h"
 #include "utils.h"
 #include "validate.h"
 #include "range_utils.h"

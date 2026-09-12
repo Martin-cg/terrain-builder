@@ -14,7 +14,7 @@
 #include <meshoptimizer.h>
 
 #include "cluster.h"
-#include "meshopt.h"
+#include "meshopt/simplify.h"
 #include "utils.h"
 #include "mesh/validate.h"
 #include "mesh/connectivity/boundary.h"

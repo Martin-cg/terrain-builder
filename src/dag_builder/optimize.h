@@ -1,7 +1,7 @@
 #pragma once
 
 #include "cluster.h"
-#include "meshopt.h"
+#include "meshopt/meshlets.h"
 
 inline void optimize_inplace(Cluster &cluster) {
     meshopt::optimize_meshlet(cluster.vertex_indices, cluster.local_triangles);

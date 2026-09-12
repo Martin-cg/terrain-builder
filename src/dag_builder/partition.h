@@ -14,7 +14,7 @@
 #include "cluster.h"
 #include "geometry/geometry.h"
 #include "enumerate.h"
-#include "meshopt.h"
+#include "meshopt/partition.h"
 #include "range_utils.h"
 #include "merge/clusters.h"
 #include "Partitioning.h"

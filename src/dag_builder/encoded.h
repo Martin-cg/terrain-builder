@@ -16,7 +16,7 @@
 #include "io/bytes.h"
 #include "io/serialize.h"
 #include "mesh/io/texture.h"
-#include "meshopt.h"
+#include "meshopt/encode.h"
 
 template <typename Archive>
 auto serialize(Archive &archive, const TextureSet &textures) {
