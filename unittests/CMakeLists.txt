@@ -114,6 +114,7 @@ if(TARGET dagbuilderlib)
         dag_builder/fixed_point.cpp
         dag_builder/texture_sizing.cpp
         dag_builder/texture_reuse.cpp
+        dag_builder/fill_missing_textures.cpp
     )
     target_link_libraries(unittests_dagbuilder PUBLIC dagbuilderlib Catch2::Catch2WithMain)
     atb_configure_test(unittests_dagbuilder)
