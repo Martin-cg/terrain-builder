@@ -185,6 +185,31 @@ TEST_CASE("build_atlas reports degenerate triangles instead of dropping them", "
     CHECK(uv_area(atlas, 3) > 0.0);
 }
 
+TEST_CASE("build_atlas leaves out a triangle far thinner than a texel", "[terrainlib][uv][atlas]") {
+    // A cap under the quad's bottom edge, far below a thousandth of a texel at this resolution.
+    mesh::Simple mesh = make_quad();
+    mesh.positions.push_back(glm::dvec3(0.5, -1e-7, 0));
+    mesh.triangles.push_back(glm::uvec3(0, 4, 1));
+
+    constexpr uint32_t resolution = 64;
+    const uv::Atlas atlas = uv::build_atlas(mesh, resolution);
+
+    REQUIRE(atlas.triangles.size() == mesh.face_count());
+    CHECK(atlas.unmapped_triangles == std::vector<uint32_t>{2});
+}
+
+TEST_CASE("build_atlas keeps a triangle thinner than a texel but far above the limit", "[terrainlib][uv][atlas]") {
+    // A cap a tenth of a texel thick at this resolution.
+    mesh::Simple mesh = make_quad();
+    mesh.positions.push_back(glm::dvec3(0.5, -1.0 / 640, 0));
+    mesh.triangles.push_back(glm::uvec3(0, 4, 1));
+
+    constexpr uint32_t resolution = 64;
+    const uv::Atlas atlas = uv::build_atlas(mesh, resolution);
+
+    check_fully_mapped(atlas, mesh);
+}
+
 TEST_CASE("build_atlas normalises the uvs against the packed size", "[terrainlib][uv][atlas]") {
     const mesh::Simple mesh = make_cube();
 

@@ -17,6 +17,8 @@
 
 namespace geometry {
 
+using Triangle3d = radix::geometry::Triangle<3, double>;
+
 // Grow bounds by the same distance on every side.
 template <glm::length_t n_dims, typename T>
 radix::geometry::Aabb<n_dims, T> pad_bounds_absolute(const radix::geometry::Aabb<n_dims, T> &bounds, const T padding);
@@ -127,6 +129,14 @@ template <glm::length_t n_dims, typename T>
 T compute_triangle_area(const glm::uvec3 &triangle, const std::span<const glm::vec<n_dims, T>> positions);
 template <glm::length_t n_dims, typename T>
 T compute_triangle_area(const glm::uvec3 &triangle, const std::vector<glm::vec<n_dims, T>>& positions);
+
+// The longest of the triangle's three edges.
+template <typename T>
+T compute_longest_edge(const radix::geometry::Triangle<3, T> &triangle);
+
+// The triangle's smallest altitude, zero where its corners coincide.
+template <typename T>
+T compute_triangle_thickness(const radix::geometry::Triangle<3, T> &triangle);
 
 // Negative where the triangle winds the other way.
 template <typename T>
