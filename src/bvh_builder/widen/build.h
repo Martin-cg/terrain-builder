@@ -8,7 +8,8 @@
 #include <tl/expected.hpp>
 
 #include "io/Error.h"
-#include "try.h"
+#include "error/Result.h"
+#include "error/try.h"
 
 #include "bvh/NodeCache.h"
 #include "bvh/Storage.h"
@@ -21,7 +22,7 @@ namespace widen {
 
 // Writes the tree at `root` into `output` with up to `arity` children per node, and returns its new root.
 [[nodiscard]]
-inline tl::expected<bvh::Reference, io::Error> build(
+inline alp::Result<bvh::Reference, io::Error> build(
     const bvh::Storage &input, const bvh::Reference &root, bvh::Storage &output,
     const std::filesystem::path &scratch, const Options &options) {
 
@@ -30,11 +31,11 @@ inline tl::expected<bvh::Reference, io::Error> build(
     bvh::NodeCache tree(input, max_resident_batches);
 
     SplitStorage splits(scratch / "splits");
-    TRY(tabulate_splits(tree, root, splits, options));
-    TRY(splits.save_index());
+    ALP_TRY(tabulate_splits(tree, root, splits, options));
+    ALP_TRY(splits.save_index());
 
-    TRY(const bvh::Reference wide_root, write_wide_nodes(splits, tree, root, output, options));
-    TRY(output.save_index());
+    ALP_TRY(const bvh::Reference wide_root, write_wide_nodes(splits, tree, root, output, options));
+    ALP_TRY(output.save_index());
     return wide_root;
 }
 

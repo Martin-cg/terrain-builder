@@ -11,7 +11,8 @@
 #include <tl/expected.hpp>
 
 #include "io/Error.h"
-#include "try.h"
+#include "error/Result.h"
+#include "error/try.h"
 
 // A cache for batches in a storage. Uses an LRU policy for eviction.
 template <typename Storage>
@@ -24,14 +25,15 @@ public:
     }
 
     // The batch at `index`, read if it is not resident, valid until the next read.
-    tl::expected<std::reference_wrapper<const Batch>, io::Error> read_batch(const uint32_t index) {
+    [[nodiscard]]
+    alp::Result<std::reference_wrapper<const Batch>, io::Error> read_batch(const uint32_t index) {
         const auto resident = this->_resident.find(index);
         if (resident != this->_resident.end()) {
             this->_usage.splice(this->_usage.begin(), this->_usage, resident->second.second);
             return std::cref(resident->second.first);
         }
 
-        TRY(Batch batch, this->_input.read(index));
+        ALP_TRY(Batch batch, this->_input.read(index));
         this->_misses++;
 
         // The entry goes in as the most recently used, so eviction can never take the one just read.

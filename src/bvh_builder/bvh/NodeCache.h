@@ -6,7 +6,8 @@
 #include <tl/expected.hpp>
 
 #include "io/Error.h"
-#include "try.h"
+#include "error/Result.h"
+#include "error/try.h"
 
 #include "bvh/Storage.h"
 #include "bvh/layout.h"
@@ -20,8 +21,9 @@ public:
     using BatchCache<Storage>::BatchCache;
 
     // The node `reference` points at.
-    tl::expected<Node, io::Error> read_node(const Reference &reference) {
-        TRY(const Batch &batch, this->read_batch(reference.batch));
+    [[nodiscard]]
+    alp::Result<Node, io::Error> read_node(const Reference &reference) {
+        ALP_TRY(const Batch &batch, this->read_batch(reference.batch));
         ASSERT(reference.node < batch.nodes().size());
         return batch.nodes()[reference.node];
     }

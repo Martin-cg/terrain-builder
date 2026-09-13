@@ -16,7 +16,8 @@
 #include "build.h"
 #include "metadata.h"
 #include "../dag_builder/storage.h"
-#include "try.h"
+#include "error/Result.h"
+#include "error/try.h"
 #include "visitor.h"
 
 namespace dag {
@@ -53,7 +54,8 @@ inline uint32_t find_coarsest_level(const octree::IndexMap &index) {
 
 // Visits every cluster in the dag. False if the visitor stopped the walk before its end.
 template <typename F>
-tl::expected<bool, io::Error> traverse_nodes(const octree::IndexedDagMetaStorage& dag, F&& v) {
+[[nodiscard]]
+alp::Result<bool, io::Error> traverse_nodes(const octree::IndexedDagMetaStorage& dag, F&& v) {
     visitor::FallibleVisitor<io::Error, F&> visitor(v);
 
     const octree::IndexMap &index = dag.index();
@@ -69,7 +71,7 @@ tl::expected<bool, io::Error> traverse_nodes(const octree::IndexedDagMetaStorage
             continue;
         }
 
-        TRY(const auto &parent, dag.load(parent_id));
+        ALP_TRY(const auto &parent, dag.load(parent_id));
         cluster_count += parent.group_assignment.size();
 
         // We assume that every root node is at the coarsest level.
@@ -81,7 +83,7 @@ tl::expected<bool, io::Error> traverse_nodes(const octree::IndexedDagMetaStorage
                 const double inf = std::numeric_limits<double>::infinity();
                 const FlatNode root = detail::make_flat_node(id, parent, inf);
                 visit_count++;
-                TRY(const bool keep_going, visitor(root));
+                ALP_TRY(const bool keep_going, visitor(root));
                 if (!keep_going) {
                     return false;
                 }
@@ -91,11 +93,11 @@ tl::expected<bool, io::Error> traverse_nodes(const octree::IndexedDagMetaStorage
         // Handle all children but now the current node (except if root).
         for (const Group &group : parent.groups) {
             for (const Id &child : group.children) {
-                TRY(const auto &metadata, dag.load(child.source_batch));
+                ALP_TRY(const auto &metadata, dag.load(child.source_batch));
 
                 const FlatNode node = detail::make_flat_node(child, metadata, group.error);
                 visit_count++;
-                TRY(const bool keep_going, visitor(node));
+                ALP_TRY(const bool keep_going, visitor(node));
                 if (!keep_going) {
                     return false;
                 }

@@ -8,6 +8,9 @@
 #include <fmt/format.h>
 #include <tl/expected.hpp>
 
+#include "error/Result.h"
+#include "error/format.h"
+#include "error/try.h"
 #include "io/Error.h"
 #include "io/serialize.h"
 #include "log.h"
@@ -53,17 +56,15 @@ public:
         }
     }
 
-    tl::expected<void, io::Error> save_index() const {
+    [[nodiscard]]
+    alp::Result<void, io::Error> save_index() const {
         const Index index{
             .batch_count = this->_next.load(),
         };
 
-        auto result = io::write_to_path(index, this->get_index_path());
-        if (result) {
-            this->_dirty = false;
-        }
-
-        return result;
+        ALP_TRY(io::write_to_path(index, this->get_index_path()));
+        this->_dirty = false;
+        return {};
     }
 
     uint32_t size() const {

@@ -5,7 +5,8 @@
 #include <type_traits>
 #include <utility>
 
-#include <tl/expected.hpp>
+#include "error/Result.h"
+#include "error/try.h"
 
 namespace visitor {
 
@@ -37,7 +38,8 @@ public:
     FallibleVisitor(F visitor) : _visitor(visitor) {}
 
     template <class... Args>
-    tl::expected<bool, E> operator()(Args &&...args) {
+    [[nodiscard]]
+    alp::Result<bool, E> operator()(Args &&...args) {
         using Result = std::remove_cvref_t<std::invoke_result_t<F, Args...>>;
 
         if constexpr (std::same_as<Result, void>) {
@@ -45,14 +47,11 @@ public:
             return true;
         } else if constexpr (std::same_as<Result, bool>) {
             return std::invoke(_visitor, std::forward<Args>(args)...);
-        } else if constexpr (std::same_as<Result, tl::expected<void, E>>) {
-            auto result = std::invoke(_visitor, std::forward<Args>(args)...);
-            if (!result) {
-                return tl::unexpected(std::move(result).error());
-            }
+        } else if constexpr (std::same_as<Result, alp::Result<void, E>>) {
+            ALP_TRY(std::invoke(_visitor, std::forward<Args>(args)...));
             return true;
         } else {
-            static_assert(std::same_as<Result, tl::expected<bool, E>>, "fallible visitor must return void, bool, expected<void, E>, or expected<bool, E>");
+            static_assert(std::same_as<Result, alp::Result<bool, E>>, "fallible visitor must return void, bool, alp::Result<void, E>, or alp::Result<bool, E>");
             return std::invoke(_visitor, std::forward<Args>(args)...);
         }
     }

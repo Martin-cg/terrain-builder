@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "enumerate.h"
+#include "error/Result.h"
 #include "range_utils.h"
 
 #include "build/lbvh.h"
@@ -98,7 +99,7 @@ void write_run(frontier::Storage &run, const std::vector<frontier::Entry> &entri
 std::vector<bvh::Batch> read_batches(const bvh::Storage &nodes) {
     std::vector<bvh::Batch> batches;
     for (const uint32_t index : range(nodes.size())) {
-        tl::expected<bvh::Batch, io::Error> batch = nodes.read(index);
+        alp::Result<bvh::Batch, io::Error> batch = nodes.read(index);
         REQUIRE(batch.has_value());
         batches.push_back(std::move(batch).value());
     }

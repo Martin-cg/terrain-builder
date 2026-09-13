@@ -21,7 +21,8 @@
 #include "frontier/layout.h"
 #include "frontier/Storage.h"
 #include "storage/batch_limits.h"
-#include "try.h"
+#include "error/Result.h"
+#include "error/try.h"
 
 namespace frontier {
 
@@ -31,20 +32,22 @@ inline void sort_entries(const std::span<Entry> entries) {
 }
 
 // Sorts every batch of the run in itself.
-inline tl::expected<void, io::Error> sort_batches_independently(Storage &run) {
+[[nodiscard]]
+inline alp::Result<void, io::Error> sort_batches_independently(Storage &run) {
     for (const uint32_t index : range(run.size())) {
-        TRY(Batch batch, run.read(index));
+        ALP_TRY(Batch batch, run.read(index));
         sort_entries(batch.entries);
-        TRY(run.write(index, batch));
+        ALP_TRY(run.write(index, batch));
     }
     return {};
 }
 
 // Entry counts per morton prefix cell.
-inline tl::expected<morton::PrefixMap<uint64_t>, io::Error> build_histogram(const Storage &input, const uint32_t prefix_bits) {
+[[nodiscard]]
+inline alp::Result<morton::PrefixMap<uint64_t>, io::Error> build_histogram(const Storage &input, const uint32_t prefix_bits) {
     morton::PrefixMap<uint64_t> histogram(prefix_bits, 0);
 
-    TRY(traverse_entries(input, [&](const Entry &entry) {
+    ALP_TRY(traverse_entries(input, [&](const Entry &entry) {
         histogram.at(entry.morton)++;
     }));
 
@@ -84,7 +87,8 @@ inline Buckets assign_buckets(const morton::PrefixMap<uint64_t> &histogram, cons
 }
 
 // Writes one batch per bucket, in morton order.
-inline tl::expected<void, io::Error> scatter(const Storage &input, const Buckets &buckets, Storage &output, const uint32_t max_open_batches) {
+[[nodiscard]]
+inline alp::Result<void, io::Error> scatter(const Storage &input, const Buckets &buckets, Storage &output, const uint32_t max_open_batches) {
     DEBUG_ASSERT(max_open_batches > 0);
 
     // Only so many batches fit in memory, so the input is read once per group of buckets.
@@ -96,7 +100,7 @@ inline tl::expected<void, io::Error> scatter(const Storage &input, const Buckets
             open.push_back(Batch{});
         }
 
-        TRY(traverse_entries(input, [&](const Entry &entry) {
+        ALP_TRY(traverse_entries(input, [&](const Entry &entry) {
             const uint32_t bucket = buckets.assignment.at(entry.morton);
             if (bucket >= first && bucket < end) {
                 open[bucket - first].entries.push_back(entry);
@@ -104,7 +108,7 @@ inline tl::expected<void, io::Error> scatter(const Storage &input, const Buckets
         }));
 
         for (const Batch &batch : open) {
-            TRY(output.write(batch));
+            ALP_TRY(output.write(batch));
         }
     }
     return {};
@@ -118,8 +122,9 @@ struct SortOptions {
 
 // Writes the run's entries to `output` in ascending morton order.
 // A radix sort over the leading code bits: count the cells, cut them into buckets, write one batch per bucket, then order each batch.
-inline tl::expected<void, io::Error> sort_by_morton(const Storage &input, Storage &output, const SortOptions &options) {
-    TRY(const morton::PrefixMap<uint64_t> &histogram, build_histogram(input, options.prefix_bits));
+[[nodiscard]]
+inline alp::Result<void, io::Error> sort_by_morton(const Storage &input, Storage &output, const SortOptions &options) {
+    ALP_TRY(const morton::PrefixMap<uint64_t> &histogram, build_histogram(input, options.prefix_bits));
 
     // Without entries there is no bucket to write, not even an empty one.
     const bool has_entries = std::ranges::any_of(histogram.cells(), [](const uint64_t count) { return count > 0; });
@@ -131,7 +136,7 @@ inline tl::expected<void, io::Error> sort_by_morton(const Storage &input, Storag
     const auto max_open_batches = static_cast<uint32_t>(std::max<size_t>(1, options.max_resident_bytes / options.max_batch_bytes));
     const Buckets buckets = assign_buckets(histogram, max_entries);
 
-    TRY(scatter(input, buckets, output, max_open_batches));
+    ALP_TRY(scatter(input, buckets, output, max_open_batches));
     return sort_batches_independently(output);
 }
 

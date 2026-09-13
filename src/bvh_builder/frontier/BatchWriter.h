@@ -5,6 +5,7 @@
 
 #include <tl/expected.hpp>
 
+#include "error/Result.h"
 #include "io/Error.h"
 
 #include "frontier/Storage.h"
@@ -23,7 +24,8 @@ public:
     using Base::compute_buffered_bytes;
 
     // Appends `entry`, writing the batch out once it is full.
-    tl::expected<void, io::Error> write(const Entry &entry) {
+    [[nodiscard]]
+    alp::Result<void, io::Error> write(const Entry &entry) {
         this->open_batch().entries.push_back(entry);
         return this->flush_if_full();
     }

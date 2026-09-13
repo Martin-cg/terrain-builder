@@ -11,7 +11,8 @@
 
 #include "io/Error.h"
 #include "range_utils.h"
-#include "try.h"
+#include "error/Result.h"
+#include "error/try.h"
 
 #include "bvh/BatchWriter.h"
 #include "bvh/layout.h"
@@ -24,13 +25,14 @@ namespace detail {
 
 // Writes the parent of both entries and returns it, at the code `compute_morton` gives it.
 template <typename F>
-inline tl::expected<Entry, io::Error> merge_entries(bvh::BatchWriter &sink, F &&compute_morton, const Entry &left, const Entry &right) {
+[[nodiscard]]
+inline alp::Result<Entry, io::Error> merge_entries(bvh::BatchWriter &sink, F &&compute_morton, const Entry &left, const Entry &right) {
     const std::array children{left, right};
     auto child_headers = std::views::transform(children, &Entry::header);
     auto child_refs = std::views::transform(children, &Entry::ref);
 
     bvh::NodeHeader header = bvh::merge_headers(child_headers);
-    TRY(const bvh::Reference ref, sink.write_inner(header, child_refs));
+    ALP_TRY(const bvh::Reference ref, sink.write_inner(header, child_refs));
     return Entry{
         .morton = compute_morton(header),
         .header = std::move(header),
@@ -41,12 +43,14 @@ inline tl::expected<Entry, io::Error> merge_entries(bvh::BatchWriter &sink, F &&
 } // namespace detail
 
 // Writes the parent of both entries and returns it, at `morton`.
-inline tl::expected<Entry, io::Error> merge_entries(bvh::BatchWriter &sink, const morton::Code morton, const Entry &left, const Entry &right) {
+[[nodiscard]]
+inline alp::Result<Entry, io::Error> merge_entries(bvh::BatchWriter &sink, const morton::Code morton, const Entry &left, const Entry &right) {
     return detail::merge_entries(sink, [morton](const bvh::NodeHeader &) { return morton; }, left, right);
 }
 
 // Writes the parent of both entries and returns it, at the code of its own bounds.
-inline tl::expected<Entry, io::Error> merge_entries(bvh::BatchWriter &sink, const bvh::Bounds &scene, const Entry &left, const Entry &right) {
+[[nodiscard]]
+inline alp::Result<Entry, io::Error> merge_entries(bvh::BatchWriter &sink, const bvh::Bounds &scene, const Entry &left, const Entry &right) {
     return detail::merge_entries(sink, [&scene](const bvh::NodeHeader &h) { return morton::encode(scene, h); }, left, right);
 }
 

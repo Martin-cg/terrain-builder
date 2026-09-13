@@ -10,7 +10,8 @@
 
 #include "array_utils.h"
 #include "io/Error.h"
-#include "try.h"
+#include "error/Result.h"
+#include "error/try.h"
 
 #include "bvh/BatchWriter.h"
 #include "bvh/NodeCache.h"
@@ -52,43 +53,43 @@ inline Decision compute_decision(const std::span<const Split> row, const uint8_t
 
 // Writes the wide nodes standing for the subtree at `reference` when it is offered `slots`, appending one reference per child it contributes to `children`.
 [[nodiscard]]
-inline tl::expected<void, io::Error> write_subtree(
+inline alp::Result<void, io::Error> write_subtree(
     bvh::NodeCache &input, const bvh::Reference &reference, const uint8_t slots,
     SplitReader &rows, bvh::BatchWriter &writer, const Options &options,
     std::vector<bvh::Reference> &children) {
     DEBUG_ASSERT(slots >= 1);
 
-    TRY(const bvh::Batch &batch, input.read_batch(reference.batch));
+    ALP_TRY(const bvh::Batch &batch, input.read_batch(reference.batch));
     const bvh::Node node = batch.node(reference.node);
 
     return batch.visit(
         node,
         // A leaf is carried over as it is, filling the one slot it was offered.
-        [&](const dag::Id &id) -> tl::expected<void, io::Error> {
-            TRY(const bvh::Reference leaf, writer.write_leaf(node.header, id));
+        [&](const dag::Id &id) -> alp::Result<void, io::Error> {
+            ALP_TRY(const bvh::Reference leaf, writer.write_leaf(node.header, id));
             children.push_back(leaf);
             return {};
         },
-        [&](const std::span<const bvh::Reference> node_children) -> tl::expected<void, io::Error> {
+        [&](const std::span<const bvh::Reference> node_children) -> alp::Result<void, io::Error> {
             // The batch stays resident only until the next read, and the children are about to make several.
             const auto [left, right] = to_array<2>(node_children);
 
-            TRY(const std::span<const Split> row, rows.pop_row());
+            ALP_TRY(const std::span<const Split> row, rows.pop_row());
             const Decision decision = compute_decision(row, slots, options);
 
             // A kept node gathers its children under one node of its own, a dissolved one hands them to its parent.
             std::vector<bvh::Reference> kept_children;
             std::vector<bvh::Reference> &destination = decision.kept ? kept_children : children;
 
-            TRY(write_subtree(input, left, decision.left_slots, rows, writer, options, destination));
-            TRY(write_subtree(input, right, decision.right_slots, rows, writer, options, destination));
+            ALP_TRY(write_subtree(input, left, decision.left_slots, rows, writer, options, destination));
+            ALP_TRY(write_subtree(input, right, decision.right_slots, rows, writer, options, destination));
 
             if (!decision.kept) {
                 return {};
             }
 
             // The wide children partition the leaves the binary ones did, so the node keeps the header it had.
-            TRY(const bvh::Reference kept, writer.write_inner(node.header, kept_children));
+            ALP_TRY(const bvh::Reference kept, writer.write_inner(node.header, kept_children));
             children.push_back(kept);
             return {};
         });
@@ -98,7 +99,7 @@ inline tl::expected<void, io::Error> write_subtree(
 
 // Writes the widened tree that `splits` describes for the tree at `root` into `output`, and returns its root.
 [[nodiscard]]
-inline tl::expected<bvh::Reference, io::Error> write_wide_nodes(
+inline alp::Result<bvh::Reference, io::Error> write_wide_nodes(
     const SplitStorage &splits, bvh::NodeCache &input, const bvh::Reference &root,
     bvh::Storage &output, const Options &options) {
     ASSERT(options.arity >= 2 && options.arity <= max_arity, "the arity does not fit a slot count");
@@ -108,8 +109,8 @@ inline tl::expected<bvh::Reference, io::Error> write_wide_nodes(
 
     // The root stands in one slot of nothing at all, which leaves it no way out but to keep it.
     std::vector<bvh::Reference> roots;
-    TRY(detail::write_subtree(input, root, 1, rows, writer, options, roots));
-    TRY(writer.flush());
+    ALP_TRY(detail::write_subtree(input, root, 1, rows, writer, options, roots));
+    ALP_TRY(writer.flush());
 
     ASSERT(roots.size() == 1, "the root did not resolve to a single node");
     return roots.front();

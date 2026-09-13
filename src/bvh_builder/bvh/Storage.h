@@ -7,6 +7,8 @@
 
 #include "storage/BaseStorage.h"
 #include "bvh/layout.h"
+#include "error/Result.h"
+#include "error/try.h"
 #include "io/Error.h"
 #include "log.h"
 
@@ -34,18 +36,19 @@ public:
         return Batch(index);
     }
 
-    tl::expected<void, io::Error> write(const Batch &batch) const {
+    [[nodiscard]]
+    alp::Result<void, io::Error> write(const Batch &batch) const {
         ASSERT(batch.index() < this->size());
         this->mark_dirty();
-        return io::write_to_path(batch, this->get_batch_path(batch.index()));
+        ALP_TRY(io::write_to_path(batch, this->get_batch_path(batch.index())));
+        return {};
     }
 
-    tl::expected<Batch, io::Error> read(const uint32_t index) const {
-        auto result = io::read_from_path<Batch>(this->get_batch_path(index));
-        if (result) {
-            ASSERT(result->index() == index);
-        }
-        return result;
+    [[nodiscard]]
+    alp::Result<Batch, io::Error> read(const uint32_t index) const {
+        ALP_TRY(Batch batch, io::read_from_path<Batch>(this->get_batch_path(index)));
+        ASSERT(batch.index() == index);
+        return batch;
     }
 };
 

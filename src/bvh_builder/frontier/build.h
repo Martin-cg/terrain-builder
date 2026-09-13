@@ -17,7 +17,8 @@
 #include "frontier/layout.h"
 #include "morton/code.h"
 #include "bvh/earth.h"
-#include "try.h"
+#include "error/Result.h"
+#include "error/try.h"
 
 namespace frontier {
 
@@ -36,11 +37,12 @@ struct BuildOptions {
 };
 
 // Writes every stored node as a set of frontier run batches.
-inline tl::expected<void, io::Error> build_from_leaves(const bvh::Storage &nodes, Storage &output, const BuildOptions &options = {}) {
+[[nodiscard]]
+inline alp::Result<void, io::Error> build_from_leaves(const bvh::Storage &nodes, Storage &output, const BuildOptions &options = {}) {
     BatchWriter writer(output, options.max_batch_bytes);
 
     // The walk stops on the first failed write, leaving it to report.
-    TRY(bvh::flat_traverse(nodes, [&](const bvh::Reference &ref, const bvh::Node &node) {
+    ALP_TRY(bvh::flat_traverse(nodes, [&](const bvh::Reference &ref, const bvh::Node &node) {
         const auto entry = make_entry(ref, node, options.scene_bounds);
         return writer.write(entry);
     }));
