@@ -48,9 +48,9 @@ decltype(auto) visit_by_channels(const int channels, Visitor &&visitor) {
 // Calls the visitor with both the channel count and type.
 template <typename Visitor>
 decltype(auto) visit_by_depth_and_channels(const int type, Visitor &&visitor) {
-    return visit_by_channels(CV_MAT_CN(type), [&]<int n_channels>() -> decltype(auto) {
-        return visit_by_depth(CV_MAT_DEPTH(type), [&]<typename Channel>() -> decltype(auto) {
-            return visitor.template operator()<n_channels, Channel>();
+    return visit_by_channels(CV_MAT_CN(type), [&]<int channels>() -> decltype(auto) {
+        return visit_by_depth(CV_MAT_DEPTH(type), [&]<typename Value>() -> decltype(auto) {
+            return visitor.template operator()<channels, Value>();
         });
     });
 }

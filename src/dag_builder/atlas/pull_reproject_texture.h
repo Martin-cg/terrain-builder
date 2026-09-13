@@ -294,12 +294,12 @@ private:
         texture::Mask &coverage,
         const std::vector<detail::PreparedTriangle> &prepared_triangles,
         const Vector2D<int32_t> &triangle_index_map) {
-        visit_by_depth(CV_MAT_DEPTH(this->_output_type), [&]<typename Channel>() {
-            this->render_into<Channel>(output, coverage, prepared_triangles, triangle_index_map);
+        visit_by_depth(CV_MAT_DEPTH(this->_output_type), [&]<typename Value>() {
+            this->render_into<Value>(output, coverage, prepared_triangles, triangle_index_map);
         });
     }
 
-    template <typename Channel>
+    template <typename Value>
     void render_into(
         cv::Mat &output,
         texture::Mask &coverage,
@@ -338,10 +338,10 @@ private:
                 // Dividing by sample_count (not sample_scale^2) correctly averages partially covered pixels.
                 if (sample_count > 0) {
                     const cv::Vec3f averaged = color / static_cast<float>(sample_count);
-                    output.at<cv::Vec<Channel, 3>>(y, x) = cv::Vec<Channel, 3>(
-                        cv::saturate_cast<Channel>(averaged[0]),
-                        cv::saturate_cast<Channel>(averaged[1]),
-                        cv::saturate_cast<Channel>(averaged[2]));
+                    output.at<cv::Vec<Value, 3>>(y, x) = cv::Vec<Value, 3>(
+                        cv::saturate_cast<Value>(averaged[0]),
+                        cv::saturate_cast<Value>(averaged[1]),
+                        cv::saturate_cast<Value>(averaged[2]));
                     coverage.set(x, y);
                 }
             }
