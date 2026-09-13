@@ -21,6 +21,7 @@ add_executable(unittests_terrainlib
     terrainlib/cow.cpp
     terrainlib/dataset.cpp
     terrainlib/enumerate.cpp
+    terrainlib/error.cpp
     terrainlib/fixed_vector.cpp
     terrainlib/geometry_frames.cpp
     terrainlib/grid.cpp

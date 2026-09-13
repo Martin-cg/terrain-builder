@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <concepts>
 #include <cstddef>
 #include <string_view>
 #include <typeinfo>
@@ -82,3 +83,7 @@ struct is_specialization_of<Tmpl<Args...>, Tmpl> : std::true_type {};
 
 template <typename T, template <typename...> class Tmpl>
 inline constexpr bool is_specialization_of_v = is_specialization_of<T, Tmpl>::value;
+
+// Whether T is one of Ts.
+template <typename T, typename... Ts>
+concept OneOf = (std::same_as<T, Ts> || ...);
