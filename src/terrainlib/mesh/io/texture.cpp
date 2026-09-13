@@ -1,5 +1,7 @@
 #include "mesh/io/texture.h"
 
+#include <libassert/assert.hpp>
+
 namespace mesh::io {
 
 cv::Mat read_texture_from_encoded_bytes(std::span<const uint8_t> buffer) {
@@ -12,7 +14,8 @@ cv::Mat read_texture_from_encoded_bytes(std::span<const uint8_t> buffer) {
 void write_texture_to_encoded_buffer(const cv::Mat &image, std::vector<uint8_t> &buffer, const std::string& extension) {
     cv::Mat converted;
     image.convertTo(converted, CV_8UC3);
-    cv::imencode(extension, converted, buffer);
+    const bool encoded = cv::imencode(extension, converted, buffer);
+    ASSERT(encoded, "cannot encode texture", image.cols, image.rows, extension);
 }
 void write_texture_to_encoded_buffer(const ImageAndExt &item, std::vector<uint8_t> &buffer) {
     write_texture_to_encoded_buffer(item.image, buffer, item.ext);
