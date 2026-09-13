@@ -1,8 +1,10 @@
 #include <memory>
 
+#include <glm/gtx/component_wise.hpp>
 #include <xatlas/xatlas.h>
 
 #include "atlas.h"
+#include "containers/FixedArray.h"
 #include "enumerate.h"
 #include "geometry/geometry.h"
 #include "glm_utils.h"
@@ -17,18 +19,36 @@ using AtlasHandle = std::unique_ptr<xatlas::Atlas, decltype(&xatlas::Destroy)>;
 // degeneracy against, so the mesh is scaled up to move it clear.
 constexpr float DEGENERACY_HEADROOM = 100.0f;
 
+// Flags every triangle thinner than `min_thickness`.
+FixedArray<bool> find_thin_triangles(
+    const std::span<const glm::uvec3> triangles,
+    const std::span<const glm::dvec3> positions,
+    const double min_thickness) {
+    FixedArray<bool> thin(triangles.size());
+    for (const auto [index, triangle] : enumerate(triangles)) {
+        thin[index] = geometry::compute_triangle_thickness(geometry::corners(triangle, positions)) < min_thickness;
+    }
+    return thin;
+}
+
 AtlasHandle pack_charts(
     const std::span<const glm::uvec3> triangles,
     const std::span<const glm::dvec3> positions,
     const uint32_t packing_resolution,
     const AtlasOptions &options) {
     // xatlas works in floats, and judges degeneracy against an absolute epsilon.
-    std::vector<glm::vec3> normalized = geometry::to_approximate_normalized(positions);
+    radix::geometry::Aabb3d bounds;
+    std::vector<glm::vec3> normalized = geometry::to_approximate_normalized(positions, &bounds);
     for (glm::vec3 &position : normalized) {
         position *= DEGENERACY_HEADROOM;
     }
 
+    // The packer spreads about `packing_resolution` texels across the mesh.
+    const double texel_size = glm::compMax(bounds.size()) / packing_resolution;
+    const FixedArray<bool> thin = find_thin_triangles(triangles, positions, texel_size * options.min_triangle_thickness_in_texels);
+
     xatlas::MeshDecl declaration;
+    declaration.faceIgnoreData = thin.data();
     declaration.vertexCount = normalized.size();
     declaration.vertexPositionData = normalized.data();
     declaration.vertexPositionStride = sizeof(glm::vec3);
@@ -96,8 +116,7 @@ Atlas build_atlas(
         }
     }
     if (!atlas.unmapped_triangles.empty()) {
-        // Area is judged against a float epsilon, so these can be well formed in double.
-        LOG_WARN("xatlas refused to chart {} of {} triangles", atlas.unmapped_triangles.size(), atlas.triangles.size());
+        LOG_DEBUG("Left {} of {} triangles out of every chart", atlas.unmapped_triangles.size(), atlas.triangles.size());
     }
 
     return atlas;
