@@ -18,6 +18,7 @@
 #include "geometry/geometry.h"
 #include "mesh/connectivity/adjacency.h"
 #include "range_utils.h"
+#include "try.h"
 
 struct CorrespondenceOptions {
     // Lateral excursion allowed outside an output triangle, as a fraction of its longest edge.
@@ -78,14 +79,12 @@ struct OutputTriangle {
 // Empty for a degenerate output triangle, which spans no plane to measure against.
 inline std::optional<OutputTriangle> flatten_output_triangle(const glm::uvec3 &triangle, const std::span<const glm::dvec3> positions) {
     const radix::geometry::Triangle<3, double> output_corners = geometry::corners(triangle, positions);
-    const std::optional<PlaneFrame> frame = PlaneFrame::from_triangle(output_corners);
-    if (!frame) {
-        return std::nullopt;
-    }
+    TRY(const PlaneFrame frame, PlaneFrame::from_triangle(output_corners));
+
     return OutputTriangle{
         .vertices = triangle,
-        .frame = *frame,
-        .outline = frame->flatten(output_corners),
+        .frame = frame,
+        .outline = frame.flatten(output_corners),
         .longest_edge = longest_edge_of(output_corners),
     };
 }
