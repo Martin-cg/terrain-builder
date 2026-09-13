@@ -55,6 +55,16 @@ decltype(auto) visit_by_depth_and_channels(const int type, Visitor &&visitor) {
     });
 }
 
+// The vector with every element converted to AsValue, saturating where it does not fit.
+template <typename AsValue, int channels, typename Value>
+cv::Vec<AsValue, channels> convert_texel(const cv::Vec<Value, channels> &texel) {
+    cv::Vec<AsValue, channels> converted;
+    for (int channel = 0; channel < channels; channel++) {
+        converted[channel] = cv::saturate_cast<AsValue>(texel[channel]);
+    }
+    return converted;
+}
+
 inline size_t mat_byte_size(const cv::Mat &mat) {
     return mat.total() * mat.elemSize();
 }
