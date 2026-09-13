@@ -39,7 +39,7 @@ auto residual(Result &&result) {
 
 #define TRY_SELECT(_1, _2, NAME, ...) NAME
 
-#define TRY_1(expr) TRY_IMPL_1(CAT_IDENT(_try_result_, __LINE__), expr)
-#define TRY_2(var, expr) TRY_IMPL_2(CAT_IDENT(_try_result_, __LINE__), var, expr)
+#define TRY_1(expr) TRY_IMPL_1(ALP_CAT_IDENT(_try_result_, __LINE__), expr)
+#define TRY_2(var, expr) TRY_IMPL_2(ALP_CAT_IDENT(_try_result_, __LINE__), var, expr)
 
 #define TRY(...) TRY_SELECT(__VA_ARGS__, TRY_2, TRY_1)(__VA_ARGS__)

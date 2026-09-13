@@ -1,11 +1,11 @@
 #pragma once
 
 #if defined(__has_builtin)
-#define HAS_BUILTIN(x) __has_builtin(x)
+#define ALP_HAS_BUILTIN(x) __has_builtin(x)
 #else
-#define HAS_BUILTIN(x) 0
+#define ALP_HAS_BUILTIN(x) 0
 #endif
 
-#define CAT_IDENT_IMPL(a, b) a##b
-#define CAT_IDENT(a, b) CAT_IDENT_IMPL(a, b)
-#define UNIQUE_IDENT(prefix) CAT_IDENT(prefix, __COUNTER__)
+#define ALP_CAT_IDENT_IMPL(a, b) a##b
+#define ALP_CAT_IDENT(a, b) ALP_CAT_IDENT_IMPL(a, b)
+#define ALP_UNIQUE_IDENT(prefix) ALP_CAT_IDENT(prefix, __COUNTER__)
