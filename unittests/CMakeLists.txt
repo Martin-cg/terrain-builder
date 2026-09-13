@@ -22,6 +22,7 @@ add_executable(unittests_terrainlib
     terrainlib/enumerate.cpp
     terrainlib/fixed_array.cpp
     terrainlib/fixed_vector.cpp
+    terrainlib/geometry.cpp
     terrainlib/geometry_frames.cpp
     terrainlib/grid.cpp
     terrainlib/hash_utils.cpp
