@@ -392,8 +392,24 @@ TEST_CASE("An error formats one frame per line, newest first, with the line of e
     CHECK(context_position < origin_position);
 
     for (const alp::Frame &frame : error.frames()) {
-        CHECK(report.find(fmt::format(":{}", frame.location.line())) != std::string::npos);
+        CHECK(report.contains(fmt::format(":{}", frame.location.line())));
     }
+}
+
+TEST_CASE("An error formats its frames after its one-line form") {
+    alp::Error<FileError> error(FileError::NotFound);
+    error.context("reading the configuration");
+    const std::string report = fmt::format("{:#}", error);
+
+    CHECK(report.starts_with("reading the configuration: file not found\n"));
+}
+
+TEST_CASE("An error names the file relative to the source root, the line and the function of each frame") {
+    const alp::Error<FileError> error(FileError::NotFound);
+    const std::string report = fmt::format("{:#}", error);
+
+    CHECK(report.contains(fmt::format("unittests/terrainlib/error.cpp:{}", error.frames()[0].location.line())));
+    CHECK(report.contains(error.frames()[0].location.function_name()));
 }
 
 TEST_CASE("An error in a set formats the code it holds") {

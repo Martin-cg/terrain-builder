@@ -10,7 +10,6 @@
 #include "error/ErrorCode.h"
 #include "error/Trace.h"
 
-// Formats an error: `{}` on one line, outermost message first; `{:#}` one frame per line with its location, outermost first.
 template <alp::ErrorCode... Es>
 struct fmt::formatter<alp::Error<Es...>> {
     constexpr fmt::format_parse_context::iterator parse(fmt::format_parse_context &context) {
@@ -30,21 +29,19 @@ struct fmt::formatter<alp::Error<Es...>> {
         const std::string cause = error._code.message();
         fmt::format_context::iterator output = context.out();
 
-        if (!this->_is_multiline) {
-            for (const alp::Frame &frame : frames | std::views::reverse) {
-                if (frame.message.has_value()) {
-                    output = fmt::format_to(output, "{}: ", *frame.message);
-                }
+        for (const alp::Frame &frame : frames | std::views::reverse) {
+            if (frame.message.has_value()) {
+                output = fmt::format_to(output, "{}: ", *frame.message);
             }
-            return fmt::format_to(output, "{}", cause);
+        }
+        output = fmt::format_to(output, "{}", cause);
+
+        if (!this->_is_multiline) {
+            return output;
         }
 
-        bool is_first_line = true;
         for (const alp::Frame &frame : frames | std::views::reverse) {
-            if (!is_first_line) {
-                output = fmt::format_to(output, "\n");
-            }
-            is_first_line = false;
+            output = fmt::format_to(output, "\n");
 
             const bool is_origin = &frame == &frames.front();
             if (is_origin) {
@@ -52,7 +49,7 @@ struct fmt::formatter<alp::Error<Es...>> {
             } else if (frame.message.has_value()) {
                 output = fmt::format_to(output, "{} ", *frame.message);
             }
-            output = fmt::format_to(output, "at {}:{}", frame.location.file_name(), frame.location.line());
+            output = fmt::format_to(output, "at {}:{} in {}", frame.location.file_name(), frame.location.line(), frame.location.function_name());
         }
         return output;
     }
