@@ -1,3 +1,5 @@
+#include <cmath>
+
 #include <glm/glm.hpp>
 #include <radix/geometry.h>
 
@@ -78,4 +80,36 @@ TEST_CASE("triangles_overlap counts touching as overlapping", "[terrainlib][geom
         glm::dvec2(0.5, 1.5),
     };
     CHECK(geometry::triangles_overlap(triangle, inner));
+}
+
+TEST_CASE("compute_longest_edge picks the longest of the three edges", "[terrainlib][geometry]") {
+    const geometry::Triangle3d triangle = {glm::dvec3(0, 0, 0), glm::dvec3(3, 0, 0), glm::dvec3(0, 4, 0)};
+
+    CHECK(geometry::compute_longest_edge(triangle) == 5.0);
+}
+
+TEST_CASE("compute_triangle_thickness is the smallest altitude", "[terrainlib][geometry]") {
+    SECTION("equilateral") {
+        const geometry::Triangle3d triangle = {glm::dvec3(0, 0, 0), glm::dvec3(2, 0, 0), glm::dvec3(1, std::sqrt(3.0), 0)};
+        CHECK_THAT(geometry::compute_triangle_thickness(triangle), Catch::Matchers::WithinRel(std::sqrt(3.0)));
+    }
+    SECTION("right angled") {
+        // The altitudes are 4, 3 and 2.4, the last onto the hypotenuse.
+        const geometry::Triangle3d triangle = {glm::dvec3(0, 0, 0), glm::dvec3(3, 0, 0), glm::dvec3(0, 4, 0)};
+        CHECK_THAT(geometry::compute_triangle_thickness(triangle), Catch::Matchers::WithinRel(2.4));
+    }
+    SECTION("cap a hair off collinear") {
+        const geometry::Triangle3d triangle = {glm::dvec3(0, 0, 0), glm::dvec3(1, 0, 0), glm::dvec3(0.5, 1e-5, 0)};
+        CHECK_THAT(geometry::compute_triangle_thickness(triangle), Catch::Matchers::WithinAbs(1e-5, geometry::epsilon<double>()));
+    }
+}
+
+TEST_CASE("compute_triangle_thickness is zero for degenerate triangles", "[terrainlib][geometry]") {
+    const auto [name, triangle] = GENERATE(
+        std::pair{"collinear corners", geometry::Triangle3d{glm::dvec3(0, 0, 0), glm::dvec3(1, 0, 0), glm::dvec3(3, 0, 0)}},
+        std::pair{"repeated corner", geometry::Triangle3d{glm::dvec3(0, 0, 0), glm::dvec3(0, 0, 0), glm::dvec3(1, 0, 0)}},
+        std::pair{"coincident corners", geometry::Triangle3d{glm::dvec3(1, 2, 3), glm::dvec3(1, 2, 3), glm::dvec3(1, 2, 3)}});
+    INFO("triangle: " << name);
+
+    CHECK(geometry::compute_triangle_thickness(triangle) == 0.0);
 }

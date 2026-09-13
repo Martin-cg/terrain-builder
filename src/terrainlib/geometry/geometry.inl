@@ -8,6 +8,7 @@
 #include <glm/geometric.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtx/component_wise.hpp>
+#include <glm/gtx/norm.hpp>
 #include <libassert/assert.hpp>
 #include <radix/geometry.h>
 
@@ -257,6 +258,25 @@ T compute_squared_triangle_area(const glm::uvec3 &triangle, const std::span<cons
 template <glm::length_t n_dims, typename T>
 T compute_squared_triangle_area(const glm::uvec3 &triangle, const std::vector<glm::vec<n_dims, T>>& positions) {
     return compute_squared_triangle_area<n_dims, T>(triangle, std::span(positions));
+}
+
+template <typename T>
+T compute_longest_edge(const radix::geometry::Triangle<3, T> &triangle) {
+    return std::sqrt(std::max({
+        glm::distance2(triangle[0], triangle[1]),
+        glm::distance2(triangle[1], triangle[2]),
+        glm::distance2(triangle[2], triangle[0]),
+    }));
+}
+
+template <typename T>
+T compute_triangle_thickness(const radix::geometry::Triangle<3, T> &triangle) {
+    const T longest_edge = compute_longest_edge(triangle);
+    if (longest_edge == 0) {
+        return 0;
+    }
+    // Twice the area is the altitude onto the longest edge times that edge, and that altitude is the smallest.
+    return 2 * compute_triangle_area(triangle[0], triangle[1], triangle[2]) / longest_edge;
 }
 
 template <typename T>
