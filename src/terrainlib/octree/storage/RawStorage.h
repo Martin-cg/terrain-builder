@@ -29,21 +29,21 @@ public:
     RawStorage_(RawStorage_ &&) = default;
     RawStorage_ &operator=(RawStorage_ &&) = default;
     
-    tl::expected<T, load_error> load(const Id &id) const noexcept {
+    tl::expected<T, load_error> load(const Id &id) const {
         const auto path = this->path_for(id);
         return Codec::load_from_path(path);
     }
 
-    tl::expected<void, save_error> save(const Id &id, const T &node) const noexcept {
+    tl::expected<void, save_error> save(const Id &id, const T &node) const {
         const auto path = this->path_for(id);
         return Codec::save_to_path(node, path);
     }
 
-    tl::expected<void, CopyError> copy_to(const Id &id, RawStorage_ &target) const noexcept {
+    tl::expected<void, CopyError> copy_to(const Id &id, RawStorage_ &target) const {
         return target.copy_from(id, *this);
     }
 
-    tl::expected<void, CopyError> copy_from(const Id &id, const RawStorage_ &source) noexcept {
+    tl::expected<void, CopyError> copy_from(const Id &id, const RawStorage_ &source) {
         if (!source.has(id)) {
             return tl::unexpected(CopyErrorKind::FileNotFound);
         }

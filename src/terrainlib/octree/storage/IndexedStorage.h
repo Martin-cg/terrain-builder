@@ -45,7 +45,7 @@ public:
     void update_index() noexcept {
         Storage_<T, Codec>::update_index();
     }
-    tl::expected<void, io::Error> save_index() const noexcept {
+    tl::expected<void, io::Error> save_index() const {
         if (!this->is_index_dirty()) {
             return {};
         }

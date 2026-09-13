@@ -15,10 +15,10 @@ concept CodecFor =
 
         requires std::same_as<typename Codec::value_type, T>;
 
-        { Codec::load_from_path(path) } noexcept
+        { Codec::load_from_path(path) }
             -> std::same_as<tl::expected<T, typename Codec::load_error>>;
 
-        { Codec::save_to_path(value, path) } noexcept
+        { Codec::save_to_path(value, path) }
             -> std::same_as<tl::expected<void, typename Codec::save_error>>;
 
         { Codec::file_not_found() } noexcept
