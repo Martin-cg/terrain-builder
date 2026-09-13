@@ -95,26 +95,30 @@ glm::vec<3, T> compute_barycentric(
         return {first, second, T(1) - first - second};
     } else {
         using Vec = glm::vec<n_dims, T>;
+        using Vec2 = glm::vec<2, T>;
+        using Mat2 = glm::mat<2, 2, T>;
 
-        const Vec v0 = b - a;
-        const Vec v1 = c - a;
-        const Vec v2 = point - a;
+        const Vec edge_ab = b - a;
+        const Vec edge_ac = c - a;
+        const Vec point_offset = point - a;
 
-        const T d00 = glm::dot(v0, v0);
-        const T d01 = glm::dot(v0, v1);
-        const T d11 = glm::dot(v1, v1);
-        const T d20 = glm::dot(v2, v0);
-        const T d21 = glm::dot(v2, v1);
+        const Mat2 gram{
+            glm::dot(edge_ab, edge_ab),
+            glm::dot(edge_ab, edge_ac),
+            glm::dot(edge_ab, edge_ac),
+            glm::dot(edge_ac, edge_ac)};
+        DEBUG_ASSERT(glm::determinant(gram) != 0);
 
-        const T denom = d00 * d11 - d01 * d01;
-        ASSERT(denom != 0);
-        const T inv_denom = 1 / denom;
+        const Vec2 projection{
+            glm::dot(point_offset, edge_ab),
+            glm::dot(point_offset, edge_ac)};
 
-        const T v = (d11 * d20 - d01 * d21) * inv_denom;
-        const T w = (d00 * d21 - d01 * d20) * inv_denom;
-        const T u = 1 - v - w;
+        const Vec2 weights_bc = glm::inverse(gram) * projection;
+        const T weight_b = weights_bc.x;
+        const T weight_c = weights_bc.y;
+        const T weight_a = T(1) - weight_b - weight_c;
 
-        return Vec(u, v, w);
+        return {weight_a, weight_b, weight_c};
     }
 }
 
