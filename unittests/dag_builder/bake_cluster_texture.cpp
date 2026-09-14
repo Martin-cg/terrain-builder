@@ -41,7 +41,7 @@ cv::Mat make_distinct_texture() {
 
 BakeTextureOptions nearest_options() {
     BakeTextureOptions options;
-    options.reprojection = ReprojectionOptions{1, cv::INTER_NEAREST, 0};
+    options.reprojection = ReprojectionOptions{1, cv::INTER_NEAREST};
     return options;
 }
 
