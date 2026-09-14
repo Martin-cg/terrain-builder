@@ -102,6 +102,7 @@ if(TARGET dagbuilderlib)
         catch2_helpers.h
         dag_builder/bake_cluster_texture.cpp
         dag_builder/cluster_adjacency.cpp
+        dag_builder/interpolate_uncovered.cpp
         dag_builder/correspondence.cpp
         dag_builder/reprojection.cpp
         dag_builder/merge_clusterings.cpp
