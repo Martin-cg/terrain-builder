@@ -19,6 +19,9 @@ using AtlasHandle = std::unique_ptr<xatlas::Atlas, decltype(&xatlas::Destroy)>;
 // degeneracy against, so the mesh is scaled up to move it clear.
 constexpr float DEGENERACY_HEADROOM = 100.0f;
 
+// Multiple of the packing resolution a chart may span before the packer scales it down.
+constexpr uint32_t CHART_SIZE_HEADROOM = 4;
+
 // Flags every triangle thinner than `min_thickness`.
 FixedArray<bool> find_thin_triangles(
     const std::span<const glm::uvec3> triangles,
@@ -65,6 +68,7 @@ AtlasHandle pack_charts(
     xatlas::PackOptions pack_options;
     pack_options.padding = options.padding;
     pack_options.resolution = packing_resolution;
+    pack_options.maxChartSize = packing_resolution * CHART_SIZE_HEADROOM;
     xatlas::PackCharts(atlas.get(), pack_options);
 
     return atlas;
