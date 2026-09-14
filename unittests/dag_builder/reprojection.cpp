@@ -25,7 +25,7 @@ struct Bake {
         return BakeSource{this->positions, this->triangles, this->uv_triangles, this->uv_maps, {}};
     }
 
-    std::vector<ReprojectionTriangle> run() const {
+    std::vector<MappedTriangle> run() const {
         return build_reprojection_triangles(
             this->target_triangles, this->target_uvs, this->positions, this->correspondence, this->source());
     }
@@ -78,9 +78,9 @@ double area_of(const std::array<glm::dvec2, 3> &triangle) {
     return std::abs(geometry::cross(triangle[1] - triangle[0], triangle[2] - triangle[0])) / 2.0;
 }
 
-double covered_area(const std::vector<ReprojectionTriangle> &triangles) {
+double covered_area(const std::vector<MappedTriangle> &triangles) {
     double area = 0.0;
-    for (const ReprojectionTriangle &triangle : triangles) {
+    for (const MappedTriangle &triangle : triangles) {
         area += area_of(triangle.target_uvs);
     }
     return area;
@@ -91,7 +91,7 @@ double covered_area(const std::vector<ReprojectionTriangle> &triangles) {
 TEST_CASE("build_reprojection maps a coplanar source onto itself", "[dag_builder][reprojection]") {
     const Bake bake = make_identity();
 
-    const std::vector<ReprojectionTriangle> reprojection = bake.run();
+    const std::vector<MappedTriangle> reprojection = bake.run();
 
     REQUIRE(reprojection.size() == 1);
     CHECK(reprojection[0].source_image_index == 0);
@@ -105,14 +105,14 @@ TEST_CASE("build_reprojection maps a coplanar source onto itself", "[dag_builder
 TEST_CASE("build_reprojection splits an output triangle between its sources", "[dag_builder][reprojection]") {
     const Bake bake = make_two_sources();
 
-    const std::vector<ReprojectionTriangle> reprojection = bake.run();
+    const std::vector<MappedTriangle> reprojection = bake.run();
 
     REQUIRE(reprojection.size() >= 2);
     // The pieces tile the output triangle exactly once.
     CHECK(covered_area(reprojection) == Catch::Approx(0.5));
 
     uint32_t from_first = 0;
-    for (const ReprojectionTriangle &triangle : reprojection) {
+    for (const MappedTriangle &triangle : reprojection) {
         from_first += triangle.source_image_index == 0 ? 1 : 0;
     }
     CHECK(from_first > 0);
@@ -128,7 +128,7 @@ TEST_CASE("build_reprojection ignores a source that misses the output triangle",
     bake.uv_triangles.push_back(UvRef{.map_index = 1, .uvs = {0, 1, 2}});
     bake.correspondence = make_correspondence({{0, 1}});
 
-    const std::vector<ReprojectionTriangle> reprojection = bake.run();
+    const std::vector<MappedTriangle> reprojection = bake.run();
 
     REQUIRE(reprojection.size() == 1);
     CHECK(reprojection[0].source_image_index == 0);
@@ -143,7 +143,7 @@ TEST_CASE("build_reprojection orders overlapping sources nearest last", "[dag_bu
     bake.uv_triangles.push_back(UvRef{.map_index = 1, .uvs = {0, 1, 2}});
     bake.correspondence = make_correspondence({{1, 0}});
 
-    const std::vector<ReprojectionTriangle> reprojection = bake.run();
+    const std::vector<MappedTriangle> reprojection = bake.run();
 
     REQUIRE(reprojection.size() == 2);
     // The far one is drawn first so the coplanar one wins, whatever order the candidates came in.

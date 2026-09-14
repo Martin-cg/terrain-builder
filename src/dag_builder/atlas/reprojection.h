@@ -11,7 +11,7 @@
 
 #include "geometry/PlaneFrame.h"
 #include "atlas/BakeSource.h"
-#include "atlas/pull_reproject_texture.h"
+#include "atlas/texture_reprojection.h"
 #include "correspondence.h"
 #include "enumerate.h"
 #include "geometry/geometry.h"
@@ -40,7 +40,7 @@ struct FlatSource {
 struct Fragment {
     double height = 0.0;
     bool front_facing = false;
-    ReprojectionTriangle triangle;
+    MappedTriangle triangle;
 
     // Facing away first, then farthest first, so the nearest facing surface is left standing.
     auto operator<=>(const Fragment &other) const {
@@ -117,7 +117,7 @@ inline void clip_against_source(
 
 // Prepare the triangles for the bake based on the correspondances and the target uv layout.
 [[nodiscard]]
-inline std::vector<ReprojectionTriangle> build_reprojection_triangles(
+inline std::vector<MappedTriangle> build_reprojection_triangles(
     const std::span<const glm::uvec3> triangles,
     const std::span<const glm::dvec2> uvs,
     const std::span<const glm::dvec3> positions,
@@ -125,7 +125,7 @@ inline std::vector<ReprojectionTriangle> build_reprojection_triangles(
     const BakeSource &source) {
     DEBUG_ASSERT(correspondence.segment_count() == triangles.size());
 
-    std::vector<ReprojectionTriangle> reprojection;
+    std::vector<MappedTriangle> reprojection;
     // At least one fragment per output triangle, more where sources overlap it.
     reprojection.reserve(triangles.size());
     std::vector<detail::Fragment> fragments;

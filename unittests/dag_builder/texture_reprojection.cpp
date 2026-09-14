@@ -3,8 +3,9 @@
 
 #include "../catch2_helpers.h"
 
-#include "atlas/pull_reproject_texture.h"
+#include "atlas/texture_reprojection.h"
 #include "range_utils.h"
+#include "texture/clear_color.h"
 #include "texture/dilate_colors.h"
 
 namespace {
@@ -18,10 +19,10 @@ cv::Mat make_texture(const cv::Vec3b top_left, const cv::Vec3b top_right) {
 
 } // namespace
 
-TEST_CASE("TextureReprojector copies pixels under an identity mapping", "[dag_builder][pull_reproject_texture]") {
+TEST_CASE("reproject copies pixels under an identity mapping", "[dag_builder][texture_reprojection]") {
     const cv::Mat source = make_texture(cv::Vec3b(10, 20, 30), cv::Vec3b(40, 50, 60));
 
-    std::array<ReprojectionTriangle, 2> triangles;
+    std::array<MappedTriangle, 2> triangles;
     triangles[0].source_image_index = 0;
     triangles[0].source_uvs = {glm::dvec2(0, 0), glm::dvec2(1, 0), glm::dvec2(1, 1)};
     triangles[0].target_uvs = {glm::dvec2(0, 0), glm::dvec2(1, 0), glm::dvec2(1, 1)};
@@ -29,72 +30,77 @@ TEST_CASE("TextureReprojector copies pixels under an identity mapping", "[dag_bu
     triangles[1].source_uvs = {glm::dvec2(0, 0), glm::dvec2(1, 1), glm::dvec2(0, 1)};
     triangles[1].target_uvs = {glm::dvec2(0, 0), glm::dvec2(1, 1), glm::dvec2(0, 1)};
 
-    TextureReprojector reprojector(glm::uvec2(2, 1), CV_8UC3, ReprojectionOptions{1, cv::INTER_NEAREST});
-    const cv::Mat output = reprojector.render(std::span(&source, 1), triangles);
+    const cv::Mat output = reproject(
+        std::span(&source, 1), triangles, glm::uvec2(2, 1), CV_8UC3, DEFAULT_CLEAR_COLOR,
+        ReprojectionOptions{1, cv::INTER_NEAREST});
 
     CHECK(output.at<cv::Vec3b>(0, 0) == cv::Vec3b(10, 20, 30));
     CHECK(output.at<cv::Vec3b>(0, 1) == cv::Vec3b(40, 50, 60));
 }
 
-TEST_CASE("TextureReprojector linearly blends between neighboring source pixels", "[dag_builder][pull_reproject_texture]") {
+TEST_CASE("reproject linearly blends between neighboring source pixels", "[dag_builder][texture_reprojection]") {
     const cv::Mat source = make_texture(cv::Vec3b(0, 0, 0), cv::Vec3b(200, 200, 200));
 
-    std::array<ReprojectionTriangle, 1> triangles;
+    std::array<MappedTriangle, 1> triangles;
     triangles[0].source_image_index = 0;
     triangles[0].source_uvs = {glm::dvec2(0, 0), glm::dvec2(1, 0), glm::dvec2(1, 1)};
     triangles[0].target_uvs = {glm::dvec2(0, 0), glm::dvec2(1, 0), glm::dvec2(1, 1)};
 
-    TextureReprojector reprojector(glm::uvec2(1, 1), CV_8UC3, ReprojectionOptions{1, cv::INTER_LINEAR});
-    const cv::Mat output = reprojector.render(std::span(&source, 1), triangles);
+    const cv::Mat output = reproject(
+        std::span(&source, 1), triangles, glm::uvec2(1, 1), CV_8UC3, DEFAULT_CLEAR_COLOR,
+        ReprojectionOptions{1, cv::INTER_LINEAR});
 
     // The single output sample lands halfway between the two source pixels.
     CHECK(output.at<cv::Vec3b>(0, 0) == cv::Vec3b(100, 100, 100));
 }
 
-TEST_CASE("TextureReprojector leaves the background where triangles are degenerate", "[dag_builder][pull_reproject_texture]") {
+TEST_CASE("reproject leaves the background where triangles are degenerate", "[dag_builder][texture_reprojection]") {
     const cv::Mat source = make_texture(cv::Vec3b(10, 20, 30), cv::Vec3b(40, 50, 60));
 
-    std::array<ReprojectionTriangle, 1> triangles;
+    std::array<MappedTriangle, 1> triangles;
     triangles[0].source_image_index = 0;
     triangles[0].source_uvs = {glm::dvec2(0, 0), glm::dvec2(1, 0), glm::dvec2(1, 1)};
     triangles[0].target_uvs = {glm::dvec2(0.5, 0.5), glm::dvec2(0.5, 0.5), glm::dvec2(0.5, 0.5)};
 
-    TextureReprojector reprojector(glm::uvec2(1, 1), CV_8UC3, ReprojectionOptions{1, cv::INTER_NEAREST});
-    const cv::Mat output = reprojector.render(std::span(&source, 1), triangles);
+    const cv::Mat output = reproject(
+        std::span(&source, 1), triangles, glm::uvec2(1, 1), CV_8UC3, cv::Scalar::all(0),
+        ReprojectionOptions{1, cv::INTER_NEAREST});
 
     CHECK(output.at<cv::Vec3b>(0, 0) == cv::Vec3b(0, 0, 0));
 }
 
-TEST_CASE("TextureReprojector supersamples and averages partial pixel coverage", "[dag_builder][pull_reproject_texture]") {
+TEST_CASE("reproject supersamples and averages partial pixel coverage", "[dag_builder][texture_reprojection]") {
     // Triangle covering only the lower-left sample at UV (0.25, 0.25)
     cv::Mat source(1, 1, CV_8UC3, cv::Vec3b(100, 100, 100));
 
-    std::array<ReprojectionTriangle, 1> triangles;
+    std::array<MappedTriangle, 1> triangles;
     triangles[0].source_image_index = 0;
     triangles[0].source_uvs = {glm::dvec2(0, 0), glm::dvec2(1, 0), glm::dvec2(1, 1)};
     // Triangle covers lower-left quarter of output pixel
     triangles[0].target_uvs = {glm::dvec2(0, 0), glm::dvec2(0.5, 0), glm::dvec2(0.5, 0.5)};
 
-    TextureReprojector reprojector(glm::uvec2(1, 1), CV_8UC3, ReprojectionOptions{2, cv::INTER_NEAREST});
-    const cv::Mat output = reprojector.render(std::span(&source, 1), triangles);
+    const cv::Mat output = reproject(
+        std::span(&source, 1), triangles, glm::uvec2(1, 1), CV_8UC3, DEFAULT_CLEAR_COLOR,
+        ReprojectionOptions{2, cv::INTER_NEAREST});
 
     // Only 1 of 4 samples is covered, output is average of covered samples
     CHECK(output.at<cv::Vec3b>(0, 0) == cv::Vec3b(100, 100, 100));
 }
 
-TEST_CASE("TextureReprojector handles non-uniform coverage with gradient source", "[dag_builder][pull_reproject_texture]") {
+TEST_CASE("reproject handles non-uniform coverage with gradient source", "[dag_builder][texture_reprojection]") {
     // 2x1 gradient source for testing coverage-aware averaging
     cv::Mat source(1, 2, CV_8UC3);
     source.at<cv::Vec3b>(0, 0) = cv::Vec3b(50, 50, 50);
     source.at<cv::Vec3b>(0, 1) = cv::Vec3b(150, 150, 150);
 
-    std::array<ReprojectionTriangle, 1> triangles;
+    std::array<MappedTriangle, 1> triangles;
     triangles[0].source_image_index = 0;
     triangles[0].source_uvs = {glm::dvec2(0, 0), glm::dvec2(1, 0), glm::dvec2(1, 1)};
     triangles[0].target_uvs = {glm::dvec2(0, 0), glm::dvec2(1, 0), glm::dvec2(1, 1)};
 
-    TextureReprojector reprojector(glm::uvec2(1, 1), CV_8UC3, ReprojectionOptions{2, cv::INTER_LINEAR});
-    const cv::Mat output = reprojector.render(std::span(&source, 1), triangles);
+    const cv::Mat output = reproject(
+        std::span(&source, 1), triangles, glm::uvec2(1, 1), CV_8UC3, DEFAULT_CLEAR_COLOR,
+        ReprojectionOptions{2, cv::INTER_LINEAR});
 
     const auto pixel = output.at<cv::Vec3b>(0, 0);
     // With linear interpolation across gradient, should be intermediate value
@@ -102,26 +108,27 @@ TEST_CASE("TextureReprojector handles non-uniform coverage with gradient source"
     CHECK(pixel[0] < 150);
 }
 
-TEST_CASE("TextureReprojector background stays zero when no samples covered", "[dag_builder][pull_reproject_texture]") {
+TEST_CASE("reproject background stays zero when no samples covered", "[dag_builder][texture_reprojection]") {
     cv::Mat source(1, 1, CV_8UC3, cv::Vec3b(255, 255, 255));
 
-    std::array<ReprojectionTriangle, 1> triangles;
+    std::array<MappedTriangle, 1> triangles;
     triangles[0].source_image_index = 0;
     triangles[0].source_uvs = {glm::dvec2(0, 0), glm::dvec2(1, 0), glm::dvec2(1, 1)};
     // Triangle outside output area
     triangles[0].target_uvs = {glm::dvec2(2, 2), glm::dvec2(3, 2), glm::dvec2(3, 3)};
 
-    TextureReprojector reprojector(glm::uvec2(1, 1), CV_8UC3, ReprojectionOptions{2, cv::INTER_NEAREST});
-    const cv::Mat output = reprojector.render(std::span(&source, 1), triangles);
+    const cv::Mat output = reproject(
+        std::span(&source, 1), triangles, glm::uvec2(1, 1), CV_8UC3, cv::Scalar::all(0),
+        ReprojectionOptions{2, cv::INTER_NEAREST});
 
     CHECK(output.at<cv::Vec3b>(0, 0) == cv::Vec3b(0, 0, 0));
 }
 
-TEST_CASE("TextureReprojector quad seam has no holes with supersampling", "[dag_builder][pull_reproject_texture]") {
+TEST_CASE("reproject quad seam has no holes with supersampling", "[dag_builder][texture_reprojection]") {
     // Full coverage with two triangles forming a quad and supersampling
     cv::Mat source(1, 1, CV_8UC3, cv::Vec3b(128, 128, 128));
 
-    std::array<ReprojectionTriangle, 2> triangles;
+    std::array<MappedTriangle, 2> triangles;
     triangles[0].source_image_index = 0;
     triangles[0].source_uvs = {glm::dvec2(0, 0), glm::dvec2(1, 0), glm::dvec2(1, 1)};
     triangles[0].target_uvs = {glm::dvec2(0, 0), glm::dvec2(1, 0), glm::dvec2(1, 1)};
@@ -129,8 +136,9 @@ TEST_CASE("TextureReprojector quad seam has no holes with supersampling", "[dag_
     triangles[1].source_uvs = {glm::dvec2(0, 0), glm::dvec2(1, 1), glm::dvec2(0, 1)};
     triangles[1].target_uvs = {glm::dvec2(0, 0), glm::dvec2(1, 1), glm::dvec2(0, 1)};
 
-    TextureReprojector reprojector(glm::uvec2(4, 4), CV_8UC3, ReprojectionOptions{2, cv::INTER_NEAREST});
-    const cv::Mat output = reprojector.render(std::span(&source, 1), triangles);
+    const cv::Mat output = reproject(
+        std::span(&source, 1), triangles, glm::uvec2(4, 4), CV_8UC3, DEFAULT_CLEAR_COLOR,
+        ReprojectionOptions{2, cv::INTER_NEAREST});
 
     // Every output pixel must equal source color (no holes on seams)
     for (int y = 0; y < output.rows; y++) {
@@ -140,25 +148,26 @@ TEST_CASE("TextureReprojector quad seam has no holes with supersampling", "[dag_
     }
 }
 
-TEST_CASE("TextureReprojector renders identically regardless of winding order", "[dag_builder][pull_reproject_texture]") {
+TEST_CASE("reproject renders identically regardless of winding order", "[dag_builder][texture_reprojection]") {
     cv::Mat source(1, 1, CV_8UC3, cv::Vec3b(64, 64, 64));
 
     // CCW triangle
-    std::array<ReprojectionTriangle, 1> triangles_ccw;
+    std::array<MappedTriangle, 1> triangles_ccw;
     triangles_ccw[0].source_image_index = 0;
     triangles_ccw[0].source_uvs = {glm::dvec2(0, 0), glm::dvec2(1, 0), glm::dvec2(1, 1)};
     triangles_ccw[0].target_uvs = {glm::dvec2(0, 0), glm::dvec2(1, 0), glm::dvec2(1, 1)};
 
     // CW triangle (swap two vertices)
-    std::array<ReprojectionTriangle, 1> triangles_cw;
+    std::array<MappedTriangle, 1> triangles_cw;
     triangles_cw[0].source_image_index = 0;
     triangles_cw[0].source_uvs = {glm::dvec2(0, 0), glm::dvec2(1, 1), glm::dvec2(1, 0)};
     triangles_cw[0].target_uvs = {glm::dvec2(0, 0), glm::dvec2(1, 1), glm::dvec2(1, 0)};
 
-    TextureReprojector reprojector(glm::uvec2(2, 2), CV_8UC3, ReprojectionOptions{1, cv::INTER_NEAREST});
-
-    const cv::Mat output_ccw = reprojector.render(std::span(&source, 1), triangles_ccw);
-    const cv::Mat output_cw = reprojector.render(std::span(&source, 1), triangles_cw);
+    const ReprojectionOptions options{1, cv::INTER_NEAREST};
+    const cv::Mat output_ccw = reproject(
+        std::span(&source, 1), triangles_ccw, glm::uvec2(2, 2), CV_8UC3, DEFAULT_CLEAR_COLOR, options);
+    const cv::Mat output_cw = reproject(
+        std::span(&source, 1), triangles_cw, glm::uvec2(2, 2), CV_8UC3, DEFAULT_CLEAR_COLOR, options);
 
     // Winding repair should make both renders identical
     for (int y = 0; y < output_ccw.rows; y++) {
@@ -168,14 +177,14 @@ TEST_CASE("TextureReprojector renders identically regardless of winding order", 
     }
 }
 
-TEST_CASE("TextureReprojector handles multiple source images with different colors", "[dag_builder][pull_reproject_texture]") {
+TEST_CASE("reproject handles multiple source images with different colors", "[dag_builder][texture_reprojection]") {
     // Two 1x1 sources with different colors
     cv::Mat source0(1, 1, CV_8UC3, cv::Vec3b(255, 0, 0));    // red
     cv::Mat source1(1, 1, CV_8UC3, cv::Vec3b(0, 255, 0));    // green
     std::array<cv::Mat, 2> sources = {source0, source1};
 
     // Two triangles, each using a different source
-    std::array<ReprojectionTriangle, 2> triangles;
+    std::array<MappedTriangle, 2> triangles;
     // Left triangle uses source 0 (red)
     triangles[0].source_image_index = 0;
     triangles[0].source_uvs = {glm::dvec2(0, 0), glm::dvec2(1, 0), glm::dvec2(1, 1)};
@@ -185,46 +194,49 @@ TEST_CASE("TextureReprojector handles multiple source images with different colo
     triangles[1].source_uvs = {glm::dvec2(0, 0), glm::dvec2(1, 0), glm::dvec2(1, 1)};
     triangles[1].target_uvs = {glm::dvec2(0.5, 0), glm::dvec2(1, 0), glm::dvec2(1, 1)};
 
-    TextureReprojector reprojector(glm::uvec2(2, 1), CV_8UC3, ReprojectionOptions{1, cv::INTER_NEAREST});
-    const cv::Mat output = reprojector.render(sources, triangles);
+    const cv::Mat output = reproject(
+        sources, triangles, glm::uvec2(2, 1), CV_8UC3, DEFAULT_CLEAR_COLOR,
+        ReprojectionOptions{1, cv::INTER_NEAREST});
 
     CHECK(output.at<cv::Vec3b>(0, 0) == cv::Vec3b(255, 0, 0));    // red
     CHECK(output.at<cv::Vec3b>(0, 1) == cv::Vec3b(0, 255, 0));    // green
 }
 
-TEST_CASE("TextureReprojector clamps UVs and applies edge replication", "[dag_builder][pull_reproject_texture]") {
+TEST_CASE("reproject clamps UVs and applies edge replication", "[dag_builder][texture_reprojection]") {
     cv::Mat source(2, 2, CV_8UC3);
     source.at<cv::Vec3b>(0, 0) = cv::Vec3b(255, 0, 0);      // red
     source.at<cv::Vec3b>(0, 1) = cv::Vec3b(0, 255, 0);      // green
     source.at<cv::Vec3b>(1, 0) = cv::Vec3b(0, 0, 255);      // blue
     source.at<cv::Vec3b>(1, 1) = cv::Vec3b(255, 255, 0);    // yellow
 
-    std::array<ReprojectionTriangle, 1> triangles;
+    std::array<MappedTriangle, 1> triangles;
     triangles[0].source_image_index = 0;
     // All source UVs lie outside [0, 1] and get clamped to the (1, 1) corner.
     triangles[0].source_uvs = {glm::dvec2(2, 2), glm::dvec2(3, 2), glm::dvec2(3, 3)};
     triangles[0].target_uvs = {glm::dvec2(0, 0), glm::dvec2(1, 0), glm::dvec2(1, 1)};
 
-    TextureReprojector reprojector(glm::uvec2(1, 1), CV_8UC3, ReprojectionOptions{1, cv::INTER_NEAREST});
-    const cv::Mat output = reprojector.render(std::span(&source, 1), triangles);
+    const cv::Mat output = reproject(
+        std::span(&source, 1), triangles, glm::uvec2(1, 1), CV_8UC3, DEFAULT_CLEAR_COLOR,
+        ReprojectionOptions{1, cv::INTER_NEAREST});
 
     // Every sample reads the bottom-right border texel (yellow).
     CHECK(output.at<cv::Vec3b>(0, 0) == cv::Vec3b(255, 255, 0));
 }
 
-TEST_CASE("TextureReprojector pins rounding behavior for linear interpolation blends", "[dag_builder][pull_reproject_texture]") {
+TEST_CASE("reproject pins rounding behavior for linear interpolation blends", "[dag_builder][texture_reprojection]") {
     // Create a 2x1 source with black and white to test 127.5 blend
     cv::Mat source(1, 2, CV_8UC3);
     source.at<cv::Vec3b>(0, 0) = cv::Vec3b(0, 0, 0);        // black
     source.at<cv::Vec3b>(0, 1) = cv::Vec3b(255, 255, 255);  // white
 
-    std::array<ReprojectionTriangle, 1> triangles;
+    std::array<MappedTriangle, 1> triangles;
     triangles[0].source_image_index = 0;
     triangles[0].source_uvs = {glm::dvec2(0, 0), glm::dvec2(1, 0), glm::dvec2(1, 1)};
     triangles[0].target_uvs = {glm::dvec2(0, 0), glm::dvec2(1, 0), glm::dvec2(1, 1)};
 
-    TextureReprojector reprojector(glm::uvec2(1, 1), CV_8UC3, ReprojectionOptions{1, cv::INTER_LINEAR});
-    const cv::Mat output = reprojector.render(std::span(&source, 1), triangles);
+    const cv::Mat output = reproject(
+        std::span(&source, 1), triangles, glm::uvec2(1, 1), CV_8UC3, DEFAULT_CLEAR_COLOR,
+        ReprojectionOptions{1, cv::INTER_LINEAR});
 
     const auto pixel = output.at<cv::Vec3b>(0, 0);
     // Linear interpolation at center between 0 and 255 produces 127.5
@@ -237,11 +249,11 @@ TEST_CASE("TextureReprojector pins rounding behavior for linear interpolation bl
 namespace {
 
 // A quad over the middle ninth of the target, which holds only the centre sample of a 3x3 output.
-std::array<ReprojectionTriangle, 2> make_centre_quad() {
+std::array<MappedTriangle, 2> make_centre_quad() {
     const glm::dvec2 low(0.34);
     const glm::dvec2 high(0.66);
 
-    std::array<ReprojectionTriangle, 2> triangles;
+    std::array<MappedTriangle, 2> triangles;
     triangles[0].source_uvs = {glm::dvec2(0.5), glm::dvec2(0.5), glm::dvec2(0.5)};
     triangles[0].target_uvs = {low, glm::dvec2(high.x, low.y), high};
     triangles[1].source_uvs = triangles[0].source_uvs;
@@ -251,12 +263,13 @@ std::array<ReprojectionTriangle, 2> make_centre_quad() {
 
 } // namespace
 
-TEST_CASE("TextureReprojector reports the texels its triangles wrote to", "[dag_builder][pull_reproject_texture]") {
+TEST_CASE("reproject reports the texels its triangles wrote to", "[dag_builder][texture_reprojection]") {
     const cv::Mat source(1, 1, CV_8UC3, cv::Vec3b(10, 20, 30));
-    const std::array<ReprojectionTriangle, 2> triangles = make_centre_quad();
+    const std::array<MappedTriangle, 2> triangles = make_centre_quad();
 
-    TextureReprojector reprojector(glm::uvec2(3, 3), CV_8UC3, ReprojectionOptions{1, cv::INTER_NEAREST, cv::Scalar::all(0)});
-    const RenderedTexture rendered = reprojector.render(std::span(&source, 1), triangles);
+    const RenderedTexture rendered = reproject(
+        std::span(&source, 1), triangles, glm::uvec2(3, 3), CV_8UC3, cv::Scalar::all(0),
+        ReprojectionOptions{1, cv::INTER_NEAREST});
 
     CHECK(rendered.image.at<cv::Vec3b>(1, 1) == cv::Vec3b(10, 20, 30));
     CHECK(rendered.image.at<cv::Vec3b>(0, 0) == cv::Vec3b(0, 0, 0));
@@ -264,12 +277,30 @@ TEST_CASE("TextureReprojector reports the texels its triangles wrote to", "[dag_
     CHECK_FALSE(rendered.coverage.get(0, 0));
 }
 
-TEST_CASE("the gutter dilation extends what the reprojector covered", "[dag_builder][pull_reproject_texture]") {
+TEST_CASE("reproject_into leaves the texels its triangles missed untouched", "[dag_builder][texture_reprojection]") {
     const cv::Mat source(1, 1, CV_8UC3, cv::Vec3b(10, 20, 30));
-    const std::array<ReprojectionTriangle, 2> triangles = make_centre_quad();
+    const std::array<MappedTriangle, 2> triangles = make_centre_quad();
 
-    TextureReprojector reprojector(glm::uvec2(3, 3), CV_8UC3, ReprojectionOptions{1, cv::INTER_NEAREST, cv::Scalar::all(0)});
-    RenderedTexture rendered = reprojector.render(std::span(&source, 1), triangles);
+    cv::Mat image(3, 3, CV_8UC3, cv::Vec3b(7, 8, 9));
+    texture::Mask coverage(glm::uvec2(3, 3));
+    reproject_into(
+        std::span(&source, 1), triangles, ReprojectionOptions{1, cv::INTER_NEAREST},
+        texture::RenderTarget(image, coverage));
+
+    CHECK(image.at<cv::Vec3b>(1, 1) == cv::Vec3b(10, 20, 30));
+    // Never cleared, so an uncovered texel keeps what the caller put there.
+    CHECK(image.at<cv::Vec3b>(0, 0) == cv::Vec3b(7, 8, 9));
+    CHECK(coverage.get(1, 1));
+    CHECK_FALSE(coverage.get(0, 0));
+}
+
+TEST_CASE("the gutter dilation extends what the reprojector covered", "[dag_builder][texture_reprojection]") {
+    const cv::Mat source(1, 1, CV_8UC3, cv::Vec3b(10, 20, 30));
+    const std::array<MappedTriangle, 2> triangles = make_centre_quad();
+
+    RenderedTexture rendered = reproject(
+        std::span(&source, 1), triangles, glm::uvec2(3, 3), CV_8UC3, cv::Scalar::all(0),
+        ReprojectionOptions{1, cv::INTER_NEAREST});
 
     texture::dilate_colors_inplace(rendered.image, rendered.coverage, 1);
 

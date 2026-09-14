@@ -17,6 +17,7 @@
 
 namespace geometry {
 
+using Triangle2d = radix::geometry::Triangle<2, double>;
 using Triangle3d = radix::geometry::Triangle<3, double>;
 
 // Grow bounds by the same distance on every side.
