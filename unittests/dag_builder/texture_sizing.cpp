@@ -78,3 +78,29 @@ TEST_CASE("rescale_to_fit_budget can overshoot the budget on many small sizes", 
 
     CHECK(textures[0].size == glm::uvec2(3, 3));
 }
+
+TEST_CASE("clamp_to_max_side leaves sizes within the cap alone", "[dag_builder][texture_sizing]") {
+    std::vector<BakePlan> textures{make_plan({100, 50}), make_plan({64, 64})};
+
+    clamp_to_max_side(textures, 100);
+
+    CHECK(textures[0].size == glm::uvec2(100, 50));
+    CHECK(textures[1].size == glm::uvec2(64, 64));
+}
+
+TEST_CASE("clamp_to_max_side scales the longer side down to the cap and keeps the aspect", "[dag_builder][texture_sizing]") {
+    std::vector<BakePlan> textures{make_plan({400, 100}), make_plan({50, 200})};
+
+    clamp_to_max_side(textures, 100);
+
+    CHECK(textures[0].size == glm::uvec2(100, 25));
+    CHECK(textures[1].size == glm::uvec2(25, 100));
+}
+
+TEST_CASE("clamp_to_max_side floors the shorter side of a strip at one texel", "[dag_builder][texture_sizing]") {
+    std::vector<BakePlan> textures{make_plan({76017, 2})};
+
+    clamp_to_max_side(textures, 8192);
+
+    CHECK(textures[0].size == glm::uvec2(8192, 1));
+}

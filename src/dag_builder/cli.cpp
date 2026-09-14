@@ -191,6 +191,10 @@ Args cli::parse(int argc, const char *const *argv) {
         ->default_val(args.sizing_options.max_node_texels)
         ->check(CLI::PositiveNumber);
 
+    app.add_option("--max-texture-side", args.sizing_options.max_texture_side, "Longest side any one texture may have")
+        ->default_val(args.sizing_options.max_texture_side)
+        ->check(CLI::PositiveNumber);
+
     app.add_option("--texture-gutter", args.texture_gutter, "Texels kept between charts.")
         ->default_val(args.texture_gutter)
         ->check(CLI::NonNegativeNumber);
