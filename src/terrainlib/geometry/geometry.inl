@@ -69,6 +69,11 @@ radix::geometry::Triangle<n_dims, T> corners(const glm::uvec3 &triangle, const s
     return {positions[triangle.x], positions[triangle.y], positions[triangle.z]};
 }
 
+template <glm::length_t n_dims, typename T>
+radix::geometry::Triangle<n_dims, T> corners(const glm::uvec3 &triangle, const std::vector<glm::vec<n_dims, T>> &positions) {
+    return corners(triangle, std::span(positions));
+}
+
 template <typename T>
 T orient(const glm::vec<2, T> &a, const glm::vec<2, T> &b, const glm::vec<2, T> &p) {
     return cross(b - a, p - a);
