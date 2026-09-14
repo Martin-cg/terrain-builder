@@ -88,7 +88,7 @@ double covered_area(const std::vector<ReprojectionTriangle> &triangles) {
 
 } // namespace
 
-TEST_CASE("build_reprojection maps a coplanar source onto itself", "[dagbuilder][reprojection]") {
+TEST_CASE("build_reprojection maps a coplanar source onto itself", "[dag_builder][reprojection]") {
     const Bake bake = make_identity();
 
     const std::vector<ReprojectionTriangle> reprojection = bake.run();
@@ -102,7 +102,7 @@ TEST_CASE("build_reprojection maps a coplanar source onto itself", "[dagbuilder]
     }
 }
 
-TEST_CASE("build_reprojection splits an output triangle between its sources", "[dagbuilder][reprojection]") {
+TEST_CASE("build_reprojection splits an output triangle between its sources", "[dag_builder][reprojection]") {
     const Bake bake = make_two_sources();
 
     const std::vector<ReprojectionTriangle> reprojection = bake.run();
@@ -119,7 +119,7 @@ TEST_CASE("build_reprojection splits an output triangle between its sources", "[
     CHECK(from_first < reprojection.size());
 }
 
-TEST_CASE("build_reprojection ignores a source that misses the output triangle", "[dagbuilder][reprojection]") {
+TEST_CASE("build_reprojection ignores a source that misses the output triangle", "[dag_builder][reprojection]") {
     Bake bake = make_identity();
     // A second source triangle well outside the output triangle, still listed as a candidate.
     bake.positions.insert(bake.positions.end(), {{5, 5, 0}, {6, 5, 0}, {5, 6, 0}});
@@ -134,7 +134,7 @@ TEST_CASE("build_reprojection ignores a source that misses the output triangle",
     CHECK(reprojection[0].source_image_index == 0);
 }
 
-TEST_CASE("build_reprojection orders overlapping sources nearest last", "[dagbuilder][reprojection]") {
+TEST_CASE("build_reprojection orders overlapping sources nearest last", "[dag_builder][reprojection]") {
     Bake bake = make_identity();
     // A second source covering the same footprint, but lifted off the output plane.
     bake.positions.insert(bake.positions.end(), {{0, 0, 2}, {1, 0, 2}, {0, 1, 2}});
