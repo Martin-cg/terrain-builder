@@ -15,6 +15,7 @@
 #include "correspondence.h"
 #include "enumerate.h"
 #include "geometry/geometry.h"
+#include "log.h"
 #include "polygon/clip.h"
 #include "range_utils.h"
 
@@ -130,10 +131,12 @@ inline std::vector<MappedTriangle> build_reprojection_triangles(
     reprojection.reserve(triangles.size());
     std::vector<detail::Fragment> fragments;
     std::vector<polygon::Triangle2d> overlap;
+    uint32_t without_fragments = 0;
 
     for (const auto [triangle_index, triangle] : enumerate(triangles)) {
         const std::optional<detail::FlatTarget> target = detail::flatten_target(triangle, uvs, positions);
         if (!target) {
+            without_fragments++;
             continue;
         }
 
@@ -143,11 +146,18 @@ inline std::vector<MappedTriangle> build_reprojection_triangles(
             detail::clip_against_source(*target, flat, overlap, fragments);
         }
 
+        without_fragments += fragments.empty() ? 1 : 0;
+
         // Facing away first, then farthest first, so the nearest facing surface is the one left standing where they overlap.
         std::ranges::stable_sort(fragments, std::less<>{});
         for (const detail::Fragment &fragment : fragments) {
             reprojection.push_back(fragment.triangle);
         }
+    }
+
+    if (without_fragments > 0) {
+        // Nothing will be rendered for these, so their texels keep the colour the bake cleared to.
+        LOG_WARN("{} of {} output triangles produced no fragment to render", without_fragments, triangles.size());
     }
 
     return reprojection;
