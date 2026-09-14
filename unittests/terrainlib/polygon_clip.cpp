@@ -18,7 +18,7 @@ Triangle2d make_triangle(const glm::dvec2 &a, const glm::dvec2 &b, const glm::dv
 
 std::vector<Triangle2d> clip(const Triangle2d &subject, const Triangle2d &clip_triangle) {
     std::vector<Triangle2d> out;
-    polygon::clip_triangle(subject, clip_triangle, out);
+    polygon::clip_into_triangles(subject, clip_triangle, out);
     return out;
 }
 

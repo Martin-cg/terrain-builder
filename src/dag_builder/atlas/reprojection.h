@@ -93,7 +93,7 @@ inline void clip_against_source(
     std::vector<polygon::Triangle2d> &overlap,
     std::vector<Fragment> &fragments) {
     overlap.clear();
-    polygon::clip_triangle(target.projected, source.projected, overlap);
+    polygon::clip_into_triangles(target.projected, source.projected, overlap);
 
     for (const polygon::Triangle2d &part : overlap) {
         Fragment fragment;
