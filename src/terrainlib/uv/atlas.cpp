@@ -19,6 +19,9 @@ using AtlasHandle = std::unique_ptr<xatlas::Atlas, decltype(&xatlas::Destroy)>;
 // degeneracy against, so the mesh is scaled up to move it clear.
 constexpr float DEGENERACY_HEADROOM = 100.0f;
 
+// Aspect beyond which a packed atlas is reported as lopsided.
+constexpr double MAX_REASONABLE_ASPECT = 10.0;
+
 // Multiple of the packing resolution a chart may span before the packer scales it down.
 constexpr uint32_t CHART_SIZE_HEADROOM = 4;
 
@@ -119,6 +122,12 @@ Atlas build_atlas(
             atlas.unmapped_triangles.push_back(triangle_index);
         }
     }
+
+    const double aspect = atlas.aspect();
+    if (aspect > MAX_REASONABLE_ASPECT || aspect < 1.0 / MAX_REASONABLE_ASPECT) {
+        LOG_WARN("Lopsided atlas beyond the aspect limit of {}: packed {} triangles into {} x {} texels of {} charts", MAX_REASONABLE_ASPECT, triangles.size(), atlas.size.x, atlas.size.y, atlas.chart_count);
+    }
+
     if (!atlas.unmapped_triangles.empty()) {
         LOG_DEBUG("Left {} of {} triangles out of every chart", atlas.unmapped_triangles.size(), atlas.triangles.size());
     }
