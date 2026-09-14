@@ -5,6 +5,7 @@
 
 #include "atlas/pull_reproject_texture.h"
 #include "range_utils.h"
+#include "texture/dilate_colors.h"
 
 namespace {
 
@@ -58,7 +59,7 @@ TEST_CASE("TextureReprojector leaves the background where triangles are degenera
     triangles[0].source_uvs = {glm::dvec2(0, 0), glm::dvec2(1, 0), glm::dvec2(1, 1)};
     triangles[0].target_uvs = {glm::dvec2(0.5, 0.5), glm::dvec2(0.5, 0.5), glm::dvec2(0.5, 0.5)};
 
-    TextureReprojector reprojector(glm::uvec2(1, 1), CV_8UC3, ReprojectionOptions{1, cv::INTER_NEAREST, 0, cv::Scalar::all(0)});
+    TextureReprojector reprojector(glm::uvec2(1, 1), CV_8UC3, ReprojectionOptions{1, cv::INTER_NEAREST, cv::Scalar::all(0)});
     const cv::Mat output = reprojector.render(std::span(&source, 1), triangles);
 
     CHECK(output.at<cv::Vec3b>(0, 0) == cv::Vec3b(0, 0, 0));
@@ -110,7 +111,7 @@ TEST_CASE("TextureReprojector background stays zero when no samples covered", "[
     // Triangle outside output area
     triangles[0].target_uvs = {glm::dvec2(2, 2), glm::dvec2(3, 2), glm::dvec2(3, 3)};
 
-    TextureReprojector reprojector(glm::uvec2(1, 1), CV_8UC3, ReprojectionOptions{2, cv::INTER_NEAREST, 0, cv::Scalar::all(0)});
+    TextureReprojector reprojector(glm::uvec2(1, 1), CV_8UC3, ReprojectionOptions{2, cv::INTER_NEAREST, cv::Scalar::all(0)});
     const cv::Mat output = reprojector.render(std::span(&source, 1), triangles);
 
     CHECK(output.at<cv::Vec3b>(0, 0) == cv::Vec3b(0, 0, 0));
@@ -250,22 +251,31 @@ std::array<ReprojectionTriangle, 2> make_centre_quad() {
 
 } // namespace
 
-TEST_CASE("TextureReprojector extends the covered region by the requested gutter", "[atlas][pull_reproject_texture]") {
+TEST_CASE("TextureReprojector reports the texels its triangles wrote to", "[atlas][pull_reproject_texture]") {
     const cv::Mat source(1, 1, CV_8UC3, cv::Vec3b(10, 20, 30));
     const std::array<ReprojectionTriangle, 2> triangles = make_centre_quad();
 
-    TextureReprojector without_gutter(glm::uvec2(3, 3), CV_8UC3, ReprojectionOptions{1, cv::INTER_NEAREST, 0, cv::Scalar::all(0)});
-    const cv::Mat unfilled = without_gutter.render(std::span(&source, 1), triangles);
+    TextureReprojector reprojector(glm::uvec2(3, 3), CV_8UC3, ReprojectionOptions{1, cv::INTER_NEAREST, cv::Scalar::all(0)});
+    const RenderedTexture rendered = reprojector.render(std::span(&source, 1), triangles);
 
-    CHECK(unfilled.at<cv::Vec3b>(1, 1) == cv::Vec3b(10, 20, 30));
-    CHECK(unfilled.at<cv::Vec3b>(0, 0) == cv::Vec3b(0, 0, 0));
+    CHECK(rendered.image.at<cv::Vec3b>(1, 1) == cv::Vec3b(10, 20, 30));
+    CHECK(rendered.image.at<cv::Vec3b>(0, 0) == cv::Vec3b(0, 0, 0));
+    CHECK(rendered.coverage.get(1, 1));
+    CHECK_FALSE(rendered.coverage.get(0, 0));
+}
 
-    TextureReprojector with_gutter(glm::uvec2(3, 3), CV_8UC3, ReprojectionOptions{1, cv::INTER_NEAREST, 1});
-    const cv::Mat filled = with_gutter.render(std::span(&source, 1), triangles);
+TEST_CASE("the gutter dilation extends what the reprojector covered", "[dag_builder][pull_reproject_texture]") {
+    const cv::Mat source(1, 1, CV_8UC3, cv::Vec3b(10, 20, 30));
+    const std::array<ReprojectionTriangle, 2> triangles = make_centre_quad();
+
+    TextureReprojector reprojector(glm::uvec2(3, 3), CV_8UC3, ReprojectionOptions{1, cv::INTER_NEAREST, cv::Scalar::all(0)});
+    RenderedTexture rendered = reprojector.render(std::span(&source, 1), triangles);
+
+    texture::dilate_colors_inplace(rendered.image, rendered.coverage, 1);
 
     for (const uint32_t y : range<uint32_t>(3)) {
         for (const uint32_t x : range<uint32_t>(3)) {
-            REQUIRE(filled.at<cv::Vec3b>(y, x) == cv::Vec3b(10, 20, 30));
+            REQUIRE(rendered.image.at<cv::Vec3b>(y, x) == cv::Vec3b(10, 20, 30));
         }
     }
 }

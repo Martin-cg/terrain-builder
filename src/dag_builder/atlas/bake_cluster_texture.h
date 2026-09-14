@@ -10,6 +10,7 @@
 #include "cluster.h"
 #include "enumerate.h"
 #include "range_utils.h"
+#include "texture/dilate_colors.h"
 #include "uv/atlas.h"
 
 // Adopt the atlas layout, duplicating the cluster's seam vertices.
@@ -88,6 +89,7 @@ inline void apply_node_atlas(
 struct BakeTextureOptions {
     CorrespondenceOptions correspondence = {};
     ReprojectionOptions reprojection = {};
+    uint32_t gutter = 0;
 };
 
 namespace detail {
@@ -126,7 +128,10 @@ inline cv::Mat bake_texture(
         target.local_triangles, target.uvs, target.positions, correspondence, source);
 
     TextureReprojector reprojector(size, CV_8UC3, options.reprojection);
-    return reprojector.render(source.images, reprojection);
+    RenderedTexture rendered = reprojector.render(source.images, reprojection);
+
+    texture::dilate_colors_inplace(rendered.image, rendered.coverage, options.gutter);
+    return rendered.image;
 }
 } // namespace detail
 

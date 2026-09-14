@@ -17,14 +17,13 @@
 #include "fixed_point.h"
 #include "mesh/WindingOrder.h"
 #include "opencv_utils.h"
-#include "texture/dilate_colors.h"
+#include "texture/Mask.h"
 #include "range_utils.h"
 #include "containers/Vector2D.h"
 
 struct ReprojectionOptions {
     uint32_t sample_scale = 2;
     int interpolation = cv::INTER_LINEAR;
-    uint32_t gutter = 0;
     cv::Scalar clear_color = IS_DEBUG_BUILD ? cv::Scalar(255, 0, 255) : cv::Scalar::all(0);
 };
 
@@ -32,6 +31,15 @@ struct ReprojectionTriangle {
     uint32_t source_image_index = 0;
     std::array<glm::dvec2, 3> source_uvs;
     std::array<glm::dvec2, 3> target_uvs;
+};
+
+struct RenderedTexture {
+    cv::Mat image;
+    texture::Mask coverage;
+
+    operator const cv::Mat &() const {
+        return this->image;
+    }
 };
 
 namespace detail {
@@ -273,7 +281,7 @@ public:
           _options(options) {
     }
 
-    cv::Mat render(const std::span<const cv::Mat> source_images, const std::span<const ReprojectionTriangle> triangles) {
+    RenderedTexture render(const std::span<const cv::Mat> source_images, const std::span<const ReprojectionTriangle> triangles) {
         const std::vector<detail::PreparedTriangle> prepared_triangles =
             detail::prepare_triangles(source_images, triangles, this->_output_size, this->_options.sample_scale);
 
@@ -285,8 +293,7 @@ public:
         texture::Mask coverage(this->_output_size);
         this->render_by_depth(output, coverage, prepared_triangles, triangle_index_map);
 
-        texture::dilate_colors_inplace(output, coverage, this->_options.gutter);
-        return output;
+        return RenderedTexture{std::move(output), std::move(coverage)};
     }
 
 private:

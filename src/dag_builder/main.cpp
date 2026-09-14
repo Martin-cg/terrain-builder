@@ -27,7 +27,7 @@ int main(int argc, char **argv) {
             .relative_target_error = args.target_error,
             .texture_options = {
                 .atlas = {.padding = args.texture_gutter},
-                .bake = {.reprojection = {.gutter = args.texture_gutter}},
+                .bake = {.gutter = args.texture_gutter},
                 .sizing = args.sizing_options,
                 .charting = args.charting,
                 .allow_texture_reuse = args.allow_texture_reuse,
