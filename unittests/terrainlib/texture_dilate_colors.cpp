@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <initializer_list>
 
 #include <glm/glm.hpp>
 #include <opencv2/opencv.hpp>
@@ -27,6 +28,15 @@ template <typename Pixel>
 void cover(Input &input, const glm::uvec2 at, const Pixel value) {
     input.image.at<Pixel>(at.y, at.x) = value;
     input.coverage.set(at.x, at.y);
+}
+
+// A single-row target, named by the columns it admits.
+texture::Mask make_target(const glm::uvec2 size, const std::initializer_list<uint32_t> columns) {
+    texture::Mask target(size);
+    for (const uint32_t x : columns) {
+        target.set(x, 0);
+    }
+    return target;
 }
 
 } // namespace
@@ -127,11 +137,59 @@ TEST_CASE("dilate_colors dispatches on the image depth", "[texture][dilate_color
     CHECK(input.image.at<float>(0, 0) == Catch::Approx(1.5));
 }
 
-TEST_CASE("dilate_colors rejects a coverage that does not match the image", "[texture][dilate_colors]") {
-    Input input = make_input(glm::uvec2(3));
-    texture::Mask wrong_size(glm::uvec2(4));
+TEST_CASE("dilate_colors only grows into the target", "[terrainlib][texture_dilate_colors]") {
+    Input input = make_input(glm::uvec2(5, 1));
+    cover<uint8_t>(input, glm::uvec2(0, 0), 100);
+    texture::Mask target = make_target(glm::uvec2(5, 1), {1, 2});
 
-    CHECK_THROWS(texture::dilate_colors_inplace(input.image, wrong_size, 1));
+    const uint32_t dilated = texture::dilate_colors_inplace(input.image, input.coverage, target);
+
+    CHECK(dilated == 2);
+    CHECK(input.image.at<uint8_t>(0, 1) == 100);
+    CHECK(input.image.at<uint8_t>(0, 2) == 100);
+    CHECK(input.image.at<uint8_t>(0, 3) == 0);
+    CHECK_FALSE(input.coverage.get(3, 0));
+    CHECK_FALSE(input.coverage.get(4, 0));
+}
+
+TEST_CASE("dilate_colors fills the whole target when given no radius", "[terrainlib][texture_dilate_colors]") {
+    Input input = make_input(glm::uvec2(5, 1));
+    cover<uint8_t>(input, glm::uvec2(0, 0), 100);
+    texture::Mask target = make_target(glm::uvec2(5, 1), {1, 2, 3, 4});
+
+    const uint32_t dilated = texture::dilate_colors_inplace(input.image, input.coverage, target);
+
+    CHECK(dilated == 4);
+    for (const uint32_t x : range<uint32_t>(5)) {
+        REQUIRE(input.coverage.get(x, 0));
+        REQUIRE(input.image.at<uint8_t>(0, x) == 100);
+    }
+}
+
+TEST_CASE("dilate_colors stops the target fill after max_radius rounds", "[terrainlib][texture_dilate_colors]") {
+    Input input = make_input(glm::uvec2(5, 1));
+    cover<uint8_t>(input, glm::uvec2(0, 0), 100);
+    texture::Mask target = make_target(glm::uvec2(5, 1), {1, 2, 3, 4});
+
+    const uint32_t dilated = texture::dilate_colors_inplace(input.image, input.coverage, target, 2);
+
+    CHECK(dilated == 2);
+    CHECK(input.coverage.get(2, 0));
+    CHECK_FALSE(input.coverage.get(3, 0));
+}
+
+TEST_CASE("dilate_colors leaves target texels it cannot reach", "[terrainlib][texture_dilate_colors]") {
+    Input input = make_input(glm::uvec2(5, 1));
+    cover<uint8_t>(input, glm::uvec2(0, 0), 100);
+    // Texel 2 is outside the target, so it walls off the texels past it.
+    texture::Mask target = make_target(glm::uvec2(5, 1), {1, 3, 4});
+
+    const uint32_t dilated = texture::dilate_colors_inplace(input.image, input.coverage, target);
+
+    CHECK(dilated == 1);
+    CHECK(input.coverage.get(1, 0));
+    CHECK_FALSE(input.coverage.get(3, 0));
+    CHECK(input.image.at<uint8_t>(0, 3) == 0);
 }
 
 TEST_CASE("dilate_colors leaves the input alone when returning a copy", "[texture][dilate_colors]") {
