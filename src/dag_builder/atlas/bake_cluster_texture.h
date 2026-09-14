@@ -10,6 +10,7 @@
 #include "cluster.h"
 #include "enumerate.h"
 #include "range_utils.h"
+#include "texture/clear_color.h"
 #include "texture/dilate_colors.h"
 #include "uv/atlas.h"
 
@@ -124,11 +125,11 @@ inline cv::Mat bake_texture(
     const BakeTextureOptions &options) {
     const Correspondence correspondence =
         find_source_triangles(source.triangles, target.global_triangles, positions, options.correspondence);
-    const std::vector<ReprojectionTriangle> reprojection = build_reprojection_triangles(
+    const std::vector<MappedTriangle> reprojection = build_reprojection_triangles(
         target.local_triangles, target.uvs, target.positions, correspondence, source);
 
-    TextureReprojector reprojector(size, CV_8UC3, options.reprojection);
-    RenderedTexture rendered = reprojector.render(source.images, reprojection);
+    RenderedTexture rendered = reproject(
+        source.images, reprojection, size, CV_8UC3, DEFAULT_CLEAR_COLOR, options.reprojection);
 
     texture::dilate_colors_inplace(rendered.image, rendered.coverage, options.gutter);
     return rendered.image;
