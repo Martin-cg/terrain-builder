@@ -2,13 +2,16 @@
 
 #include <cstdint>
 #include <limits>
+#include <ranges>
 #include <span>
 #include <utility>
 #include <vector>
 
 #include "atlas/reprojection.h"
+#include "bake/interpolate_uncovered.h"
 #include "cluster.h"
 #include "enumerate.h"
+#include "log.h"
 #include "range_utils.h"
 #include "texture/clear_color.h"
 #include "texture/dilate_colors.h"
@@ -91,6 +94,7 @@ struct BakeTextureOptions {
     CorrespondenceOptions correspondence = {};
     ReprojectionOptions reprojection = {};
     uint32_t gutter = 0;
+    bool interpolate_uncovered = true;
 };
 
 namespace detail {
@@ -130,6 +134,17 @@ inline cv::Mat bake_texture(
 
     RenderedTexture rendered = reproject(
         source.images, reprojection, size, CV_8UC3, DEFAULT_CLEAR_COLOR, options.reprojection);
+
+    if (options.interpolate_uncovered) {
+        const auto uv_triangles = target.local_triangles | std::views::transform([&](const glm::uvec3 &triangle) {
+            return geometry::corners(triangle, target.uvs);
+        });
+        const uint32_t interpolated = bake::interpolate_uncovered(
+            rendered.image, rendered.coverage, uv_triangles);
+        if (interpolated > 0) {
+            LOG_WARN("Interpolated {} texels the bake left uncovered", interpolated);
+        }
+    }
 
     texture::dilate_colors_inplace(rendered.image, rendered.coverage, options.gutter);
     return rendered.image;

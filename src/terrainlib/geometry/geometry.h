@@ -56,6 +56,8 @@ std::vector<glm::vec<n_dims, float>> to_approximate_normalized(
 
 template <glm::length_t n_dims, typename T>
 radix::geometry::Triangle<n_dims, T> corners(const glm::uvec3 &triangle, const std::span<const glm::vec<n_dims, T>> positions);
+template <glm::length_t n_dims, typename T>
+radix::geometry::Triangle<n_dims, T> corners(const glm::uvec3 &triangle, const std::vector<glm::vec<n_dims, T>> &positions);
 
 // Scalar z-component in 2D, full cross product vector in 3D.
 template <glm::length_t n_dims, typename T>
