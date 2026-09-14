@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <optional>
 #include <ranges>
 #include <span>
 #include <utility>
@@ -50,7 +51,30 @@ struct TextureOptions {
     TextureSizingOptions sizing = {};
     ChartingMode charting = ChartingMode::PerCluster;
     bool allow_texture_reuse = true;
+    // The colour of the dummy texture a cluster without imagery gets.
+    cv::Scalar untextured_color = cv::Scalar::all(0);
 };
+
+// Give every untextured cluster a dummy texture, so later stages never meet one.
+inline void fill_untextured_clusters_inplace(Clustering &clustering, const cv::Scalar &color) {
+    std::optional<uint32_t> dummy_id;
+
+    for (Cluster &cluster : clustering.clusters) {
+        if (cluster.is_textured()) {
+            continue;
+        }
+        // Added on first use, so a fully textured clustering gains nothing.
+        if (!dummy_id.has_value()) {
+            dummy_id = clustering.textures.add(cv::Mat(1, 1, CV_8UC3, color));
+        }
+        cluster.texture_id = dummy_id.value();
+
+        // Every uv addresses the one texel the dummy holds, so zeros lose nothing.
+        if (!cluster.has_uvs()) {
+            cluster.uvs.assign(cluster.vertex_count(), glm::dvec2(0));
+        }
+    }
+}
 
 // Texels each cluster should carry, from how densely its sources were textured.
 [[nodiscard]]
