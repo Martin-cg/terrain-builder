@@ -28,6 +28,7 @@ struct RelativeQuality {};
 struct TextureSizingOptions {
     std::variant<ConstantQuality, RelativeQuality> mode = ConstantQuality{};
     uint32_t max_node_texels = 8192 * 8192;
+    uint32_t max_texture_side = 8192;
 };
 
 
@@ -125,5 +126,18 @@ inline void rescale_to_fit_budget(const std::span<BakePlan> plans, const uint32_
     for (BakePlan &plan : plans) {
         const glm::dvec2 scaled = glm::dvec2(plan.size) * scale;
         plan.size = glm::max(glm::uvec2(glm::ceil(scaled)), glm::uvec2(1));
+    }
+}
+
+// Scales every plan whose longer side exceeds `max_side` down to it, keeping its aspect.
+inline void clamp_to_max_side(const std::span<BakePlan> plans, const uint32_t max_side) {
+    for (BakePlan &plan : plans) {
+        const double longer_side = glm::compMax(glm::dvec2(plan.size));
+        if (longer_side <= max_side) {
+            continue;
+        }
+        const glm::dvec2 scaled = glm::dvec2(plan.size) * (max_side / longer_side);
+        // Rounding up could otherwise land the longer side one texel past the cap.
+        plan.size = glm::clamp(glm::uvec2(glm::ceil(scaled)), glm::uvec2(1), glm::uvec2(max_side));
     }
 }

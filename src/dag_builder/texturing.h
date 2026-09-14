@@ -303,6 +303,7 @@ inline Clustering texture_clusters(
     for (BakePlan &unwrapped : unwrap_clusters(merged, to_unwrap, demands, options)) {
         textures.push_back(std::move(unwrapped));
     }
+    clamp_to_max_side(textures, options.sizing.max_texture_side);
     rescale_to_fit_budget(textures, options.sizing.max_node_texels);
 
     // Realize at new size
