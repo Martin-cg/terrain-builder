@@ -1,7 +1,5 @@
 #pragma once
 
-#include <algorithm>
-#include <cmath>
 #include <cstdint>
 #include <optional>
 #include <queue>
@@ -9,7 +7,6 @@
 #include <vector>
 
 #include <glm/glm.hpp>
-#include <glm/gtx/norm.hpp>
 #include <radix/geometry.h>
 
 #include "geometry/PlaneFrame.h"
@@ -33,14 +30,6 @@ struct CorrespondenceOptions {
 using Correspondence = SegmentedBuffer<uint32_t, uint32_t, uint32_t>;
 
 namespace detail {
-
-inline double longest_edge_of(const radix::geometry::Triangle<3, double> &corners) {
-    return std::sqrt(std::max({
-        glm::distance2(corners[0], corners[1]),
-        glm::distance2(corners[1], corners[2]),
-        glm::distance2(corners[2], corners[0]),
-    }));
-}
 
 // A vertex waiting to be walked, and the vertices outside the outline passed through to reach it.
 struct PendingVertex {
@@ -85,7 +74,7 @@ inline std::optional<OutputTriangle> flatten_output_triangle(const glm::uvec3 &t
         .vertices = triangle,
         .frame = frame,
         .outline = frame.flatten(output_corners),
-        .longest_edge = longest_edge_of(output_corners),
+        .longest_edge = geometry::compute_longest_edge(output_corners),
     };
 }
 
