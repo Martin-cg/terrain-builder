@@ -232,7 +232,10 @@ dag::ClusterBatch load_and_simplify_dag_nodes(
     }
 
     // Merge remaining clusterings
-    const Clustering merged = merge_clusterings(filtered, epsilon);
+    Clustering merged = merge_clusterings(filtered, epsilon);
+
+    // Fill untextured clusters with a default color to avoid having to deal with untextured clusters.
+    fill_untextured_clusters_inplace(merged, ctx.options.texture_options.untextured_color);
 
     // Run nanite-style grouping, simplification, splitting.
     auto [simplified, group_assignment, group_children] = build_lod(merged, ctx.options, node_bounds, filter);
