@@ -46,7 +46,7 @@ void clip_to_half_space(const Corners &corners, const Edge2d &edge, Corners &out
 
 } // namespace
 
-void clip_triangle(const Triangle2d &subject, const Triangle2d &clip, std::vector<Triangle2d> &out) {
+Corners clip_triangle(const Triangle2d &subject, const Triangle2d &clip) {
     const Triangle2d bounds = as_counter_clockwise(clip);
 
     Corners corners;
@@ -61,13 +61,13 @@ void clip_triangle(const Triangle2d &subject, const Triangle2d &clip, std::vecto
         std::swap(current, next);
     }
 
-    // Corners on a clip edge are kept by both sides, so the fan can hold collinear runs.
-    for (uint32_t corner = 2; corner < current->size(); corner++) {
-        const Triangle2d piece = {(*current)[0], (*current)[corner - 1], (*current)[corner]};
-        if (!geometry::is_empty_triangle(piece)) {
-            out.push_back(piece);
-        }
-    }
+    return *current;
+}
+
+void clip_into_triangles(const Triangle2d &subject, const Triangle2d &clip, std::vector<Triangle2d> &out) {
+    clip_into_triangles(subject, clip, [&out](const Triangle2d &piece) {
+        out.push_back(piece);
+    });
 }
 
 } // namespace polygon
