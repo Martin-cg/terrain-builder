@@ -33,12 +33,19 @@ struct FlatSource {
     glm::dvec3 heights; // per corner, off the target plane
     std::array<glm::dvec2, 3> uvs;
     uint32_t map_index = 0;
+    bool front_facing = false;
 };
 
 // A part of an output triangle lying under exactly one source triangle.
 struct Fragment {
     double height = 0.0;
+    bool front_facing = false;
     ReprojectionTriangle triangle;
+
+    // Facing away first, then farthest first, so the nearest facing surface is left standing.
+    auto operator<=>(const Fragment &other) const {
+        return std::pair(this->front_facing, -this->height) <=> std::pair(other.front_facing, -other.height);
+    }
 };
 
 // Empty for a degenerate output triangle, which spans no plane to measure against.
@@ -73,6 +80,8 @@ inline FlatSource flatten_source(
         flat.heights[corner] = frame.distance_to(position);
         flat.uvs[corner] = map_uvs[mapping.uvs[corner]];
     }
+    const radix::geometry::Triangle<3, double> corners = geometry::corners(triangle, source.positions);
+    flat.front_facing = glm::dot(radix::geometry::normal(corners), frame.normal) > 0.0;
     return flat;
 }
 
@@ -87,6 +96,7 @@ inline void clip_against_source(
 
     for (const polygon::Triangle2d &part : overlap) {
         Fragment fragment;
+        fragment.front_facing = source.front_facing;
         fragment.triangle.source_image_index = source.map_index;
         for (const uint8_t corner : range<uint8_t>(3)) {
             const glm::dvec3 source_weights = geometry::compute_barycentric(part[corner], source.projected);
@@ -133,8 +143,8 @@ inline std::vector<ReprojectionTriangle> build_reprojection_triangles(
             detail::clip_against_source(*target, flat, overlap, fragments);
         }
 
-        // Farthest first, so the nearest surface is the one left standing where they overlap.
-        std::ranges::stable_sort(fragments, std::greater<>{}, &detail::Fragment::height);
+        // Facing away first, then farthest first, so the nearest facing surface is the one left standing where they overlap.
+        std::ranges::stable_sort(fragments, std::less<>{});
         for (const detail::Fragment &fragment : fragments) {
             reprojection.push_back(fragment.triangle);
         }
