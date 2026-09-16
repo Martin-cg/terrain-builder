@@ -112,7 +112,7 @@ inline tl::expected<void, io::Error> scatter(const Storage &input, const Buckets
 
 struct SortOptions {
     size_t max_batch_bytes = default_max_batch_bytes;
-    size_t max_resident_bytes = 4 * default_max_batch_bytes;
+    size_t max_resident_bytes = default_max_resident_bytes;
     uint32_t prefix_bits = 15;
 };
 

@@ -34,6 +34,7 @@ tl::expected<bvh::Reference, io::Error> build_tree(
     case cli::Mode::Ploc:
         return ploc::build(std::move(sorted), nodes, args.scratch_path / "rounds", ploc::Options{
             .max_batch_bytes = args.max_batch_bytes,
+            .max_resident_bytes = args.max_resident_bytes,
         });
     }
     UNREACHABLE("unknown build mode");
@@ -85,6 +86,7 @@ int main(int argc, char **argv) {
 
         const auto sorted_result = frontier::sort_by_morton(run, sorted, frontier::SortOptions{
             .max_batch_bytes = args.max_batch_bytes,
+            .max_resident_bytes = args.max_resident_bytes,
         });
         if (!sorted_result) {
             LOG_ERROR("Failed to sort the frontier: {}", sorted_result.error());
@@ -108,7 +110,7 @@ int main(int argc, char **argv) {
 
         const auto wide_root = widen::build(nodes, *root, wide, args.scratch_path, widen::Options{
             .max_batch_bytes = args.max_batch_bytes,
-            .max_resident_bytes = 4 * args.max_batch_bytes,
+            .max_resident_bytes = args.max_resident_bytes,
         });
         if (!wide_root) {
             LOG_ERROR("Failed to widen the tree: {}", wide_root.error());

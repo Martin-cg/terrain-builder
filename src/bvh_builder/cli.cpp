@@ -59,6 +59,11 @@ Args cli::parse(int argc, const char *const *argv) {
         ->default_val(default_max_batch_bytes)
         ->check(CLI::PositiveNumber);
 
+    app.add_option("--max-resident-size", args.max_resident_bytes, "Target maximum memory to keep resident (e.g. for caches)")
+        ->transform(CLI::AsSizeValue(false))
+        ->default_val(default_max_resident_bytes)
+        ->check(CLI::PositiveNumber);
+
     app.add_option("--verbosity", args.log_level, "Verbosity level of logging")
         ->transform(CLI::CheckedTransformer(log_level_names, CLI::ignore_case))
         ->default_val("info");

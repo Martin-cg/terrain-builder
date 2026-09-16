@@ -59,7 +59,7 @@ struct Options {
     size_t chunk_count = 32;
     size_t worker_count = 8;
     size_t max_batch_bytes = default_max_batch_bytes;
-    size_t max_resident_bytes = 4 * default_max_batch_bytes;
+    size_t max_resident_bytes = default_max_resident_bytes;
     uint32_t sort_prefix_bits = 15;
 };
 

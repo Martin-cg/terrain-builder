@@ -16,7 +16,7 @@ struct Options {
     // The weight the error interval carries against the extent.
     double error_weight = 1.0;
     size_t max_batch_bytes = default_max_batch_bytes;
-    size_t max_resident_bytes = 4 * default_max_batch_bytes;
+    size_t max_resident_bytes = default_max_resident_bytes;
 };
 
 }

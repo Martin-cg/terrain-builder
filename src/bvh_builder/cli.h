@@ -22,6 +22,7 @@ struct Args {
     std::filesystem::path output_path;
     std::filesystem::path scratch_path;
     size_t max_batch_bytes;
+    size_t max_resident_bytes;
 };
 
 Args parse(int argc, const char *const *argv);
