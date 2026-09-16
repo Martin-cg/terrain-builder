@@ -1,21 +1,29 @@
 #pragma once
 
+#include <cmath>
 #include <concepts>
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <type_traits>
+#include <functional>
 #include <unordered_map>
+#include <vector>
 
+#include <libassert/assert.hpp>
 #include <tl/expected.hpp>
 
 #include "io/Error.h"
 #include "octree/Id.h"
 #include "octree/IndexMap.h"
+#include "octree/OddLevelShifted.h"
 #include "range_utils.h"
 
 #include "build.h"
 #include "metadata.h"
+#include "parent_child_nodes.h"
 #include "../dag_builder/storage.h"
+#include "storage/BoundedCache.h"
 #include "try.h"
 #include "visitor.h"
 
@@ -37,72 +45,151 @@ inline FlatNode make_flat_node(const Id &id, const NodeMetadata &metadata, const
         .parent_error = parent_error,
     };
 }
-
-inline uint32_t find_coarsest_level(const octree::IndexMap &index) {
-    uint32_t coarsest = std::numeric_limits<uint32_t>::max();
-    for (const auto &[id, status] : index) {
-        if (index.has_data(id)) {
-            coarsest = std::min<uint32_t>(coarsest, id.level());
-        }
-    }
-    return coarsest;
-}
 } // namespace detail
 
-// Visits every cluster in the dag. False if the visitor stopped the walk before its end.
+// The parent error of one cluster.
+struct ParentError {
+    uint32_t cluster_index;
+    double error;
+
+    auto operator<=>(const ParentError &) const = default;
+};
+
+// The parent errors a node's groups give their child clusters, by the node storing each cluster.
+using ParentErrors = std::unordered_map<octree::Id, std::vector<ParentError>>;
+
+// A cache for the parent errors each dag node's groups give their child clusters, bounded by their size in bytes.
+class ParentErrorCache {
+public:
+    ParentErrorCache(const octree::IndexedDagMetaStorage &dag, const size_t max_resident_bytes)
+        : _dag(dag), _cache(max_resident_bytes) {}
+
+    // The parent errors `node`'s groups give their child clusters, read if not resident, valid until the next read.
+    tl::expected<std::reference_wrapper<const ParentErrors>, io::Error> read_parent_errors(const octree::Id &node) {
+        return this->_cache.get_or_try_insert_with(node, [&]() -> tl::expected<Cache::Entry, io::Error> {
+            TRY(const NodeMetadata &metadata, this->_dag.load(node));
+            ParentErrors parent_errors = collect_parent_errors(metadata);
+            const size_t cost = estimate_bytes(parent_errors);
+            return Cache::Entry{.value = std::move(parent_errors), .cost = cost};
+        });
+    }
+
+    // How many reads had to load a node.
+    uint32_t count_misses() const {
+        return this->_cache.count_misses();
+    }
+
+private:
+    using Cache = BoundedCache<octree::Id, ParentErrors>;
+
+    // Gathers the parent errors every group of `metadata` gives its child clusters.
+    static ParentErrors collect_parent_errors(const NodeMetadata &metadata) {
+        ParentErrors parent_errors;
+        for (const Group &group : metadata.groups) {
+            DEBUG_ASSERT(std::isfinite(group.error));
+            for (const Id &child : group.children) {
+                parent_errors[child.source_batch].push_back(ParentError{.cluster_index = child.cluster_index, .error = group.error});
+            }
+        }
+        return parent_errors;
+    }
+
+    // Roughly how many bytes `parent_errors` holds.
+    static size_t estimate_bytes(const ParentErrors &parent_errors) {
+        size_t bytes = sizeof(ParentErrors) + parent_errors.bucket_count() * sizeof(void *);
+        for (const auto &[node, errors] : parent_errors) {
+            bytes += sizeof(ParentErrors::value_type) + errors.capacity() * sizeof(ParentError);
+        }
+        return bytes;
+    }
+
+    const octree::IndexedDagMetaStorage &_dag;
+    Cache _cache;
+};
+
+// Finds the parent errors of a dag node's clusters among the nodes whose groups may list them.
+class ParentErrorLookup {
+public:
+    ParentErrorLookup(const octree::IndexedDagMetaStorage &dag, const octree::OddLevelShifted &shifted_space, const size_t max_resident_bytes)
+        : _dag(dag), _space(shifted_space), _cache(dag, max_resident_bytes) {}
+
+    // The parent error of each of `node`'s `cluster_count` clusters, infinity for those no group lists.
+    tl::expected<std::vector<double>, io::Error> find_parent_errors(const octree::Id &node, const uint32_t cluster_count) {
+        const double infinity = std::numeric_limits<double>::infinity();
+        std::vector<double> parent_error_by_cluster(cluster_count, infinity);
+
+        for (const octree::Id &parent_id : find_possible_parent_nodes(node, this->_space)) {
+            if (!this->_dag.index().has_data(parent_id)) {
+                continue;
+            }
+
+            TRY(const ParentErrors &parent_errors, this->_cache.read_parent_errors(parent_id));
+            const auto entry = parent_errors.find(node);
+            if (entry == parent_errors.end()) {
+                continue;
+            }
+
+            // No group error is infinite, so a slot holding anything else was already given one by another group.
+            for (const ParentError &parent_error : entry->second) {
+                ASSERT(parent_error.cluster_index < cluster_count, "a group lists a cluster its node does not hold");
+                ASSERT(parent_error_by_cluster[parent_error.cluster_index] == infinity, "a cluster is listed by two groups");
+                parent_error_by_cluster[parent_error.cluster_index] = parent_error.error;
+            }
+        }
+        return parent_error_by_cluster;
+    }
+
+private:
+    const octree::IndexedDagMetaStorage &_dag;
+    const octree::OddLevelShifted &_space;
+    ParentErrorCache _cache;
+};
+
+// Visits every cluster in the dag with its own group and the error of the group listing it, or infinity if none does. False if the visitor stopped the walk before its end.
 template <typename F>
-tl::expected<bool, io::Error> traverse_nodes(const octree::IndexedDagMetaStorage& dag, F&& v) {
-    visitor::FallibleVisitor<io::Error, F&> visitor(v);
+tl::expected<bool, io::Error> traverse_nodes(
+    const octree::IndexedDagMetaStorage &dag, const octree::OddLevelShifted &shifted_space,
+    const size_t max_resident_bytes, F &&v) {
+    visitor::FallibleVisitor<io::Error, F &> visitor(v);
+    ParentErrorLookup lookup(dag, shifted_space, max_resident_bytes);
+
+    // Every child a group lists is a non-root cluster, so both counts meet at the end.
+    uint64_t child_count = 0;
+    uint64_t non_root_count = 0;
 
     const octree::IndexMap &index = dag.index();
-    const uint32_t coarsest_level = detail::find_coarsest_level(index);
-
-    // We count nodes from both sides to ensure we didn't miss any.
-    uint64_t cluster_count = 0;
-    uint64_t visit_count = 0;
-
-    for (const auto &[parent_id, status] : index) {
+    for (const auto &[node_id, status] : index) {
         // Skip virtual nodes
-        if (!index.has_data(parent_id)) {
+        if (!index.has_data(node_id)) {
             continue;
         }
 
-        TRY(const auto &parent, dag.load(parent_id));
-        cluster_count += parent.group_assignment.size();
+        TRY(const auto &node, dag.load(node_id));
+        const auto cluster_count = static_cast<uint32_t>(node.group_assignment.size());
+        TRY(const std::vector<double> parent_error_by_cluster, lookup.find_parent_errors(node_id, cluster_count));
 
-        // We assume that every root node is at the coarsest level.
-        if (parent_id.level() == coarsest_level) {
-            for (const uint32_t cluster_index : range(parent.group_assignment.size())) {
-                const Id id{
-                    .source_batch = parent_id,
-                    .cluster_index = cluster_index};
-                const double inf = std::numeric_limits<double>::infinity();
-                const FlatNode root = detail::make_flat_node(id, parent, inf);
-                visit_count++;
-                TRY(const bool keep_going, visitor(root));
-                if (!keep_going) {
-                    return false;
-                }
+        for (const Group &group : node.groups) {
+            child_count += group.children.size();
+        }
+        for (const double parent_error : parent_error_by_cluster) {
+            if (parent_error != std::numeric_limits<double>::infinity()) {
+                non_root_count++;
             }
         }
 
-        // Handle all children but now the current node (except if root).
-        for (const Group &group : parent.groups) {
-            for (const Id &child : group.children) {
-                TRY(const auto &metadata, dag.load(child.source_batch));
-
-                const FlatNode node = detail::make_flat_node(child, metadata, group.error);
-                visit_count++;
-                TRY(const bool keep_going, visitor(node));
-                if (!keep_going) {
-                    return false;
-                }
+        for (const uint32_t cluster_index : range(cluster_count)) {
+            const Id id{
+                .source_batch = node_id,
+                .cluster_index = cluster_index};
+            const FlatNode flat_node = detail::make_flat_node(id, node, parent_error_by_cluster[cluster_index]);
+            TRY(const bool keep_going, visitor(flat_node));
+            if (!keep_going) {
+                return false;
             }
         }
     }
 
-    // Every cluster is visited once.
-    DEBUG_ASSERT(visit_count == cluster_count);
+    ASSERT(child_count == non_root_count, "a group lists a child that no parent search reached");
 
     // We walked to the end
     return true;

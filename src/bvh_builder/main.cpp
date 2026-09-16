@@ -53,8 +53,9 @@ int main(int argc, char **argv) {
         // The binary tree is what widening consumes, so only its widened form is the run being asked for.
         bvh::Storage nodes(args.scratch_path / "binary");
 
-        const auto flattened = bvh::flatten_dag(dag, nodes, bvh::FlattenOptions{
+        const auto flattened = bvh::flatten_dag(dag, octree::OddLevelShifted::earth(), nodes, bvh::FlattenOptions{
             .max_batch_bytes = args.max_batch_bytes,
+            .max_resident_bytes = args.max_resident_bytes,
         });
         if (!flattened) {
             LOG_ERROR("Failed to flatten {}: {}", args.input_path.string(), flattened.error());
