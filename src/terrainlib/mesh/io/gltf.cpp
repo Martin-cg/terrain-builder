@@ -207,13 +207,8 @@ std::optional<cv::Mat> load_texture_from_material(const cgltf_material &material
     } while (false)
 
 template <typename T>
-static std::optional<std::reference_wrapper<const T>> get_single_element(const char *name, cgltf_size count, T const *items) {
-    if (count == 0) {
-        LOG_ERROR("file contains no {}", name);
-        return std::nullopt;
-    }
-    if (count > 1) {
-        LOG_WARN("file contains more than one {}", name);
+static std::optional<std::reference_wrapper<const T>> get_single_element(cgltf_size count, T const *items) {
+    if (count != 1) {
         return std::nullopt;
     }
 
@@ -276,13 +271,13 @@ Result<SimpleMesh> load_from_raw(const RawMesh &raw, const LoadOptions& /* optio
 
     const cgltf_data &data = *raw;
 
-    const auto mesh_opt = get_single_element("mesh", data.meshes_count, data.meshes);
+    const auto mesh_opt = get_single_element(data.meshes_count, data.meshes);
     if (!mesh_opt.has_value()) {
         return alp::make_unexpected(UnsupportedGltf{}, "expected exactly one mesh");
     }
     const cgltf_mesh &mesh = mesh_opt.value();
 
-    const auto mesh_primitive_opt = get_single_element("mesh primitive", mesh.primitives_count, mesh.primitives);
+    const auto mesh_primitive_opt = get_single_element(mesh.primitives_count, mesh.primitives);
     if (!mesh_primitive_opt.has_value()) {
         return alp::make_unexpected(UnsupportedGltf{}, "expected exactly one mesh primitive");
     }
