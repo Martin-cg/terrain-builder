@@ -212,7 +212,7 @@ dag::ClusterBatch load_and_simplify_dag_nodes(
         cluster_metadata.emplace(id, std::move(metadata));
 
         // Assign canonical cluster ids
-        for (auto &[cluster_index, cluster] : enumerate(clustering.clusters)) {
+        for (auto &&[cluster_index, cluster] : enumerate(clustering.clusters)) {
             cluster.id = cluster_sources.size();
             cluster_sources.emplace_back(id, cluster_index);
         }
