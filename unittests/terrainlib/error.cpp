@@ -80,64 +80,64 @@ alp::Result<int> erase_result(alp::Result<int, FileError> result) {
 
 } // namespace
 
-// Error codes.
+TEST_CASE("Error codes are unqualified formattable enums and classes other than strings") {
+    STATIC_REQUIRE(alp::ErrorCode<FileError>);
+    STATIC_REQUIRE(alp::ErrorCode<OffsetError>);
+    STATIC_REQUIRE(alp::ErrorCode<NamedError>);
+    STATIC_REQUIRE(!alp::ErrorCode<Unformatted>);
+    STATIC_REQUIRE(!alp::ErrorCode<int>);
+    STATIC_REQUIRE(!alp::ErrorCode<const char *>);
+    STATIC_REQUIRE(!alp::ErrorCode<std::string>);
+    STATIC_REQUIRE(!alp::ErrorCode<std::string_view>);
+    STATIC_REQUIRE(!alp::ErrorCode<const FileError>);
+    STATIC_REQUIRE(!alp::ErrorCode<FileError &>);
+}
 
-static_assert(alp::ErrorCode<FileError>);
-static_assert(alp::ErrorCode<OffsetError>);
-static_assert(alp::ErrorCode<NamedError>);
-static_assert(!alp::ErrorCode<Unformatted>);
-static_assert(!alp::ErrorCode<int>);
-static_assert(!alp::ErrorCode<const char *>);
-static_assert(!alp::ErrorCode<std::string>);
-static_assert(!alp::ErrorCode<std::string_view>);
-static_assert(!alp::ErrorCode<const FileError>);
-static_assert(!alp::ErrorCode<FileError &>);
+TEST_CASE("An error without codes is erased") {
+    STATIC_REQUIRE(!alp::Error<FileError>::is_erased);
+    STATIC_REQUIRE(alp::Error<>::is_erased);
+}
 
-// Typed and erased errors.
+TEST_CASE("An error is created explicitly from one of its codes, an erased error from a message") {
+    STATIC_REQUIRE(std::is_constructible_v<alp::Error<FileError>, FileError>);
+    STATIC_REQUIRE(!std::is_convertible_v<FileError, alp::Error<FileError>>);
+    STATIC_REQUIRE(!std::is_constructible_v<alp::Error<FileError>, ParseError>);
+    STATIC_REQUIRE(!std::is_constructible_v<alp::Error<FileError>, std::string>);
+    STATIC_REQUIRE(std::is_constructible_v<alp::Error<>, std::string>);
+    STATIC_REQUIRE(!std::is_convertible_v<std::string, alp::Error<>>);
+    STATIC_REQUIRE(!std::is_constructible_v<alp::Error<>, FileError>);
+}
 
-static_assert(!alp::Error<FileError>::is_erased);
-static_assert(alp::Error<>::is_erased);
+TEST_CASE("A typed error converts into an erased error but not into another typed error") {
+    STATIC_REQUIRE(std::is_convertible_v<alp::Error<FileError>, alp::Error<>>);
+    STATIC_REQUIRE(!std::is_constructible_v<alp::Error<FileError>, alp::Error<>>);
+    STATIC_REQUIRE(!std::is_constructible_v<alp::Error<FileError>, alp::Error<ParseError>>);
+}
 
-// Creating errors.
+TEST_CASE("A result converts from a result whose error converts, but not from a plain code") {
+    STATIC_REQUIRE(std::is_convertible_v<alp::Result<int, FileError>, alp::Result<int>>);
+    STATIC_REQUIRE(!std::is_convertible_v<alp::Result<int>, alp::Result<int, FileError>>);
+    STATIC_REQUIRE(!std::is_convertible_v<tl::unexpected<FileError>, alp::Result<int, FileError>>);
+    STATIC_REQUIRE(!std::is_convertible_v<tl::expected<int, FileError>, alp::Result<int, FileError>>);
+}
 
-static_assert(std::is_constructible_v<alp::Error<FileError>, FileError>);
-static_assert(!std::is_convertible_v<FileError, alp::Error<FileError>>);
-static_assert(!std::is_constructible_v<alp::Error<FileError>, ParseError>);
-static_assert(!std::is_constructible_v<alp::Error<FileError>, std::string>);
-static_assert(std::is_constructible_v<alp::Error<>, std::string>);
-static_assert(!std::is_convertible_v<std::string, alp::Error<>>);
-static_assert(!std::is_constructible_v<alp::Error<>, FileError>);
+TEST_CASE("make_unexpected passes an error on as the same type") {
+    STATIC_REQUIRE(std::is_same_v<decltype(alp::make_unexpected(std::declval<alp::Error<FileError>>())), tl::unexpected<alp::Error<FileError>>>);
+}
 
-// Converting errors.
-
-static_assert(std::is_convertible_v<alp::Error<FileError>, alp::Error<>>);
-static_assert(!std::is_constructible_v<alp::Error<FileError>, alp::Error<>>);
-static_assert(!std::is_constructible_v<alp::Error<FileError>, alp::Error<ParseError>>);
-
-// Converting results.
-
-static_assert(std::is_convertible_v<alp::Result<int, FileError>, alp::Result<int>>);
-static_assert(!std::is_convertible_v<alp::Result<int>, alp::Result<int, FileError>>);
-static_assert(!std::is_convertible_v<tl::unexpected<FileError>, alp::Result<int, FileError>>);
-static_assert(!std::is_convertible_v<tl::expected<int, FileError>, alp::Result<int, FileError>>);
-
-// Passing errors on.
-
-static_assert(std::is_same_v<decltype(alp::make_unexpected(std::declval<alp::Error<FileError>>())), tl::unexpected<alp::Error<FileError>>>);
-
-// Error sets.
-
-static_assert(std::is_constructible_v<alp::Error<FileError, ParseError>, ParseError>);
-static_assert(!std::is_constructible_v<alp::Error<FileError, ParseError>, OffsetError>);
-static_assert(std::is_convertible_v<alp::Error<FileError>, alp::Error<FileError, ParseError>>);
-static_assert(std::is_convertible_v<const alp::Error<FileError> &, alp::Error<FileError, ParseError>>);
-static_assert(std::is_convertible_v<alp::Error<FileError, ParseError>, alp::Error<ParseError, FileError>>);
-static_assert(std::is_convertible_v<alp::Error<FileError, ParseError>, alp::Error<FileError, ParseError, OffsetError>>);
-static_assert(std::is_convertible_v<alp::Error<FileError, ParseError>, alp::Error<>>);
-static_assert(!std::is_constructible_v<alp::Error<FileError>, alp::Error<FileError, ParseError>>);
-static_assert(!std::is_constructible_v<alp::Error<FileError, ParseError>, alp::Error<OffsetError>>);
-static_assert(!std::is_constructible_v<alp::Error<FileError, ParseError>, alp::Error<>>);
-static_assert(std::is_convertible_v<alp::Result<int, FileError>, alp::Result<int, FileError, ParseError>>);
+TEST_CASE("An error set is created from any of its codes and converts into any set that includes them") {
+    STATIC_REQUIRE(std::is_constructible_v<alp::Error<FileError, ParseError>, ParseError>);
+    STATIC_REQUIRE(!std::is_constructible_v<alp::Error<FileError, ParseError>, OffsetError>);
+    STATIC_REQUIRE(std::is_convertible_v<alp::Error<FileError>, alp::Error<FileError, ParseError>>);
+    STATIC_REQUIRE(std::is_convertible_v<const alp::Error<FileError> &, alp::Error<FileError, ParseError>>);
+    STATIC_REQUIRE(std::is_convertible_v<alp::Error<FileError, ParseError>, alp::Error<ParseError, FileError>>);
+    STATIC_REQUIRE(std::is_convertible_v<alp::Error<FileError, ParseError>, alp::Error<FileError, ParseError, OffsetError>>);
+    STATIC_REQUIRE(std::is_convertible_v<alp::Error<FileError, ParseError>, alp::Error<>>);
+    STATIC_REQUIRE(!std::is_constructible_v<alp::Error<FileError>, alp::Error<FileError, ParseError>>);
+    STATIC_REQUIRE(!std::is_constructible_v<alp::Error<FileError, ParseError>, alp::Error<OffsetError>>);
+    STATIC_REQUIRE(!std::is_constructible_v<alp::Error<FileError, ParseError>, alp::Error<>>);
+    STATIC_REQUIRE(std::is_convertible_v<alp::Result<int, FileError>, alp::Result<int, FileError, ParseError>>);
+}
 
 TEST_CASE("A trace starts where the error originated and grows innermost first") {
     alp::Trace trace(std::source_location::current());
