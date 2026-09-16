@@ -22,6 +22,7 @@
 #include "error/format.h"
 #include "error/try.h"
 #include "error/utils.h"
+#include "variant_utils.h"
 
 namespace {
 
@@ -87,6 +88,10 @@ bool is_recorded_after(const alp::Frame &frame, const std::source_location befor
 // Whether Es form an error.
 template <typename... Es>
 concept FormsError = requires { typename alp::Error<Es...>; };
+
+// Whether an error of type E can be visited.
+template <typename E>
+concept IsVisitable = requires(const E &error) { error.visit([](const auto &) {}); };
 
 // Returns `result` from a function whose error is erased.
 alp::Result<int> erase_result(alp::Result<int, FileError> result) {
@@ -567,6 +572,22 @@ TEST_CASE("get_if points at the held code if it has that type, and is null other
     REQUIRE(offset_error != nullptr);
     CHECK(offset_error->offset == 7);
     CHECK(error.get_if<FileError>() == nullptr);
+}
+
+TEST_CASE("visit calls the branch for the held code and returns what it returns") {
+    const alp::Error<FileError, OffsetError> error(OffsetError{.offset = 7});
+
+    const uint32_t offset = error.visit(overloaded{
+        [](const FileError) -> uint32_t { return 0; },
+        [](const OffsetError &code) -> uint32_t { return code.offset; },
+    });
+    CHECK(offset == 7);
+}
+
+TEST_CASE("visit exists on typed errors and not on erased ones") {
+    STATIC_REQUIRE(IsVisitable<alp::Error<FileError>>);
+    STATIC_REQUIRE(IsVisitable<alp::Error<FileError, OffsetError>>);
+    STATIC_REQUIRE(!IsVisitable<alp::Error<>>);
 }
 
 TEST_CASE("An error of a nested set widens into the flattened set, keeping its frames") {

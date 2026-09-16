@@ -84,6 +84,13 @@ public:
         return this->_code.template get_if<E>();
     }
 
+    // Calls `f` with the held code.
+    template <typename F>
+        requires(!is_erased)
+    decltype(auto) visit(F &&f) const {
+        return this->_code.visit(std::forward<F>(f));
+    }
+
     // Whether this error holds `code`.
     template <OneOf<Es...> E>
     [[nodiscard]]
