@@ -36,8 +36,8 @@ inline void cut_leaf_node(
     const SimpleMesh mesh = DEBUG_ASSERT_VAL(ctx.input.load(id)).value();
     LOG_TRACE("Cutting mesh at {} using mask with {} vertices and {} triangles",
         id, mask.vertex_count(), mask.face_count());
-    const Cow<const SimpleMesh> clipped = clip_on_mask(mesh, mask, ctx.keep_inside);
-    if (clipped.is_ref()) {
+    const Cow<SimpleMesh> clipped = clip_on_mask(mesh, mask, ctx.keep_inside);
+    if (clipped.is_borrowed()) {
         LOG_TRACE("Mesh was fully inside the mask");
         DEBUG_ASSERT_VAL(ctx.output.copy_from(id, ctx.input));
     } else {

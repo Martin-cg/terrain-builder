@@ -23,7 +23,7 @@
 TEST_CASE("empty mesh", "[mesh][clip]") {
     const SimpleMesh mesh;
     const radix::geometry::Aabb3d bounds(glm::dvec3(-1.0, -1.0, -1.0), glm::dvec3(1.0, 1.0, 1.0));
-    const SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh, bounds);
+    const SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh, bounds).into_owned();
     CHECK(clipped_mesh.positions.empty());
     CHECK(clipped_mesh.triangles.empty());
     CHECK(clipped_mesh.uvs.empty());
@@ -45,7 +45,7 @@ TEST_CASE("single triangle in bounds", "[mesh][clip]") {
     mesh.triangles = {
         glm::uvec3(0, 1, 2)};
     const radix::geometry::Aabb3d bounds(glm::dvec3(-1, -1, -1), glm::dvec3(1, 1, 1));
-    const SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh, bounds);
+    const SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh, bounds).into_owned();
     CHECK(mesh.positions == clipped_mesh.positions);
     CHECK(mesh.uvs == clipped_mesh.uvs);
     CHECK(mesh.triangles == clipped_mesh.triangles);
@@ -66,7 +66,7 @@ TEST_CASE("single triangle out of bounds", "[mesh][clip]") {
     mesh.triangles = {
         glm::uvec3(0, 1, 2)};
     const radix::geometry::Aabb3d bounds(glm::dvec3(-1, -1, -1), glm::dvec3(-0.1, -0.1, -0.1));
-    const SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh, bounds);
+    const SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh, bounds).into_owned();
     CHECK(clipped_mesh.positions == std::vector<glm::dvec3>{});
     CHECK(clipped_mesh.uvs == std::vector<glm::dvec2>{});
     CHECK(clipped_mesh.triangles == std::vector<glm::uvec3>{});
@@ -87,7 +87,7 @@ TEST_CASE("single triangle touching bounds in point", "[mesh][clip]") {
     mesh.triangles = {
         glm::uvec3(0, 1, 2)};
     const radix::geometry::Aabb3d bounds(glm::dvec3(-1, -1, -1), glm::dvec3(0, 0, 0));
-    const SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh, bounds);
+    const SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh, bounds).into_owned();
     CHECK(clipped_mesh.positions == std::vector<glm::dvec3>{});
     CHECK(clipped_mesh.uvs == std::vector<glm::dvec2>{});
     CHECK(clipped_mesh.triangles == std::vector<glm::uvec3>{});
@@ -103,7 +103,7 @@ TEST_CASE("single triangle touching bounds", "[mesh][clip]") {
     mesh.triangles = {
         glm::uvec3(0, 1, 2)};
     const radix::geometry::Aabb3d bounds(glm::dvec3(-1, -1, -1), glm::dvec3(0.5, 0.5, 0));
-    const SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh, bounds);
+    const SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh, bounds).into_owned();
     const TriangleSoup clipped_soup = to_sorted_triangle_soup(clipped_mesh);
     CHECK(clipped_soup.size() == 2);
     CHECK(clipped_soup == TriangleSoup{{
@@ -128,7 +128,7 @@ TEST_CASE("single triangle with single vertex in bounds", "[mesh][clip]") {
     mesh.triangles = {
         glm::uvec3(0, 1, 2)};
     const radix::geometry::Aabb3d bounds(glm::dvec3(-1, -1, -1), glm::dvec3(0.5, 0.5, 0.5));
-    const SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh, bounds);
+    const SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh, bounds).into_owned();
     const TriangleSoup clipped_soup = to_sorted_triangle_soup(clipped_mesh);
     if (clipped_soup.size() == 1) {
         CHECK(clipped_soup == TriangleSoup{{glm::dvec3(0, 0, 0),
@@ -163,7 +163,7 @@ TEST_CASE("clip returns empty mesh if triangle with vertices on bounds and outsi
         glm::dvec3(-1.0, 0.0, -1.0),
         glm::dvec3(2.0, 1.0, 1.0));
 
-    const SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh, bounds);
+    const SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh, bounds).into_owned();
     const TriangleSoup clipped_soup = to_sorted_triangle_soup(clipped_mesh);
 
     CAPTURE(clipped_soup);
@@ -186,7 +186,7 @@ TEST_CASE("single triangle around bounds", "[mesh][clip]") {
         glm::dvec2(bounds.min),
         glm::dvec2(bounds.max));
 
-    const SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh, bounds);
+    const SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh, bounds).into_owned();
     const TriangleSoup clipped_soup = to_sorted_triangle_soup(clipped_mesh);
 
     double total_area = 0.0;
@@ -224,7 +224,7 @@ TEST_CASE("single triangle with two vertices in bounds", "[mesh][clip]") {
     mesh.triangles = {
         glm::uvec3(0, 1, 2)};
     const radix::geometry::Aabb3d bounds(glm::dvec3(-1, -1, -1), glm::dvec3(0.5, 0.5, 0.5));
-    const SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh, bounds);
+    const SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh, bounds).into_owned();
     const TriangleSoup clipped_soup = to_sorted_triangle_soup(clipped_mesh);
 
     const TriangleSoup expected1 = {
@@ -253,7 +253,7 @@ TEST_CASE("single triangle split by one plane and partly discarded by the next",
     mesh.triangles = {
         glm::uvec3(0, 1, 2)};
     const radix::geometry::Aabb3d bounds(glm::dvec3(0, 0, -1), glm::dvec3(10, 10, 1));
-    const SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh, bounds);
+    const SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh, bounds).into_owned();
     const TriangleSoup clipped_soup = to_sorted_triangle_soup(clipped_mesh);
 
     double total_area = 0.0;
@@ -348,7 +348,7 @@ TEST_CASE("clip_on_bounds produces manifold mesh", "[mesh][clip]") {
         glm::dvec3(0.0, -10.0, -10.0),
         glm::dvec3(10.0, 10.0, 10.0));
 
-    const SimpleMesh clipped = mesh::clip_on_bounds(mesh, bounds);
+    const SimpleMesh clipped = mesh::clip_on_bounds(mesh, bounds).into_owned();
 
     CHECK(clipped.triangles.size() == 2);
     CHECK(mesh::is_manifold(clipped));
@@ -380,7 +380,7 @@ TEST_CASE("mesh::clip_on_bounds benchmark", "[mesh][clip]") {
             std::vector<SimpleMesh> child_meshes;
             child_meshes.reserve(child_bounds.size());
             for (const auto &bounds : child_bounds) {
-                const auto clipped_mesh = mesh::clip_on_bounds(mesh, bounds);
+                const auto clipped_mesh = mesh::clip_on_bounds(mesh, bounds).into_owned();
                 child_meshes.push_back(clipped_mesh);
             }
             return child_meshes;
