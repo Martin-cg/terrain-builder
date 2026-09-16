@@ -137,8 +137,8 @@ TEST_CASE("A result converts from a result whose error converts, but not from a 
     STATIC_REQUIRE(!std::is_convertible_v<tl::expected<int, FileError>, alp::Result<int, FileError>>);
 }
 
-TEST_CASE("make_unexpected passes an error on as the same type") {
-    STATIC_REQUIRE(std::is_same_v<decltype(alp::make_unexpected(std::declval<alp::Error<FileError>>())), tl::unexpected<alp::Error<FileError>>>);
+TEST_CASE("propagate passes an error on as the same type") {
+    STATIC_REQUIRE(std::is_same_v<decltype(alp::propagate(std::declval<alp::Error<FileError>>())), tl::unexpected<alp::Error<FileError>>>);
 }
 
 TEST_CASE("An error set is created from any of its codes and converts into any set that includes them") {
@@ -296,10 +296,10 @@ TEST_CASE("make_unexpected starts an erased error from a message") {
     CHECK(is_recorded_after(result.error().frames()[0], before));
 }
 
-TEST_CASE("make_unexpected passes an error on with a frame at its caller") {
+TEST_CASE("propagate passes an error on with a frame at its caller") {
     alp::Error<FileError> error(FileError::NotFound, "opening app.cfg");
     const std::source_location before = std::source_location::current();
-    const alp::Result<int, FileError> result = alp::make_unexpected(std::move(error));
+    const alp::Result<int, FileError> result = alp::propagate(std::move(error));
 
     REQUIRE(!result.has_value());
     CHECK(result.error().code() == FileError::NotFound);
@@ -309,9 +309,9 @@ TEST_CASE("make_unexpected passes an error on with a frame at its caller") {
     CHECK(is_recorded_after(result.error().frames()[2], before));
 }
 
-TEST_CASE("make_unexpected passes a const error on and leaves it unchanged") {
+TEST_CASE("propagate passes a const error on and leaves it unchanged") {
     const alp::Error<FileError> error(FileError::NotFound);
-    const alp::Result<int, FileError> result = alp::make_unexpected(error);
+    const alp::Result<int, FileError> result = alp::propagate(error);
 
     REQUIRE(!result.has_value());
     CHECK(result.error().frames().size() == 2);

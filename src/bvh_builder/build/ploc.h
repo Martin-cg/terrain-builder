@@ -323,7 +323,7 @@ inline WorkerResult run_consumer(
         alp::Result<uint64_t, io::Error> count_result = merger.merge_chunk(lease_result->view());
         if (!count_result.has_value()) {
             ring.abort();
-            return alp::make_unexpected(std::move(count_result).error());
+            return alp::propagate(std::move(count_result).error());
         }
         merges += count_result.value();
     }
@@ -351,7 +351,7 @@ inline alp::Result<uint64_t, io::Error> run_round(
         if (!result.has_value()) {
             auto failure_result = result.error().narrow<io::Error>();
             if (failure_result.has_value()) {
-                return alp::make_unexpected(std::move(failure_result).value());
+                return alp::propagate(std::move(failure_result).value());
             }
             continue;
         }
@@ -361,7 +361,7 @@ inline alp::Result<uint64_t, io::Error> run_round(
     if (!read_result.has_value()) {
         auto failure_result = read_result.error().narrow<io::Error>();
         ASSERT(failure_result.has_value(), "the round was cancelled without any worker failing");
-        return alp::make_unexpected(std::move(failure_result).value());
+        return alp::propagate(std::move(failure_result).value());
     }
 
     ASSERT(ring.stream_state() != EntryRing::StreamState::Aborted, "the round aborted without any worker failing");

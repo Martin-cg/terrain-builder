@@ -33,7 +33,7 @@ inline tl::unexpected<Error<>> make_unexpected(std::string message, const std::s
 // Adds a frame at the caller to `error` and wraps it in an unexpected.
 template <ErrorCode... Es>
 [[nodiscard]]
-tl::unexpected<BasicError<Es...>> make_unexpected(BasicError<Es...> error, const std::source_location location = std::source_location::current()) {
+tl::unexpected<BasicError<Es...>> propagate(BasicError<Es...> error,const std::source_location location = std::source_location::current()) {
     error.propagate(location);
     return tl::make_unexpected(std::move(error));
 }
