@@ -24,7 +24,6 @@ namespace dag {
 struct FlatNode {
     Id id;
     const Group &group;
-    uint32_t triangle_count;
     double parent_error;
 };
 
@@ -35,7 +34,6 @@ inline FlatNode make_flat_node(const Id &id, const NodeMetadata &metadata, const
     return FlatNode{
         .id = id,
         .group = metadata.groups[group_index],
-        .triangle_count = metadata.triangle_counts[id.cluster_index],
         .parent_error = parent_error,
     };
 }

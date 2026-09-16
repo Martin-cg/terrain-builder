@@ -27,7 +27,6 @@ inline NodeHeader make_header(const dag::FlatNode &node) {
     return NodeHeader{
         .min_child_error = node.group.error,
         .max_parent_error = node.parent_error,
-        .triangle_count = node.triangle_count,
         .bounds = node.group.bounds,
     };
 }

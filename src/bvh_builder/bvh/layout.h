@@ -31,7 +31,6 @@ struct NodeHeader {
     // Conservative error interval over this node's subtree.
     double min_child_error;
     double max_parent_error;
-    uint64_t triangle_count;
     Bounds bounds;
 
     bool operator==(const NodeHeader &) const = default;

@@ -19,12 +19,11 @@ radix::geometry::Aabb3d box_at(const double offset) {
     return radix::geometry::Aabb3d{glm::dvec3{offset}, glm::dvec3{offset + 1.0}};
 }
 
-// One group per cluster, so cluster i carries error, bounds and triangle count of group i.
+// One group per cluster, so cluster i carries error and bounds of group i.
 dag::NodeMetadata metadata_with_clusters(const std::vector<double> &errors) {
     dag::NodeMetadata metadata;
     for (uint32_t i = 0; i < errors.size(); i++) {
         metadata.group_assignment.push_back(i);
-        metadata.triangle_counts.push_back(100 + i);
         metadata.groups.push_back(dag::Group{
             .children = {},
             .error = errors[i],
@@ -38,7 +37,6 @@ dag::NodeMetadata metadata_with_clusters(const std::vector<double> &errors) {
 struct Visited {
     double error;
     radix::geometry::Aabb3d bounds;
-    uint32_t triangle_count;
     double parent_error;
 };
 
@@ -59,7 +57,6 @@ std::unordered_map<dag::Id, Visited> traverse(const std::filesystem::path &dag_p
         const auto [entry, inserted] = visited.emplace(node.id, Visited{
             .error = node.group.error,
             .bounds = node.group.bounds,
-            .triangle_count = node.triangle_count,
             .parent_error = node.parent_error,
         });
         REQUIRE(inserted);
@@ -71,7 +68,7 @@ std::unordered_map<dag::Id, Visited> traverse(const std::filesystem::path &dag_p
 
 }
 
-TEST_CASE("every cluster is visited with its group's error, bounds and triangle count", "[traverse_dag]") {
+TEST_CASE("every cluster is visited with its group's error and bounds", "[traverse_dag]") {
     const TempDirectory directory("traverse_dag");
     write_dag(directory.path(), {{octree::Id::root(), metadata_with_clusters({1.0, 2.0, 3.0})}});
 
@@ -82,7 +79,6 @@ TEST_CASE("every cluster is visited with its group's error, bounds and triangle 
         const Visited &node = visited.at(dag::Id{octree::Id::root(), cluster});
         CHECK(node.error == cluster + 1.0);
         CHECK(node.parent_error == infinity);
-        CHECK(node.triangle_count == 100 + cluster);
         CHECK(node.bounds == box_at(cluster));
     }
 }

@@ -32,7 +32,6 @@ NodeHeader merge_headers(R &&headers) {
         const NodeHeader &child = *it;
         result.min_child_error = std::min(result.min_child_error, child.min_child_error);
         result.max_parent_error = std::max(result.max_parent_error, child.max_parent_error);
-        result.triangle_count += child.triangle_count;
         result.bounds = geometry::union_bounds(result.bounds, child.bounds);
     }
 
