@@ -34,71 +34,46 @@ public:
     template <ErrorCodes... Fs>
     static constexpr bool includes = !Error<Fs...>::is_erased && is_subset_v<Error<Fs...>, BasicError>;
 
-    // Starts an error with `code` at `location`.
+    // Creates an error with `code` that originates at `location`.
+    // A `message` becomes its first context.
     template <OneOf<Es...> E>
-    explicit BasicError(E code, const std::source_location location = std::source_location::current())
+    explicit BasicError(E code, std::optional<std::string> message = std::nullopt, const std::source_location location = std::source_location::current())
         : _code(std::move(code)),
-          _trace(location) {}
-
-    // Starts an error with `code` at `location`, with `message` as its first context.
-    template <OneOf<Es...> E>
-    explicit BasicError(E code, std::string message, const std::source_location location = std::source_location::current())
-        : BasicError(std::move(code), location) {
-        this->context(std::move(message), location);
+          _trace(location) {
+        if (message.has_value()) {
+            this->context(std::move(*message), location);
+        }
     }
 
-    // Starts an erased error from a message alone.
+    // Creates an erased error from `message`.
     explicit BasicError(std::string message, const std::source_location location = std::source_location::current())
         requires(is_erased)
         : _code(std::move(message)),
           _trace(location) {}
 
-    // Takes over a typed error, keeping only its code's message.
+    // Takes over an error whose codes are all among Es, or any typed error when this error is erased, keeping its frames.
     template <typename... Fs>
-    BasicError(BasicError<Fs...> &&other)
-        requires(is_erased)
+        requires(is_erased || includes<Fs...>)
+    BasicError(BasicError<Fs...> other)
         : _code(other._code),
           _trace(std::move(other._trace)) {}
 
-    // Takes over an error whose codes are all among Es, keeping its frames.
-    template <typename... Fs>
-        requires(includes<Fs...>)
-    BasicError(BasicError<Fs...> &&other)
-        : _code(detail::widen_code<Es...>(other._code)),
-          _trace(std::move(other._trace)) {}
-
-    template <typename... Fs>
-        requires(includes<Fs...>)
-    BasicError(const BasicError<Fs...> &other)
-        : _code(detail::widen_code<Es...>(other._code)),
-          _trace(other._trace) {}
-
     // Adds a frame holding `message`.
-    BasicError &context(std::string message, const std::source_location location = std::source_location::current()) & {
-        this->_trace.push(Frame{.message = std::move(message), .location = location});
-        return *this;
-    }
-
-    BasicError &&context(std::string message, const std::source_location location = std::source_location::current()) && {
-        this->_trace.push(Frame{.message = std::move(message), .location = location});
-        return std::move(*this);
+    template <typename Self>
+    Self &&context(this Self &&self, std::string message, const std::source_location location = std::source_location::current()) {
+        self._trace.push(Frame{.message = std::move(message), .location = location});
+        return std::forward<Self>(self);
     }
 
     // Adds a frame without a message.
-    BasicError &propagate(const std::source_location location = std::source_location::current()) & {
-        this->_trace.push(Frame{.location = location});
-        return *this;
-    }
-
-    BasicError &&propagate(const std::source_location location = std::source_location::current()) && {
-        this->_trace.push(Frame{.location = location});
-        return std::move(*this);
+    template <typename Self>
+    Self &&propagate(this Self &&self, const std::source_location location = std::source_location::current()) {
+        self._trace.push(Frame{.location = location});
+        return std::forward<Self>(self);
     }
 
     [[nodiscard]]
-    const auto &code() const
-        requires(sizeof...(Es) == 1)
-    {
+    const auto &code() const requires(sizeof...(Es) == 1) {
         return this->_code.get();
     }
 
@@ -115,7 +90,6 @@ public:
     bool holds(const E &code) const {
         return this->_code == CodeStorage<Es...>(code);
     }
-
     // The frames, innermost first.
     [[nodiscard]]
     std::span<const Frame> frames() const {

@@ -279,7 +279,7 @@ TEST_CASE("make_unexpected adds a message as the first context") {
 
 TEST_CASE("make_unexpected records a location it is handed") {
     const std::source_location elsewhere = std::source_location::current();
-    const alp::Result<int, FileError> result = alp::make_unexpected(FileError::NotFound, elsewhere);
+    const alp::Result<int, FileError> result = alp::make_unexpected(FileError::NotFound, std::nullopt, elsewhere);
 
     REQUIRE(!result.has_value());
     REQUIRE(result.error().frames().size() == 1);

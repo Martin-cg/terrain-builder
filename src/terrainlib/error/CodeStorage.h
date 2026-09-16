@@ -18,14 +18,16 @@ public:
     template <OneOf<Es...> E>
     explicit CodeStorage(E code) : _code(std::move(code)) {}
 
+    // Takes the code `storage` holds, which must be one of Es.
+    template <typename F, typename... Fs>
+    explicit CodeStorage(const CodeStorage<F, Fs...> &storage)
+        : _code(storage.visit([](const auto &code) { return std::variant<Es...>(code); })) {}
+
     // The code, for a storage of a single code.
     [[nodiscard]]
-    const auto &get() const
-        requires(sizeof...(Es) == 1)
-    {
+    const auto &get() const requires(sizeof...(Es) == 1) {
         return std::get<0>(this->_code);
     }
-
     // The held code if it is an E, otherwise null.
     template <OneOf<Es...> E>
     [[nodiscard]]
@@ -69,12 +71,6 @@ private:
 };
 
 namespace detail {
-
-// `storage` as a storage of the codes Es, which include every code it can hold.
-template <ErrorCode... Es, ErrorCode... Fs>
-CodeStorage<Es...> widen_code(const CodeStorage<Fs...> &storage) {
-    return storage.visit([](const auto &code) { return CodeStorage<Es...>(code); });
-}
 
 // The code `storage` holds, as a storage of the codes Fs, or nothing if it holds none of them.
 template <ErrorCode... Fs, ErrorCode... Es>

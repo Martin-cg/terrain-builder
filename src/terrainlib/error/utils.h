@@ -16,27 +16,21 @@
 
 namespace alp {
 
-// An unexpected holding a new error with `code`.
+// Creates an unexpected holding a new error with `code` that originates at the caller.
+// A `message` becomes the error's first context.
 template <ErrorCode E>
 [[nodiscard]]
-tl::unexpected<Error<E>> make_unexpected(E code, const std::source_location location = std::source_location::current()) {
-    return tl::make_unexpected(Error<E>(std::move(code), location));
-}
-
-// An unexpected holding a new error with `code`, with `message` as its first context.
-template <ErrorCode E>
-[[nodiscard]]
-tl::unexpected<Error<E>> make_unexpected(E code, std::string message, const std::source_location location = std::source_location::current()) {
+tl::unexpected<Error<E>> make_unexpected(E code, std::optional<std::string> message = std::nullopt, const std::source_location location = std::source_location::current()) {
     return tl::make_unexpected(Error<E>(std::move(code), std::move(message), location));
 }
 
-// An unexpected holding a new erased error with `message`.
+// Creates an unexpected holding a new erased error with `message` that originates at the caller.
 [[nodiscard]]
 inline tl::unexpected<Error<>> make_unexpected(std::string message, const std::source_location location = std::source_location::current()) {
     return tl::make_unexpected(Error<>(std::move(message), location));
 }
 
-// An unexpected holding `error`, with a frame added.
+// Adds a frame at the caller to `error` and wraps it in an unexpected.
 template <ErrorCode... Es>
 [[nodiscard]]
 tl::unexpected<BasicError<Es...>> make_unexpected(BasicError<Es...> error, const std::source_location location = std::source_location::current()) {
@@ -44,27 +38,18 @@ tl::unexpected<BasicError<Es...>> make_unexpected(BasicError<Es...> error, const
     return tl::make_unexpected(std::move(error));
 }
 
-// The value held by `value`, or an error with `code` if it is empty.
+// Turns `value` into a result that fails with `code` when it is empty.
+// A `message` becomes the error's first context.
 template <typename T, ErrorCode E>
 [[nodiscard]]
-Result<T, E> to_expected(std::optional<T> value, E code, const std::source_location location = std::source_location::current()) {
-    if (value.has_value()) {
-        return std::move(*value);
-    }
-    return alp::make_unexpected(std::move(code), location);
-}
-
-// The value held by `value`, or an error with `code` and `message` as its first context if it is empty.
-template <typename T, ErrorCode E>
-[[nodiscard]]
-Result<T, E> to_expected(std::optional<T> value, E code, std::string message, const std::source_location location = std::source_location::current()) {
+Result<T, E> to_expected(std::optional<T> value, E code, std::optional<std::string> message = std::nullopt, const std::source_location location = std::source_location::current()) {
     if (value.has_value()) {
         return std::move(*value);
     }
     return alp::make_unexpected(std::move(code), std::move(message), location);
 }
 
-// `result`, with a frame holding `message` added if it failed.
+// Adds a frame holding `message` to `result` if it failed.
 template <typename T, ErrorCode... Es>
 [[nodiscard]]
 BasicResult<T, BasicError<Es...>> context(BasicResult<T, BasicError<Es...>> &&result, std::string message, const std::source_location location = std::source_location::current()) {
@@ -74,7 +59,8 @@ BasicResult<T, BasicError<Es...>> context(BasicResult<T, BasicError<Es...>> &&re
     return std::move(result);
 }
 
-// `result`, with a frame holding what `make_message` returns added if it failed; `make_message` runs only then.
+// Adds a frame holding the result of `make_message` to `result` if it failed.
+// `make_message` only runs on failure.
 template <typename T, ErrorCode... Es, std::invocable F>
     requires std::convertible_to<std::invoke_result_t<F>, std::string>
 [[nodiscard]]

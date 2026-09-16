@@ -1,5 +1,6 @@
 #pragma once
 
+#include <concepts>
 #include <optional>
 #include <source_location>
 #include <string>
@@ -33,48 +34,32 @@ struct PendingCode {
     template <ErrorCode... Es>
         requires std::is_convertible_v<Error<E>, BasicError<Es...>>
     operator BasicError<Es...>() const {
-        Error<E> error(this->code, this->location);
-        if (this->message.has_value()) {
-            error.context(*this->message, this->location);
-        }
-        return error;
+        return Error<E>(this->code, this->message, this->location);
     }
 };
 
-// What ALP_TRY returns for a failed `result`: its Error with a frame at `location`, a PendingCode for a plain code, any other error unchanged, or nullopt.
-template <typename R>
-auto make_residual(R &&result, const std::source_location location) {
+// What ALP_TRY returns for a failed `result`: its Error with a frame at `location` holding `message` unless it is nullopt, a PendingCode carrying `message` for a plain code, any other error unchanged, or nullopt for an optional.
+template <typename R, typename M>
+auto make_residual(R &&result, M message, const std::source_location location) {
+    constexpr bool has_message = !std::same_as<M, std::nullopt_t>;
     if constexpr (!requires { result.error(); }) {
+        static_assert(!has_message, "ALP_TRY_CONTEXT needs an expected: an optional has no place for the message");
         return std::nullopt;
     } else {
         using Failure = std::remove_cvref_t<decltype(std::forward<R>(result).error())>;
         if constexpr (is_specialization_of_v<Failure, BasicError>) {
             Failure error = std::forward<R>(result).error();
-            error.propagate(location);
-            return tl::make_unexpected(std::move(error));
-        } else if constexpr (ErrorCode<Failure>) {
-            return tl::make_unexpected(PendingCode<Failure>{.code = std::forward<R>(result).error(), .message = std::nullopt, .location = location});
-        } else {
-            return tl::make_unexpected(std::forward<R>(result).error());
-        }
-    }
-}
-
-// What ALP_TRY_CONTEXT returns for a failed `result`: its Error with a frame holding `message`, or a PendingCode carrying `message`.
-template <typename R>
-auto make_residual_with_context(R &&result, std::string message, const std::source_location location) {
-    if constexpr (!requires { result.error(); }) {
-        static_assert(always_false_v<R>, "ALP_TRY_CONTEXT needs an expected: an optional has no place for the message");
-    } else {
-        using Failure = std::remove_cvref_t<decltype(std::forward<R>(result).error())>;
-        if constexpr (is_specialization_of_v<Failure, BasicError>) {
-            Failure error = std::forward<R>(result).error();
-            error.context(std::move(message), location);
+            if constexpr (has_message) {
+                error.context(std::move(message), location);
+            } else {
+                error.propagate(location);
+            }
             return tl::make_unexpected(std::move(error));
         } else if constexpr (ErrorCode<Failure>) {
             return tl::make_unexpected(PendingCode<Failure>{.code = std::forward<R>(result).error(), .message = std::move(message), .location = location});
         } else {
-            static_assert(always_false_v<R>, "ALP_TRY_CONTEXT needs an Error or a plain code: any other error has no place for the message");
+            static_assert(!has_message, "ALP_TRY_CONTEXT needs an Error or a plain code: any other error has no place for the message");
+            return tl::make_unexpected(std::forward<R>(result).error());
         }
     }
 }
@@ -88,75 +73,51 @@ decltype(auto) take_value(R &&result) {
 
 } // namespace alp::detail
 
-// Evaluates the expression into the variable `result` inside a scope of its own, and returns what make_residual makes of it if it failed.
-#define ALP_TRY_IMPL_DISCARD(result, ...)                                                            \
-    do {                                                                                             \
-        auto result = (__VA_ARGS__);                                                                 \
-        if (!result) {                                                                               \
-            return ::alp::detail::make_residual(std::move(result), std::source_location::current()); \
-        }                                                                                            \
+// ALP_TRY_DISCARD with its result variable and message spelled out; the message is nullopt for none.
+#define ALP_TRY_IMPL_DISCARD(result, message, ...)                                                              \
+    do {                                                                                                        \
+        auto result = (__VA_ARGS__);                                                                            \
+        if (!result) {                                                                                          \
+            return ::alp::detail::make_residual(std::move(result), (message), std::source_location::current()); \
+        }                                                                                                       \
     } while (false)
 
-// Evaluates the expression into the variable `result` in the enclosing scope, returns what make_residual makes of it if it failed, and otherwise binds its value to `target`.
-#define ALP_TRY_IMPL_BIND(result, target, ...)                                                   \
-    auto result = (__VA_ARGS__);                                                                 \
-    if (!result) {                                                                               \
-        return ::alp::detail::make_residual(std::move(result), std::source_location::current()); \
-    }                                                                                            \
+// ALP_TRY_BIND with its result variable and message spelled out; the message is nullopt for none.
+#define ALP_TRY_IMPL_BIND(result, target, message, ...)                                                     \
+    auto result = (__VA_ARGS__);                                                                            \
+    if (!result) {                                                                                          \
+        return ::alp::detail::make_residual(std::move(result), (message), std::source_location::current()); \
+    }                                                                                                       \
     target = ::alp::detail::take_value(std::move(result))
 
-// Like ALP_TRY_IMPL_DISCARD, but returns what make_residual_with_context makes of the failure; `message` is evaluated only inside the failure branch.
-#define ALP_TRY_IMPL_DISCARD_CONTEXT(result, message, ...)                                                                    \
-    do {                                                                                                                      \
-        auto result = (__VA_ARGS__);                                                                                          \
-        if (!result) {                                                                                                        \
-            return ::alp::detail::make_residual_with_context(std::move(result), (message), std::source_location::current()); \
-        }                                                                                                                     \
-    } while (false)
+// Returns from the enclosing function if the expression, an expected or an optional, failed, passing the failure on as make_residual does.
+// The expression is all remaining arguments, so it may contain commas.
+#define ALP_TRY_DISCARD(...) ALP_TRY_IMPL_DISCARD(ALP_UNIQUE_IDENT(_alp_try_result_), ::std::nullopt, __VA_ARGS__)
 
-// Like ALP_TRY_IMPL_BIND, but returns what make_residual_with_context makes of the failure; `message` is evaluated only inside the failure branch.
-#define ALP_TRY_IMPL_BIND_CONTEXT(result, target, message, ...)                                                           \
-    auto result = (__VA_ARGS__);                                                                                          \
-    if (!result) {                                                                                                        \
-        return ::alp::detail::make_residual_with_context(std::move(result), (message), std::source_location::current()); \
-    }                                                                                                                     \
-    target = ::alp::detail::take_value(std::move(result))
+// Like ALP_TRY_DISCARD, but binds the value to `target`, a declaration or an lvalue.
+// A reference target refers into the result, which lives until the end of the scope; under an `if` the macro needs braces.
+#define ALP_TRY_BIND(target, ...) ALP_TRY_IMPL_BIND(ALP_UNIQUE_IDENT(_alp_try_result_), target, ::std::nullopt, __VA_ARGS__)
 
-// Evaluates the expression, an expected or an optional, and returns from the enclosing function if it failed; a succeeded value is dropped.
-// On failure the enclosing function returns, depending on the error:
-// - an Error: the same error, with a frame at this line added;
-// - a plain code: the code itself, or an Error with its origin at this line when the enclosing function returns an Error;
-// - any other error: the error unchanged;
-// - an empty optional: an empty optional.
-// The expression is the whole remaining argument list, so commas in it, such as in braced options, need no extra parentheses.
-// Code written inside the arguments records the line of this macro rather than its own.
-#define ALP_TRY_DISCARD(...) ALP_TRY_IMPL_DISCARD(ALP_UNIQUE_IDENT(_alp_try_result_), __VA_ARGS__)
+// Like ALP_TRY_DISCARD, but adds `message`, which is evaluated only on failure.
+#define ALP_TRY_DISCARD_CONTEXT(message, ...) ALP_TRY_IMPL_DISCARD(ALP_UNIQUE_IDENT(_alp_try_result_), message, __VA_ARGS__)
 
-// Like ALP_TRY_DISCARD, but binds the value of a succeeded expression to `target`, a declaration such as `const Batch &batch` or an assignable lvalue such as `this->_rows`.
-// A reference target refers into the result, which lives until the end of the enclosing scope; the macro expands to several statements, so under an `if` it needs braces.
-#define ALP_TRY_BIND(target, ...) ALP_TRY_IMPL_BIND(ALP_UNIQUE_IDENT(_alp_try_result_), target, __VA_ARGS__)
+// Like ALP_TRY_BIND, but adds `message`, which is evaluated only on failure.
+#define ALP_TRY_BIND_CONTEXT(target, message, ...) ALP_TRY_IMPL_BIND(ALP_UNIQUE_IDENT(_alp_try_result_), target, message, __VA_ARGS__)
 
-// Like ALP_TRY_DISCARD, and on failure adds `message` as context; `message` is evaluated only on failure.
-// To an Error the message is a frame at this line, to a plain code the first context of the Error made from it; an optional or any other error has no place for it.
-#define ALP_TRY_DISCARD_CONTEXT(message, ...) ALP_TRY_IMPL_DISCARD_CONTEXT(ALP_UNIQUE_IDENT(_alp_try_result_), message, __VA_ARGS__)
-
-// Like ALP_TRY_BIND, and on failure adds `message` as context; `message` is evaluated only on failure.
-#define ALP_TRY_BIND_CONTEXT(target, message, ...) ALP_TRY_IMPL_BIND_CONTEXT(ALP_UNIQUE_IDENT(_alp_try_result_), target, message, __VA_ARGS__)
-
-// Picks ALP_TRY_BIND or ALP_TRY_DISCARD by how many arguments ALP_TRY was given.
+// Picks the macro for ALP_TRY by argument count.
 #define ALP_TRY_SELECT(_1, _2, NAME, ...) NAME
 
-// ALP_TRY_CONTEXT with two arguments, in the order ALP_TRY_DISCARD_CONTEXT takes them.
+// ALP_TRY_CONTEXT(expr, message).
 #define ALP_TRY_CONTEXT_2(expr, message) ALP_TRY_DISCARD_CONTEXT(message, expr)
 
-// ALP_TRY_CONTEXT with three arguments, in the order ALP_TRY_BIND_CONTEXT takes them.
+// ALP_TRY_CONTEXT(target, expr, message).
 #define ALP_TRY_CONTEXT_3(target, expr, message) ALP_TRY_BIND_CONTEXT(target, message, expr)
 
-// Picks ALP_TRY_CONTEXT_3 or ALP_TRY_CONTEXT_2 by how many arguments ALP_TRY_CONTEXT was given; with one argument it picks a name that does not exist, so the call fails to compile.
+// Picks the macro for ALP_TRY_CONTEXT by argument count; any other count fails to compile.
 #define ALP_TRY_CONTEXT_SELECT(_1, _2, _3, NAME, ...) NAME
 
-// ALP_TRY(expr) is ALP_TRY_DISCARD(expr) and ALP_TRY(target, expr) is ALP_TRY_BIND(target, expr), picked by the number of arguments; an expression with commas outside parentheses needs the dedicated form.
+// ALP_TRY(expr) or ALP_TRY(target, expr); an expression with commas outside parentheses needs ALP_TRY_DISCARD or ALP_TRY_BIND.
 #define ALP_TRY(...) ALP_TRY_SELECT(__VA_ARGS__, ALP_TRY_BIND, ALP_TRY_DISCARD)(__VA_ARGS__)
 
-// ALP_TRY_CONTEXT(expr, message) is ALP_TRY_DISCARD_CONTEXT(message, expr) and ALP_TRY_CONTEXT(target, expr, message) is ALP_TRY_BIND_CONTEXT(target, message, expr), picked by the number of arguments.
+// ALP_TRY_CONTEXT(expr, message) or ALP_TRY_CONTEXT(target, expr, message).
 #define ALP_TRY_CONTEXT(...) ALP_TRY_CONTEXT_SELECT(__VA_ARGS__, ALP_TRY_CONTEXT_3, ALP_TRY_CONTEXT_2, ALP_TRY_CONTEXT_needs_2_or_3_arguments)(__VA_ARGS__)
