@@ -103,6 +103,7 @@ TEMPLATE_TEST_CASE(
     "a bake reads a flat source back through the target's own uvs",
     "[dag_builder][bake]",
     bake::ProjectAlongNormal,
+    bake::RayCast,
     bake::ClosestPoint) {
     const Grid grid = make_grid(2);
 

@@ -24,6 +24,8 @@ namespace bake::detail {
 struct PointQuery {
     std::span<const Candidate> candidates; // in correspondence order
     glm::dvec3 point; // the point being shaded
+    glm::dvec3 barycentric; // that point, in corner weights of the target triangle
+    uint32_t target_index = 0;
 };
 
 // Shades every texel the target covers, from the source the sampler picks for it.
@@ -60,7 +62,9 @@ void render_point_texels(
         for_each_texel(geometry.target.uvs[target_index], target.size(), [&](const glm::uvec2 texel, const glm::dvec3 &barycentric) {
             const PointQuery query{
                 .candidates = candidates,
-                .point = geometry::interpolate(target_triangle, barycentric)};
+                .point = geometry::interpolate(target_triangle, barycentric),
+                .barycentric = barycentric,
+                .target_index = target_index};
 
             const std::optional<SourcePoint> hit = sampler(query);
             if (!hit) {

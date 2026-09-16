@@ -9,8 +9,38 @@
 #include "mesh/SimpleMesh.h"
 #include "mesh/geometry.h"
 #include "optional_utils.h"
+#include "range_utils.h"
 
 namespace mesh {
+
+std::vector<glm::dvec3> compute_vertex_normals(
+    const std::span<const glm::uvec3> triangles,
+    const std::span<const glm::dvec3> positions) {
+    std::vector<glm::dvec3> normals(positions.size(), glm::dvec3(0));
+
+    // Simplification leaves wildly uneven triangle sizes behind, so weighting by the corner angle
+    // keeps a fan of small triangles from outvoting one large neighbour.
+    for (const glm::uvec3 &triangle : triangles) {
+        const geometry::Triangle3d vertices = geometry::corners(triangle, positions);
+        const glm::dvec3 normal = geometry::compute_normal(vertices[0], vertices[1], vertices[2]);
+        if (glm::length2(normal) == 0.0) {
+            continue;
+        }
+
+        const glm::dvec3 angles = geometry::compute_triangle_angles(vertices);
+        for (const uint8_t k : range<uint8_t>(3)) {
+            normals[triangle[k]] += normal * angles[k];
+        }
+    }
+
+    for (glm::dvec3 &normal : normals) {
+        if (glm::length2(normal) > 0.0) {
+            normal = glm::normalize(normal);
+        }
+    }
+
+    return normals;
+}
     
 std::optional<double> estimate_average_edge_length(const SimpleMesh &mesh, const size_t sample_size) {
     const auto &triangles = mesh.triangles;

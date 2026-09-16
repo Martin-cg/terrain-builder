@@ -1,4 +1,5 @@
 #include <cmath>
+#include <numbers>
 
 #include <glm/glm.hpp>
 #include <radix/geometry.h>
@@ -205,4 +206,20 @@ TEST_CASE("compute_triangle_thickness is zero for degenerate triangles", "[terra
     INFO("triangle: " << name);
 
     CHECK(geometry::compute_triangle_thickness(triangle) == 0.0);
+}
+
+TEST_CASE("compute_triangle_angles measures the angle at each corner", "[terrainlib][geometry]") {
+    const geometry::Triangle3d triangle = {glm::dvec3(0, 0, 0), glm::dvec3(1, 0, 0), glm::dvec3(0, 1, 0)};
+
+    const glm::dvec3 angles = geometry::compute_triangle_angles(triangle);
+
+    CHECK_THAT(angles[0], Catch::Matchers::WithinRel(std::numbers::pi / 2));
+    CHECK_THAT(angles[1], Catch::Matchers::WithinRel(std::numbers::pi / 4));
+    CHECK_THAT(angles[2], Catch::Matchers::WithinRel(std::numbers::pi / 4));
+}
+
+TEST_CASE("compute_triangle_angles is zero for a triangle with a repeated corner", "[terrainlib][geometry]") {
+    const geometry::Triangle3d triangle = {glm::dvec3(0, 0, 0), glm::dvec3(0, 0, 0), glm::dvec3(1, 0, 0)};
+
+    CHECK(geometry::compute_triangle_angles(triangle) == glm::dvec3(0.0));
 }

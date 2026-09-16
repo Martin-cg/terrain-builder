@@ -15,10 +15,14 @@
 #include <libassert/assert.hpp>
 #include <radix/geometry.h>
 
+#include "range_utils.h"
+
 namespace geometry {
 
 using Triangle2d = radix::geometry::Triangle<2, double>;
 using Triangle3d = radix::geometry::Triangle<3, double>;
+
+using Line3d = radix::geometry::Line<3, double>;
 
 // Grow bounds by the same distance on every side.
 template <glm::length_t n_dims, typename T>
@@ -127,6 +131,10 @@ template <typename T>
 glm::vec<3, T> compute_normal(const glm::uvec3 &triangle,
                               const std::span<const glm::vec<3, T>> positions,
                               const bool normalize = true);
+
+// The angle the triangle turns through at each of its vertices, all zero for a degenerate triangle.
+template <typename T>
+glm::vec<3, T> compute_triangle_angles(const radix::geometry::Triangle<3, T> &triangle);
 
 template <glm::length_t n_dims, typename T>
 T compute_triangle_area(const glm::vec<n_dims, T> &v0, const glm::vec<n_dims, T> &v1, const glm::vec<n_dims, T> &v2);

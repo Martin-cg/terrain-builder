@@ -15,6 +15,7 @@
 #include "bake/closest_point.h"
 #include "bake/interpolate_uncovered.h"
 #include "bake/project_along_normal.h"
+#include "bake/ray_cast.h"
 #include "cluster.h"
 #include "correspondence.h"
 #include "log.h"
@@ -35,7 +36,7 @@ struct Options {
 };
 
 // How a bake reads each texel from the source.
-using Mode = std::variant<ClosestPoint, ProjectAlongNormal>;
+using Mode = std::variant<ClosestPoint, RayCast, ProjectAlongNormal>;
 
 namespace detail {
 

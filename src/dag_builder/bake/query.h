@@ -83,6 +83,72 @@ inline std::optional<SourcePoint> find_closest_point(
     return nearest_facing_result ? nearest_facing_result : nearest_any_result;
 }
 
+// The nearest candidate the line crosses on either side.
+[[nodiscard]]
+inline std::optional<SourcePoint> find_line_hit(
+    const std::span<const Candidate> candidates,
+    const geometry::Line3d &line,
+    const double max_distance) {
+    const double max_distance_squared = max_distance * max_distance;
+    constexpr double epsilon = geometry::epsilon<double>();
+
+    std::optional<SourcePoint> nearest_result;
+
+    for (const auto &[index, candidate] : enumerate<uint32_t>(candidates)) {
+        // A source turned away from the target is the far side of a fold, whichever side the line crosses it from.
+        if (candidate.normal_dot <= 0.0) {
+            continue;
+        }
+
+        // Moller-Trumbore, solving the corner weights and the line parameter by Cramer's rule.
+        const geometry::Triangle3d &triangle = candidate.triangle;
+        const glm::dvec3 first_edge = triangle[1] - triangle[0];
+        const glm::dvec3 second_edge = triangle[2] - triangle[0];
+        const glm::dvec3 direction_cross_second = glm::cross(line.direction, second_edge);
+
+        // Zero only where the line runs parallel to the triangle, which it then never crosses.
+        const double determinant = glm::dot(first_edge, direction_cross_second);
+        if (determinant == 0.0) {
+            continue;
+        }
+        const double inverse_determinant = 1.0 / determinant;
+
+        const glm::dvec3 from_corner = line.point - triangle[0];
+
+        glm::dvec3 barycentric;
+        barycentric[1] = glm::dot(from_corner, direction_cross_second) * inverse_determinant;
+        if (barycentric[1] < -epsilon || barycentric[1] > 1.0 + epsilon) {
+            continue;
+        }
+
+        const glm::dvec3 from_corner_cross_first = glm::cross(from_corner, first_edge);
+        barycentric[2] = glm::dot(line.direction, from_corner_cross_first) * inverse_determinant;
+
+        // Without slack a crossing on a shared edge is dropped by both candidates.
+        if (barycentric[2] < -epsilon || barycentric[1] + barycentric[2] > 1.0 + epsilon) {
+            continue;
+        }
+        barycentric[0] = 1.0 - barycentric[1] - barycentric[2];
+
+        // The direction is unit length, so the line parameter is the distance travelled, signed by the side crossed.
+        const double distance = glm::dot(second_edge, from_corner_cross_first) * inverse_determinant;
+        const double distance_squared = distance * distance;
+        if (distance_squared > max_distance_squared) {
+            continue;
+        }
+        if (nearest_result && distance_squared >= nearest_result->distance_squared) {
+            continue;
+        }
+
+        nearest_result = SourcePoint{
+            .candidate = index,
+            .barycentric = barycentric,
+            .distance_squared = distance_squared};
+    }
+
+    return nearest_result;
+}
+
 // The colour the source carries at a point on one of its triangles.
 template <int channels, typename Value>
 [[nodiscard]]
