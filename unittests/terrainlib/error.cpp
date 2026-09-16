@@ -73,6 +73,10 @@ bool is_recorded_after(const alp::Frame &frame, const std::source_location befor
     return is_same_file && frame.location.line() == before.line() + 1;
 }
 
+// Whether Es form an error.
+template <typename... Es>
+concept FormsError = requires { typename alp::Error<Es...>; };
+
 // Returns `result` from a function whose error is erased.
 alp::Result<int> erase_result(alp::Result<int, FileError> result) {
     return result;
@@ -137,6 +141,24 @@ TEST_CASE("An error set is created from any of its codes and converts into any s
     STATIC_REQUIRE(!std::is_constructible_v<alp::Error<FileError, ParseError>, alp::Error<OffsetError>>);
     STATIC_REQUIRE(!std::is_constructible_v<alp::Error<FileError, ParseError>, alp::Error<>>);
     STATIC_REQUIRE(std::is_convertible_v<alp::Result<int, FileError>, alp::Result<int, FileError, ParseError>>);
+}
+
+TEST_CASE("A nested error set expands into its codes, each kept once in the order it first appears") {
+    STATIC_REQUIRE(std::is_same_v<alp::Error<FileError, ParseError>, alp::BasicError<FileError, ParseError>>);
+    STATIC_REQUIRE(std::is_same_v<alp::Error<alp::Error<FileError, ParseError>, OffsetError>, alp::BasicError<FileError, ParseError, OffsetError>>);
+    STATIC_REQUIRE(std::is_same_v<alp::Error<FileError, alp::Error<ParseError, FileError>>, alp::BasicError<FileError, ParseError>>);
+    STATIC_REQUIRE(std::is_same_v<alp::Error<alp::Error<FileError, ParseError>>, alp::BasicError<FileError, ParseError>>);
+    STATIC_REQUIRE(std::is_same_v<alp::Result<int, alp::Error<FileError>, ParseError>, tl::expected<int, alp::BasicError<FileError, ParseError>>>);
+}
+
+TEST_CASE("An error set is not a code, and an erased set cannot be nested") {
+    STATIC_REQUIRE(!alp::ErrorCode<alp::BasicError<FileError>>);
+    STATIC_REQUIRE(!FormsError<alp::Error<>, FileError>);
+}
+
+TEST_CASE("An error set includes the codes of a nested set") {
+    STATIC_REQUIRE(alp::BasicError<FileError, ParseError, OffsetError>::includes<alp::Error<FileError, ParseError>>);
+    STATIC_REQUIRE(!alp::BasicError<FileError>::includes<alp::Error<FileError, ParseError>>);
 }
 
 TEST_CASE("A trace starts where the error originated and grows innermost first") {
@@ -490,6 +512,32 @@ TEST_CASE("narrow to several codes keeps those it names") {
     const Narrowed missed = alp::Error<FileError, ParseError, OffsetError>(OffsetError{.offset = 7}).narrow<FileError, ParseError>();
     REQUIRE(!missed.has_value());
     CHECK(fmt::format("{}", missed.error()) == "bad byte at 7");
+}
+
+TEST_CASE("narrow to a set gives the error with only that set's codes, keeping its frames") {
+    alp::Error<alp::Error<FileError, ParseError>, OffsetError> error(ParseError::BadDigit, "parsing the header");
+    const tl::expected<alp::Error<FileError, ParseError>, alp::Error<FileError, ParseError, OffsetError>> result = std::move(error).narrow<alp::Error<FileError, ParseError>>();
+
+    REQUIRE(result.has_value());
+    REQUIRE(result->frames().size() == 2);
+    CHECK(fmt::format("{}", *result) == "parsing the header: bad digit");
+}
+
+TEST_CASE("narrow to a set hands the error back when it holds a code outside the set") {
+    alp::Error<alp::Error<FileError, ParseError>, OffsetError> error(OffsetError{.offset = 7}, "reading the body");
+    const tl::expected<alp::Error<FileError, ParseError>, alp::Error<FileError, ParseError, OffsetError>> result = std::move(error).narrow<alp::Error<FileError, ParseError>>();
+
+    REQUIRE(!result.has_value());
+    CHECK(result.error().frames().size() == 2);
+    CHECK(fmt::format("{}", result.error()) == "reading the body: bad byte at 7");
+}
+
+TEST_CASE("An error of a nested set widens into the flattened set, keeping its frames") {
+    alp::Error<FileError, ParseError> error(FileError::NotFound, "opening app.cfg");
+    const alp::Error<alp::Error<FileError, ParseError>, OffsetError> widened = std::move(error);
+
+    REQUIRE(widened.frames().size() == 2);
+    CHECK(fmt::format("{}", widened) == "opening app.cfg: file not found");
 }
 
 // ALP_TRY and ALP_TRY_CONTEXT.

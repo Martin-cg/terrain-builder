@@ -39,7 +39,7 @@ inline tl::unexpected<Error<>> make_unexpected(std::string message, const std::s
 // An unexpected holding `error`, with a frame added.
 template <ErrorCode... Es>
 [[nodiscard]]
-tl::unexpected<Error<Es...>> make_unexpected(Error<Es...> error, const std::source_location location = std::source_location::current()) {
+tl::unexpected<BasicError<Es...>> make_unexpected(BasicError<Es...> error, const std::source_location location = std::source_location::current()) {
     error.propagate(location);
     return tl::make_unexpected(std::move(error));
 }
@@ -67,7 +67,7 @@ Result<T, E> to_expected(std::optional<T> value, E code, std::string message, co
 // `result`, with a frame holding `message` added if it failed.
 template <typename T, ErrorCode... Es>
 [[nodiscard]]
-Result<T, Es...> context(Result<T, Es...> &&result, std::string message, const std::source_location location = std::source_location::current()) {
+BasicResult<T, BasicError<Es...>> context(BasicResult<T, BasicError<Es...>> &&result, std::string message, const std::source_location location = std::source_location::current()) {
     if (!result.has_value()) {
         result.error().context(std::move(message), location);
     }
@@ -78,7 +78,7 @@ Result<T, Es...> context(Result<T, Es...> &&result, std::string message, const s
 template <typename T, ErrorCode... Es, std::invocable F>
     requires std::convertible_to<std::invoke_result_t<F>, std::string>
 [[nodiscard]]
-Result<T, Es...> with_context(Result<T, Es...> &&result, F &&make_message, const std::source_location location = std::source_location::current()) {
+BasicResult<T, BasicError<Es...>> with_context(BasicResult<T, BasicError<Es...>> &&result, F &&make_message, const std::source_location location = std::source_location::current()) {
     if (!result.has_value()) {
         result.error().context(std::invoke(std::forward<F>(make_message)), location);
     }

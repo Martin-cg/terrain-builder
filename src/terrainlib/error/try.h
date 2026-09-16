@@ -24,15 +24,15 @@ struct PendingCode {
 
     // Becomes any other type the code converts to, dropping the location and the message.
     template <typename Target>
-        requires(!is_specialization_of_v<Target, Error> && std::is_convertible_v<const E &, Target>)
+        requires(!is_specialization_of_v<Target, BasicError> && std::is_convertible_v<const E &, Target>)
     operator Target() const {
         return this->code;
     }
 
     // Becomes an Error with its origin where the code was caught and the message as its first context.
     template <ErrorCode... Es>
-        requires std::is_convertible_v<Error<E>, Error<Es...>>
-    operator Error<Es...>() const {
+        requires std::is_convertible_v<Error<E>, BasicError<Es...>>
+    operator BasicError<Es...>() const {
         Error<E> error(this->code, this->location);
         if (this->message.has_value()) {
             error.context(*this->message, this->location);
@@ -48,7 +48,7 @@ auto make_residual(R &&result, const std::source_location location) {
         return std::nullopt;
     } else {
         using Failure = std::remove_cvref_t<decltype(std::forward<R>(result).error())>;
-        if constexpr (is_specialization_of_v<Failure, Error>) {
+        if constexpr (is_specialization_of_v<Failure, BasicError>) {
             Failure error = std::forward<R>(result).error();
             error.propagate(location);
             return tl::make_unexpected(std::move(error));
@@ -67,7 +67,7 @@ auto make_residual_with_context(R &&result, std::string message, const std::sour
         static_assert(always_false_v<R>, "ALP_TRY_CONTEXT needs an expected: an optional has no place for the message");
     } else {
         using Failure = std::remove_cvref_t<decltype(std::forward<R>(result).error())>;
-        if constexpr (is_specialization_of_v<Failure, Error>) {
+        if constexpr (is_specialization_of_v<Failure, BasicError>) {
             Failure error = std::forward<R>(result).error();
             error.context(std::move(message), location);
             return tl::make_unexpected(std::move(error));

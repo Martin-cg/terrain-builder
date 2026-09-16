@@ -7,8 +7,12 @@
 
 namespace alp {
 
-// A value, or an error with a code of type Es; with no Es, an erased error.
-template <typename T, ErrorCode... Es>
-using Result = tl::expected<T, Error<Es...>>;
+// The underlying result type; a value, or an error of type E.
+template <typename T, typename E>
+using BasicResult = tl::expected<T, E>;
 
+
+// A value, or an error with codes of type Es; with no Es, an erased error.
+template <typename T, ErrorCodes... Es>
+using Result = BasicResult<T, Error<Es...>>;
 } // namespace alp

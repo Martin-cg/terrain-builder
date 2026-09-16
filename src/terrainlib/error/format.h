@@ -11,7 +11,7 @@
 #include "error/Trace.h"
 
 template <alp::ErrorCode... Es>
-struct fmt::formatter<alp::Error<Es...>> {
+struct fmt::formatter<alp::BasicError<Es...>> {
     constexpr fmt::format_parse_context::iterator parse(fmt::format_parse_context &context) {
         auto position = context.begin();
         if (position != context.end() && *position == '#') {
@@ -24,7 +24,7 @@ struct fmt::formatter<alp::Error<Es...>> {
         return position;
     }
 
-    fmt::format_context::iterator format(const alp::Error<Es...> &error, fmt::format_context &context) const {
+    fmt::format_context::iterator format(const alp::BasicError<Es...> &error, fmt::format_context &context) const {
         const std::span<const alp::Frame> frames = error.frames();
         const std::string cause = error._code.message();
         fmt::format_context::iterator output = context.out();
