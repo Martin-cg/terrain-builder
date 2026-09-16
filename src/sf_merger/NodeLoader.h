@@ -58,7 +58,7 @@ public:
             if (parent_mesh_opt.has_value()) {
                 auto parent_mesh = parent_mesh_opt.value();
                 const auto bounds = this->_space.get_node_bounds(id);
-                SimpleMesh clipped = mesh::clip_on_bounds(parent_mesh, bounds);
+                SimpleMesh clipped = mesh::clip_on_bounds(parent_mesh, bounds).into_owned();
                 trim_texture_inplace(clipped);
                 this->_cache.put(id, clipped);
                 return clipped;

@@ -116,25 +116,25 @@ TEST_CASE("multi-component masks use union semantics") {
             make_box(glm::dvec3(1.0, -2.0, -1.0), glm::dvec3(2.0, 2.0, 1.0)),
         }};
 
-    const Cow<const SimpleMesh> inside = clip_on_mask(source, mask, true);
+    const Cow<SimpleMesh> inside = clip_on_mask(source, mask, true);
     REQUIRE_FALSE(inside->is_empty());
-    CHECK(area(inside.get()) == Catch::Approx(4.0));
+    CHECK(area(*inside) == Catch::Approx(4.0));
 
-    const Cow<const SimpleMesh> outside = clip_on_mask(source, mask, false);
+    const Cow<SimpleMesh> outside = clip_on_mask(source, mask, false);
     REQUIRE_FALSE(outside->is_empty());
-    CHECK(area(outside.get()) == Catch::Approx(8.0));
+    CHECK(area(*outside) == Catch::Approx(8.0));
 }
 
 TEST_CASE("empty component list has empty-union semantics") {
     const SimpleMesh source = make_plane();
     const MeshMask mask;
 
-    const Cow<const SimpleMesh> inside = clip_on_mask(source, mask, true);
-    CHECK_FALSE(inside.is_ref());
+    const Cow<SimpleMesh> inside = clip_on_mask(source, mask, true);
+    CHECK_FALSE(inside.is_borrowed());
     CHECK(inside->is_empty());
 
-    const Cow<const SimpleMesh> outside = clip_on_mask(source, mask, false);
-    CHECK(outside.is_ref());
+    const Cow<SimpleMesh> outside = clip_on_mask(source, mask, false);
+    CHECK(outside.is_borrowed());
     CHECK_FALSE(outside->is_empty());
 }
 

@@ -6,75 +6,103 @@
 #include <utility>
 #include <variant>
 
+#include "variant_utils.h"
+
 template <typename T>
 concept NotPtrOrRef = (!std::is_pointer_v<T>) && (!std::is_reference_v<T>);
 
+// A value that is either borrowed read-only or owned, copied only when mutable access or ownership is requested.
 template <NotPtrOrRef T>
-struct Cow {
-    using OwnedType = std::remove_const_t<T>;
-    using RawRefType = T&;
-    using RefType = std::reference_wrapper<T>;
-    std::variant<OwnedType, RefType> data;
+    requires(!std::is_const_v<T> && std::copy_constructible<T>)
+class Cow {
+public:
+    // The case holding its own value.
+    struct Owned {
+        T value;
+    };
+    // The case referring to a value that lives elsewhere.
+    struct Borrowed {
+        std::reference_wrapper<const T> value;
+    };
 
-    explicit Cow(OwnedType&& value) : data(std::move(value)) {}
-    explicit Cow(T& ref) : data(std::ref(ref)) {}
-
-    static Cow<T> from_owned(OwnedType &&value) {
-        return Cow<T>(std::move(value));
+    // Borrows `value`, which must outlive the Cow.
+    static Cow borrowed(const T &value) {
+        return Cow(Borrowed{value});
     }
-    static Cow<T> from_ref(RefType ref) {
-        return Cow<T>(ref);
+    static Cow borrowed(const T &&value) = delete;
+    static Cow owned(T &&value) {
+        return Cow(Owned{std::move(value)});
     }
 
-    Cow(const Cow &) = default;
-    Cow(Cow &&) noexcept = default;
-    Cow &operator=(const Cow &) = default;
-    Cow &operator=(Cow &&) noexcept = default;
-
+    bool is_borrowed() const noexcept {
+        return std::holds_alternative<Borrowed>(this->_data);
+    }
     bool is_owned() const noexcept {
-        return std::holds_alternative<OwnedType>(this->data);
-    }
-    bool is_ref() const noexcept {
-        return std::holds_alternative<RefType>(this->data);
+        return std::holds_alternative<Owned>(this->_data);
     }
 
-    T &get() {
-        return std::visit([](auto &data) -> T& { return data; }, this->data);
+    // Calls whichever of `visitors` takes the current case, as `Owned` or `Borrowed`.
+    template <typename... Visitors>
+    decltype(auto) visit(Visitors &&...visitors) & {
+        return match(this->_data, std::forward<Visitors>(visitors)...);
     }
-    const T &get() const {
-        return std::visit([](const auto &data) -> const T& { return data; }, this->data);
+    template <typename... Visitors>
+    decltype(auto) visit(Visitors &&...visitors) const & {
+        return match(this->_data, std::forward<Visitors>(visitors)...);
+    }
+    template <typename... Visitors>
+    decltype(auto) visit(Visitors &&...visitors) && {
+        return match(std::move(this->_data), std::forward<Visitors>(visitors)...);
+    }
+    template <typename... Visitors>
+    decltype(auto) visit(Visitors &&...visitors) const && = delete;
+
+    const T &operator*() const & {
+        return this->visit(
+            [](const Owned &owned) -> const T & {
+                return owned.value;
+            },
+            [](const Borrowed &borrowed) -> const T & {
+                return borrowed.value.get();
+            });
+    }
+    const T &operator*() const && = delete;
+
+    const T *operator->() const & {
+        return &**this;
+    }
+    const T *operator->() const && = delete;
+
+    operator const T &() const & {
+        return **this;
+    }
+    operator const T &() const && = delete;
+
+    // Gives mutable access to the owned value, copying the borrowed one into the Cow first.
+    T &to_mut() & {
+        return this->visit(
+            [](Owned &owned) -> T & {
+                return owned.value;
+            },
+            [this](const Borrowed &borrowed) -> T & {
+                // Emplacing destroys `borrowed`, so the source it refers to is bound first.
+                const T &source = borrowed.value.get();
+                return this->_data.template emplace<Owned>(source).value;
+            });
+    }
+    // Moves the owned value out, or copies the borrowed one.
+    T into_owned() && {
+        return std::move(*this).visit(
+            [](Owned &&owned) -> T {
+                return std::move(owned.value);
+            },
+            [](const Borrowed &borrowed) -> T {
+                return borrowed.value.get();
+            });
     }
 
-    T &operator*() {
-        return get();
-    }
-    const T &operator*() const {
-        return get();
-    }
+private:
+    explicit Cow(std::variant<Owned, Borrowed> data) : _data(std::move(data)) {}
 
-    T *operator->() {
-        return &get();
-    }
-    const T *operator->() const {
-        return &get();
-    }
-
-    operator T &() {
-        return get();
-    }
-    operator const T &() const {
-        return get();
-    }
-
-    operator Cow<const T>() & = delete;
-    operator Cow<const T>() && {
-        if (is_owned()) {
-            return Cow<const T>::from_owned(std::move(std::get<OwnedType>(data)));
-        } else {
-            return Cow<const T>::from_ref(std::ref(get()));
-        }
-    }
+    std::variant<Owned, Borrowed> _data;
 };
-
-template <typename T>
-Cow(T &&) -> Cow<std::remove_cv_t<std::remove_reference_t<T>>>;
