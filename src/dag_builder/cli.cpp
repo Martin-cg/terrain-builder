@@ -37,6 +37,12 @@ const std::unordered_map<std::string, ChartingMode> charting_mode_names{
     {"per-node", ChartingMode::PerNode},
 };
 
+const std::unordered_map<std::string, bake::Mode> bake_mode_names{
+    {"closest-point", bake::ClosestPoint{}},
+    {"ray-cast", bake::RayCast{}},
+    {"project-along-normal", bake::ProjectAlongNormal{}},
+};
+
 // Use RelativeQuality texture budgeting mode.
 const std::string relative_texels_per_triangle = "relative";
 
@@ -133,6 +139,7 @@ Args cli::parse(int argc, const char *const *argv) {
         .level_range = RangeFull{},
         .allow_texture_reuse = true,
         .charting = ChartingMode::PerCluster,
+        .bake_mode = bake::ProjectAlongNormal{},
         .clusters_per_partition = 8,
         .target_ratio = std::nullopt,
         .target_error = std::nullopt,
@@ -170,6 +177,10 @@ Args cli::parse(int argc, const char *const *argv) {
     app.add_option("--charting", args.charting, "How the clusters of a node are unwrapped")
         ->transform(CLI::CheckedTransformer(charting_mode_names, CLI::ignore_case))
         ->default_val(args.charting);
+
+    std::string bake_mode_name;
+    app.add_option("--bake-mode", bake_mode_name, "How the textures of a node are baked")
+        ->check(CLI::IsMember(bake_mode_names, CLI::ignore_case));
 
     app.add_option("--clusters-per-group", args.clusters_per_partition, "Target number of clusters per partition")
         ->default_val(args.clusters_per_partition)
@@ -227,6 +238,9 @@ Args cli::parse(int argc, const char *const *argv) {
         args.continuation_mode = make_continuation_mode(resume, overwrite);
 
         args.sizing_options.mode = make_texture_sizing_mode(texels_per_triangle);
+        if (!bake_mode_name.empty()) {
+            args.bake_mode = bake_mode_names.at(bake_mode_name);
+        }
     } catch (const CLI::ParseError &e) {
         std::exit(app.exit(e));
     }

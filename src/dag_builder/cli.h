@@ -23,6 +23,7 @@ struct Args {
 
     bool allow_texture_reuse;
     ChartingMode charting;
+    bake::Mode bake_mode;
     uint32_t clusters_per_partition;
     std::optional<float> target_ratio;
     std::optional<float> target_error;

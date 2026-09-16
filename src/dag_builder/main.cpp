@@ -28,6 +28,7 @@ int main(int argc, char **argv) {
             .texture_options = {
                 .atlas = {.padding = args.texture_gutter},
                 .bake = {.gutter = args.texture_gutter},
+                .bake_mode = args.bake_mode,
                 .sizing = args.sizing_options,
                 .charting = args.charting,
                 .allow_texture_reuse = args.allow_texture_reuse,
