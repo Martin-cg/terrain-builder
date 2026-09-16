@@ -6,6 +6,7 @@
 #include <type_traits>
 #include <unordered_map>
 
+#include <libassert/assert.hpp>
 #include <tl/expected.hpp>
 
 #include "io/Error.h"

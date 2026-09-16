@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <utility>
 
+#include <libassert/assert.hpp>
 #include <tl/expected.hpp>
 
 #include "storage/BaseStorage.h"

@@ -6,6 +6,7 @@
 #include <variant>
 #include <vector>
 
+#include <libassert/assert.hpp>
 #include <radix/geometry.h>
 
 #include "variant_utils.h"
