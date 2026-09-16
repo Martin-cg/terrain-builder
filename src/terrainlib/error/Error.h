@@ -1,5 +1,6 @@
 #pragma once
 
+#include <concepts>
 #include <optional>
 #include <source_location>
 #include <span>
@@ -93,9 +94,11 @@ public:
 
     // Whether this error holds `code`.
     template <OneOf<Es...> E>
+        requires std::equality_comparable<E>
     [[nodiscard]]
     bool holds(const E &code) const {
-        return this->_code == CodeStorage<Es...>(code);
+        const E *held = this->get_if<E>();
+        return held != nullptr && *held == code;
     }
 
     // The frames, innermost first.

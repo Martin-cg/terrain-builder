@@ -46,8 +46,6 @@ public:
         return std::visit(std::forward<F>(f), this->_code);
     }
 
-    bool operator==(const CodeStorage &) const = default;
-
 private:
     std::variant<Es...> _code;
 };

@@ -93,6 +93,10 @@ concept FormsError = requires { typename alp::Error<Es...>; };
 template <typename E>
 concept IsVisitable = requires(const E &error) { error.visit([](const auto &) {}); };
 
+// Whether an error of type E can check whether it holds a given code of type C.
+template <typename E, typename C>
+concept CanCheckHolds = requires(const E &error, const C &code) { error.holds(code); };
+
 // Returns `result` from a function whose error is erased.
 alp::Result<int> erase_result(alp::Result<int, FileError> result) {
     return result;
@@ -105,7 +109,7 @@ TEST_CASE("Error codes are unqualified formattable enums and classes other than 
     STATIC_REQUIRE(alp::ErrorCode<OffsetError>);
     STATIC_REQUIRE(alp::ErrorCode<NamedError>);
     STATIC_REQUIRE(!alp::ErrorCode<Unformatted>);
-    STATIC_REQUIRE(!alp::ErrorCode<Incomparable>);
+    STATIC_REQUIRE(alp::ErrorCode<Incomparable>);
     STATIC_REQUIRE(!alp::ErrorCode<int>);
     STATIC_REQUIRE(!alp::ErrorCode<const char *>);
     STATIC_REQUIRE(!alp::ErrorCode<std::string>);
@@ -557,12 +561,13 @@ TEST_CASE("holds is true for the held code and false for a different value or an
     CHECK(!error.holds(FileError::NotFound));
 }
 
-TEST_CASE("Typed code storage compares by the code it holds, and erased storage does not compare") {
-    const alp::CodeStorage<FileError, ParseError> storage(FileError::NotFound);
+TEST_CASE("holds works in a set with an incomparable code, but not for that code") {
+    const alp::Error<FileError, Incomparable> file_error(FileError::NotFound);
+    const alp::Error<FileError, Incomparable> incomparable_error(Incomparable{});
 
-    CHECK(storage == alp::CodeStorage<FileError, ParseError>(FileError::NotFound));
-    CHECK(storage != alp::CodeStorage<FileError, ParseError>(ParseError::BadDigit));
-    STATIC_REQUIRE(!std::equality_comparable<alp::CodeStorage<>>);
+    CHECK(file_error.holds(FileError::NotFound));
+    CHECK(!incomparable_error.holds(FileError::NotFound));
+    STATIC_REQUIRE(!CanCheckHolds<alp::Error<FileError, Incomparable>, Incomparable>);
 }
 
 TEST_CASE("get_if points at the held code if it has that type, and is null otherwise") {
