@@ -138,7 +138,7 @@ Args cli::parse(int argc, const char *const *argv) {
         .root_node = octree::Id::root(),
         .level_range = RangeFull{},
         .allow_texture_reuse = true,
-        .charting = ChartingMode::PerCluster,
+        .charting = ChartingMode::PerNode,
         .bake_mode = bake::ProjectAlongNormal{},
         .clusters_per_partition = 8,
         .target_ratio = std::nullopt,

@@ -53,7 +53,7 @@ struct TextureOptions {
     bake::Options bake = {};
     bake::Mode bake_mode = bake::ProjectAlongNormal{};
     TextureSizingOptions sizing = {};
-    ChartingMode charting = ChartingMode::PerCluster;
+    ChartingMode charting = ChartingMode::PerNode;
     bool allow_texture_reuse = true;
     // The colour of the dummy texture a cluster without imagery gets.
     cv::Scalar untextured_color = cv::Scalar::all(0);
