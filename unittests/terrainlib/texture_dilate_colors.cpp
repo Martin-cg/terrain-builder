@@ -137,7 +137,7 @@ TEST_CASE("dilate_colors dispatches on the image depth", "[texture][dilate_color
     CHECK(input.image.at<float>(0, 0) == Catch::Approx(1.5));
 }
 
-TEST_CASE("dilate_colors only grows into the target", "[terrainlib][texture_dilate_colors]") {
+TEST_CASE("dilate_colors only grows into the target", "[texture][dilate_colors]") {
     Input input = make_input(glm::uvec2(5, 1));
     cover<uint8_t>(input, glm::uvec2(0, 0), 100);
     texture::Mask target = make_target(glm::uvec2(5, 1), {1, 2});
@@ -152,7 +152,7 @@ TEST_CASE("dilate_colors only grows into the target", "[terrainlib][texture_dila
     CHECK_FALSE(input.coverage.get(4, 0));
 }
 
-TEST_CASE("dilate_colors fills the whole target when given no radius", "[terrainlib][texture_dilate_colors]") {
+TEST_CASE("dilate_colors fills the whole target when given no radius", "[texture][dilate_colors]") {
     Input input = make_input(glm::uvec2(5, 1));
     cover<uint8_t>(input, glm::uvec2(0, 0), 100);
     texture::Mask target = make_target(glm::uvec2(5, 1), {1, 2, 3, 4});
@@ -166,7 +166,7 @@ TEST_CASE("dilate_colors fills the whole target when given no radius", "[terrain
     }
 }
 
-TEST_CASE("dilate_colors stops the target fill after max_radius rounds", "[terrainlib][texture_dilate_colors]") {
+TEST_CASE("dilate_colors stops the target fill after max_radius rounds", "[texture][dilate_colors]") {
     Input input = make_input(glm::uvec2(5, 1));
     cover<uint8_t>(input, glm::uvec2(0, 0), 100);
     texture::Mask target = make_target(glm::uvec2(5, 1), {1, 2, 3, 4});
@@ -178,7 +178,7 @@ TEST_CASE("dilate_colors stops the target fill after max_radius rounds", "[terra
     CHECK_FALSE(input.coverage.get(3, 0));
 }
 
-TEST_CASE("dilate_colors leaves target texels it cannot reach", "[terrainlib][texture_dilate_colors]") {
+TEST_CASE("dilate_colors leaves target texels it cannot reach", "[texture][dilate_colors]") {
     Input input = make_input(glm::uvec2(5, 1));
     cover<uint8_t>(input, glm::uvec2(0, 0), 100);
     // Texel 2 is outside the target, so it walls off the texels past it.
@@ -204,7 +204,7 @@ TEST_CASE("dilate_colors leaves the input alone when returning a copy", "[textur
     CHECK(dilated.at<uint8_t>(0, 0) == 100);
 }
 
-TEST_CASE("fill_uncovered leaves the covered texels alone", "[terrainlib][texture_dilate_colors]") {
+TEST_CASE("fill_uncovered leaves the covered texels alone", "[texture][dilate_colors]") {
     Input input = make_input(glm::uvec2(6, 4));
     cover<uint8_t>(input, glm::uvec2(1, 1), 40);
     cover<uint8_t>(input, glm::uvec2(4, 2), 200);
@@ -215,7 +215,7 @@ TEST_CASE("fill_uncovered leaves the covered texels alone", "[terrainlib][textur
     CHECK(input.image.at<uint8_t>(2, 4) == 200);
 }
 
-TEST_CASE("fill_uncovered fills every uncovered texel from the covered colours", "[terrainlib][texture_dilate_colors]") {
+TEST_CASE("fill_uncovered fills every uncovered texel from the covered colours", "[texture][dilate_colors]") {
     Input input = make_input(glm::uvec2(6, 4));
     // No blend of the covered colours can come out at the clear value.
     input.image.setTo(cv::Scalar::all(255));
@@ -232,7 +232,7 @@ TEST_CASE("fill_uncovered fills every uncovered texel from the covered colours",
     }
 }
 
-TEST_CASE("fill_uncovered has nothing to spread when nothing is covered", "[terrainlib][texture_dilate_colors]") {
+TEST_CASE("fill_uncovered has nothing to spread when nothing is covered", "[texture][dilate_colors]") {
     Input input = make_input(glm::uvec2(4));
     input.image.setTo(cv::Scalar::all(70));
     const cv::Mat image_before = input.image.clone();
@@ -242,7 +242,7 @@ TEST_CASE("fill_uncovered has nothing to spread when nothing is covered", "[terr
     CHECK(mat_equals(input.image, image_before));
 }
 
-TEST_CASE("fill_uncovered spreads a single covered texel over an odd sized image", "[terrainlib][texture_dilate_colors]") {
+TEST_CASE("fill_uncovered spreads a single covered texel over an odd sized image", "[texture][dilate_colors]") {
     Input input = make_input(glm::uvec2(7, 5));
     cover<uint8_t>(input, glm::uvec2(5, 1), 100);
 
@@ -255,7 +255,7 @@ TEST_CASE("fill_uncovered spreads a single covered texel over an odd sized image
     }
 }
 
-TEST_CASE("fill_uncovered keeps colours near where they were covered", "[terrainlib][texture_dilate_colors]") {
+TEST_CASE("fill_uncovered keeps colours near where they were covered", "[texture][dilate_colors]") {
     Input input = make_input(glm::uvec2(8, 1));
     cover<uint8_t>(input, glm::uvec2(0, 0), 0);
     cover<uint8_t>(input, glm::uvec2(7, 0), 200);
@@ -269,7 +269,7 @@ TEST_CASE("fill_uncovered keeps colours near where they were covered", "[terrain
     CHECK(input.image.at<uint8_t>(0, 6) > 100);
 }
 
-TEST_CASE("fill_uncovered spreads every channel", "[terrainlib][texture_dilate_colors]") {
+TEST_CASE("fill_uncovered spreads every channel", "[texture][dilate_colors]") {
     Input input = make_input(glm::uvec2(3), CV_8UC3);
     cover<cv::Vec3b>(input, glm::uvec2(1), cv::Vec3b(10, 20, 30));
 
@@ -279,7 +279,7 @@ TEST_CASE("fill_uncovered spreads every channel", "[terrainlib][texture_dilate_c
     CHECK(input.image.at<cv::Vec3b>(2, 2) == cv::Vec3b(10, 20, 30));
 }
 
-TEST_CASE("fill_uncovered dispatches on the image depth", "[terrainlib][texture_dilate_colors]") {
+TEST_CASE("fill_uncovered dispatches on the image depth", "[texture][dilate_colors]") {
     Input input = make_input(glm::uvec2(3), CV_32FC1);
     cover<float>(input, glm::uvec2(1), 1.5f);
 
@@ -288,7 +288,7 @@ TEST_CASE("fill_uncovered dispatches on the image depth", "[terrainlib][texture_
     CHECK(input.image.at<float>(0, 0) == Catch::Approx(1.5));
 }
 
-TEST_CASE("fill_uncovered leaves the input alone when returning a copy", "[terrainlib][texture_dilate_colors]") {
+TEST_CASE("fill_uncovered leaves the input alone when returning a copy", "[texture][dilate_colors]") {
     Input input = make_input(glm::uvec2(3));
     cover<uint8_t>(input, glm::uvec2(1), 100);
     const cv::Mat image_before = input.image.clone();

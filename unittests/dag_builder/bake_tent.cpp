@@ -88,7 +88,7 @@ void check_texels(const cv::Mat &image, const std::vector<cv::Vec3b> &expected) 
 
 } // namespace
 
-TEST_CASE("project along normal reads the source along the target's face normal", "[dag_builder][bake]") {
+TEST_CASE("project along normal reads the source along the target's face normal", "[bake]") {
     const Tent tent = make_tent(2.5);
 
     const cv::Mat rendered = bake::render_texture(
@@ -99,7 +99,7 @@ TEST_CASE("project along normal reads the source along the target's face normal"
     check_texels(rendered, {{60, 120, 127}, {60, 120, 102}, {60, 120, 37}, {60, 120, 12}});
 }
 
-TEST_CASE("ray cast reads the source along the target's smooth normal", "[dag_builder][bake]") {
+TEST_CASE("ray cast reads the source along the target's smooth normal", "[bake]") {
     const Tent tent = make_tent(2.5);
 
     const cv::Mat rendered = bake::render_texture(
@@ -110,7 +110,7 @@ TEST_CASE("ray cast reads the source along the target's smooth normal", "[dag_bu
     check_texels(rendered, {{60, 120, 130}, {60, 120, 107}, {60, 120, 58}, {60, 120, 13}});
 }
 
-TEST_CASE("closest point reads the nearest point on the source", "[dag_builder][bake]") {
+TEST_CASE("closest point reads the nearest point on the source", "[bake]") {
     const Tent tent = make_tent(2.5);
 
     const cv::Mat rendered = bake::render_texture(
@@ -122,7 +122,7 @@ TEST_CASE("closest point reads the nearest point on the source", "[dag_builder][
     check_texels(rendered, {{60, 120, 123}, {60, 120, 101}, {60, 120, 33}, {60, 120, 11}});
 }
 
-TEST_CASE("closest point ignores a source beyond max_distance", "[dag_builder][bake]") {
+TEST_CASE("closest point ignores a source beyond max_distance", "[bake]") {
     const Tent tent = make_tent(2.5);
 
     const cv::Mat rendered = bake::render_texture(
@@ -133,7 +133,7 @@ TEST_CASE("closest point ignores a source beyond max_distance", "[dag_builder][b
     check_texels(rendered, {uncovered, {60, 120, 101}, {60, 120, 96}, {60, 120, 11}});
 }
 
-TEST_CASE("closest point refuses a source facing away when require_facing is set", "[dag_builder][bake]") {
+TEST_CASE("closest point refuses a source facing away when require_facing is set", "[bake]") {
     const Tent tent = make_tent(2.5);
 
     const cv::Mat rendered = bake::render_texture(
@@ -144,7 +144,7 @@ TEST_CASE("closest point refuses a source facing away when require_facing is set
     check_texels(rendered, {uncovered, {60, 120, 101}, uncovered, {60, 120, 11}});
 }
 
-TEST_CASE("ray cast ignores a source beyond max_distance", "[dag_builder][bake]") {
+TEST_CASE("ray cast ignores a source beyond max_distance", "[bake]") {
     const Tent tent = make_tent(2.5);
 
     const cv::Mat rendered = bake::render_texture(
@@ -154,7 +154,7 @@ TEST_CASE("ray cast ignores a source beyond max_distance", "[dag_builder][bake]"
     check_texels(rendered, {uncovered, uncovered, uncovered, uncovered});
 }
 
-TEST_CASE("a bake reads nothing where the source has no triangles", "[dag_builder][bake]") {
+TEST_CASE("a bake reads nothing where the source has no triangles", "[bake]") {
     Tent tent = make_tent(2.5);
     tent.bulged.clusters.clear();
 

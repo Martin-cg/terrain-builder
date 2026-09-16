@@ -39,7 +39,7 @@ std::vector<bake::UvTriangle> make_full_patch() {
 
 } // namespace
 
-TEST_CASE("interpolate_uncovered fills a hole from the colours around it", "[dag_builder][interpolate_uncovered]") {
+TEST_CASE("interpolate_uncovered fills a hole from the colours around it", "[bake][interpolate_uncovered]") {
     Input input = make_input(glm::uvec2(5));
     for (const uint32_t y : range<uint32_t>(5)) {
         for (const uint32_t x : range<uint32_t>(5)) {
@@ -57,7 +57,7 @@ TEST_CASE("interpolate_uncovered fills a hole from the colours around it", "[dag
     CHECK(input.coverage.count() == 25);
 }
 
-TEST_CASE("interpolate_uncovered carries a gradient across the hole", "[dag_builder][interpolate_uncovered]") {
+TEST_CASE("interpolate_uncovered carries a gradient across the hole", "[bake][interpolate_uncovered]") {
     Input input = make_input(glm::uvec2(5, 1));
     cover<uint8_t>(input, glm::uvec2(0, 0), 0);
     cover<uint8_t>(input, glm::uvec2(1, 0), 0);
@@ -73,7 +73,7 @@ TEST_CASE("interpolate_uncovered carries a gradient across the hole", "[dag_buil
     CHECK(input.image.at<uint8_t>(0, 2) < 200);
 }
 
-TEST_CASE("interpolate_uncovered leaves texels outside the patch alone", "[dag_builder][interpolate_uncovered]") {
+TEST_CASE("interpolate_uncovered leaves texels outside the patch alone", "[bake][interpolate_uncovered]") {
     Input input = make_input(glm::uvec2(4));
     cover<uint8_t>(input, glm::uvec2(0, 0), 100);
 
@@ -89,7 +89,7 @@ TEST_CASE("interpolate_uncovered leaves texels outside the patch alone", "[dag_b
     CHECK(input.coverage.count() == 4);
 }
 
-TEST_CASE("interpolate_uncovered does nothing without a patch", "[dag_builder][interpolate_uncovered]") {
+TEST_CASE("interpolate_uncovered does nothing without a patch", "[bake][interpolate_uncovered]") {
     Input input = make_input(glm::uvec2(3));
     cover<uint8_t>(input, glm::uvec2(0, 0), 100);
     const cv::Mat image_before = input.image.clone();

@@ -19,7 +19,7 @@ cv::Mat make_texture(const cv::Vec3b top_left, const cv::Vec3b top_right) {
 
 } // namespace
 
-TEST_CASE("reproject copies pixels under an identity mapping", "[dag_builder][texture_reprojection]") {
+TEST_CASE("reproject copies pixels under an identity mapping", "[atlas][texture_reprojection]") {
     const cv::Mat source = make_texture(cv::Vec3b(10, 20, 30), cv::Vec3b(40, 50, 60));
 
     std::array<MappedTriangle, 2> triangles;
@@ -38,7 +38,7 @@ TEST_CASE("reproject copies pixels under an identity mapping", "[dag_builder][te
     CHECK(output.at<cv::Vec3b>(0, 1) == cv::Vec3b(40, 50, 60));
 }
 
-TEST_CASE("reproject linearly blends between neighboring source pixels", "[dag_builder][texture_reprojection]") {
+TEST_CASE("reproject linearly blends between neighboring source pixels", "[atlas][texture_reprojection]") {
     const cv::Mat source = make_texture(cv::Vec3b(0, 0, 0), cv::Vec3b(200, 200, 200));
 
     std::array<MappedTriangle, 1> triangles;
@@ -54,7 +54,7 @@ TEST_CASE("reproject linearly blends between neighboring source pixels", "[dag_b
     CHECK(output.at<cv::Vec3b>(0, 0) == cv::Vec3b(100, 100, 100));
 }
 
-TEST_CASE("reproject leaves the background where triangles are degenerate", "[dag_builder][texture_reprojection]") {
+TEST_CASE("reproject leaves the background where triangles are degenerate", "[atlas][texture_reprojection]") {
     const cv::Mat source = make_texture(cv::Vec3b(10, 20, 30), cv::Vec3b(40, 50, 60));
 
     std::array<MappedTriangle, 1> triangles;
@@ -69,7 +69,7 @@ TEST_CASE("reproject leaves the background where triangles are degenerate", "[da
     CHECK(output.at<cv::Vec3b>(0, 0) == cv::Vec3b(0, 0, 0));
 }
 
-TEST_CASE("reproject supersamples and averages partial pixel coverage", "[dag_builder][texture_reprojection]") {
+TEST_CASE("reproject supersamples and averages partial pixel coverage", "[atlas][texture_reprojection]") {
     // Triangle covering only the lower-left sample at UV (0.25, 0.25)
     cv::Mat source(1, 1, CV_8UC3, cv::Vec3b(100, 100, 100));
 
@@ -87,7 +87,7 @@ TEST_CASE("reproject supersamples and averages partial pixel coverage", "[dag_bu
     CHECK(output.at<cv::Vec3b>(0, 0) == cv::Vec3b(100, 100, 100));
 }
 
-TEST_CASE("reproject handles non-uniform coverage with gradient source", "[dag_builder][texture_reprojection]") {
+TEST_CASE("reproject handles non-uniform coverage with gradient source", "[atlas][texture_reprojection]") {
     // 2x1 gradient source for testing coverage-aware averaging
     cv::Mat source(1, 2, CV_8UC3);
     source.at<cv::Vec3b>(0, 0) = cv::Vec3b(50, 50, 50);
@@ -108,7 +108,7 @@ TEST_CASE("reproject handles non-uniform coverage with gradient source", "[dag_b
     CHECK(pixel[0] < 150);
 }
 
-TEST_CASE("reproject background stays zero when no samples covered", "[dag_builder][texture_reprojection]") {
+TEST_CASE("reproject background stays zero when no samples covered", "[atlas][texture_reprojection]") {
     cv::Mat source(1, 1, CV_8UC3, cv::Vec3b(255, 255, 255));
 
     std::array<MappedTriangle, 1> triangles;
@@ -124,7 +124,7 @@ TEST_CASE("reproject background stays zero when no samples covered", "[dag_build
     CHECK(output.at<cv::Vec3b>(0, 0) == cv::Vec3b(0, 0, 0));
 }
 
-TEST_CASE("reproject quad seam has no holes with supersampling", "[dag_builder][texture_reprojection]") {
+TEST_CASE("reproject quad seam has no holes with supersampling", "[atlas][texture_reprojection]") {
     // Full coverage with two triangles forming a quad and supersampling
     cv::Mat source(1, 1, CV_8UC3, cv::Vec3b(128, 128, 128));
 
@@ -148,7 +148,7 @@ TEST_CASE("reproject quad seam has no holes with supersampling", "[dag_builder][
     }
 }
 
-TEST_CASE("reproject renders identically regardless of winding order", "[dag_builder][texture_reprojection]") {
+TEST_CASE("reproject renders identically regardless of winding order", "[atlas][texture_reprojection]") {
     cv::Mat source(1, 1, CV_8UC3, cv::Vec3b(64, 64, 64));
 
     // CCW triangle
@@ -177,7 +177,7 @@ TEST_CASE("reproject renders identically regardless of winding order", "[dag_bui
     }
 }
 
-TEST_CASE("reproject handles multiple source images with different colors", "[dag_builder][texture_reprojection]") {
+TEST_CASE("reproject handles multiple source images with different colors", "[atlas][texture_reprojection]") {
     // Two 1x1 sources with different colors
     cv::Mat source0(1, 1, CV_8UC3, cv::Vec3b(255, 0, 0));    // red
     cv::Mat source1(1, 1, CV_8UC3, cv::Vec3b(0, 255, 0));    // green
@@ -202,7 +202,7 @@ TEST_CASE("reproject handles multiple source images with different colors", "[da
     CHECK(output.at<cv::Vec3b>(0, 1) == cv::Vec3b(0, 255, 0));    // green
 }
 
-TEST_CASE("reproject clamps UVs and applies edge replication", "[dag_builder][texture_reprojection]") {
+TEST_CASE("reproject clamps UVs and applies edge replication", "[atlas][texture_reprojection]") {
     cv::Mat source(2, 2, CV_8UC3);
     source.at<cv::Vec3b>(0, 0) = cv::Vec3b(255, 0, 0);      // red
     source.at<cv::Vec3b>(0, 1) = cv::Vec3b(0, 255, 0);      // green
@@ -223,7 +223,7 @@ TEST_CASE("reproject clamps UVs and applies edge replication", "[dag_builder][te
     CHECK(output.at<cv::Vec3b>(0, 0) == cv::Vec3b(255, 255, 0));
 }
 
-TEST_CASE("reproject pins rounding behavior for linear interpolation blends", "[dag_builder][texture_reprojection]") {
+TEST_CASE("reproject pins rounding behavior for linear interpolation blends", "[atlas][texture_reprojection]") {
     // Create a 2x1 source with black and white to test 127.5 blend
     cv::Mat source(1, 2, CV_8UC3);
     source.at<cv::Vec3b>(0, 0) = cv::Vec3b(0, 0, 0);        // black
@@ -263,7 +263,7 @@ std::array<MappedTriangle, 2> make_centre_quad() {
 
 } // namespace
 
-TEST_CASE("reproject reports the texels its triangles wrote to", "[dag_builder][texture_reprojection]") {
+TEST_CASE("reproject reports the texels its triangles wrote to", "[atlas][texture_reprojection]") {
     const cv::Mat source(1, 1, CV_8UC3, cv::Vec3b(10, 20, 30));
     const std::array<MappedTriangle, 2> triangles = make_centre_quad();
 
@@ -277,7 +277,7 @@ TEST_CASE("reproject reports the texels its triangles wrote to", "[dag_builder][
     CHECK_FALSE(rendered.coverage.get(0, 0));
 }
 
-TEST_CASE("reproject_into leaves the texels its triangles missed untouched", "[dag_builder][texture_reprojection]") {
+TEST_CASE("reproject_into leaves the texels its triangles missed untouched", "[atlas][texture_reprojection]") {
     const cv::Mat source(1, 1, CV_8UC3, cv::Vec3b(10, 20, 30));
     const std::array<MappedTriangle, 2> triangles = make_centre_quad();
 
@@ -294,7 +294,7 @@ TEST_CASE("reproject_into leaves the texels its triangles missed untouched", "[d
     CHECK_FALSE(coverage.get(0, 0));
 }
 
-TEST_CASE("the gutter dilation extends what the reprojector covered", "[dag_builder][texture_reprojection]") {
+TEST_CASE("the gutter dilation extends what the reprojector covered", "[atlas][texture_reprojection]") {
     const cv::Mat source(1, 1, CV_8UC3, cv::Vec3b(10, 20, 30));
     const std::array<MappedTriangle, 2> triangles = make_centre_quad();
 

@@ -101,7 +101,7 @@ cv::Mat make_gradient_texture(const uint32_t size, const uint8_t constant) {
 
 TEMPLATE_TEST_CASE(
     "a bake reads a flat source back through the target's own uvs",
-    "[dag_builder][bake]",
+    "[bake]",
     bake::ProjectAlongNormal,
     bake::RayCast,
     bake::ClosestPoint) {
