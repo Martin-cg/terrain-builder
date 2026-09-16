@@ -10,11 +10,13 @@
 
 namespace mesh::io {
 
-tl::expected<SimpleMesh, LoadMeshError> load_from_path(
+[[nodiscard]]
+Result<SimpleMesh> load_from_path(
     const std::filesystem::path &path,
     const LoadOptions& options = {});
 
-tl::expected<void, SaveMeshError> save_to_path(
+[[nodiscard]]
+Result<void> save_to_path(
     const SimpleMesh &mesh,
     const std::filesystem::path &path,
     const SaveOptions& options = {});

@@ -9,6 +9,7 @@
 #include "log.h"
 #include "mesh/EncodedMesh.h"
 #include "mesh/SimpleMesh.h"
+#include "mesh/encode_error.h"
 #include "mesh/io/texture.h"
 
 namespace mesh {
@@ -51,34 +52,6 @@ struct EncodeOptions {
     // Texture format
     std::string texture_format = ".jpeg";
 };
-
-enum class EncodeError {
-    PositionEncode,
-    UvEncode,
-    TriangleEncode,
-    TextureEncode
-};
-
-inline std::ostream& operator<<(std::ostream& os, const EncodeError& err) {
-    switch (err) {
-    case EncodeError::PositionEncode:
-        os << "Position encoding failed";
-        break;
-    case EncodeError::UvEncode:
-        os << "UV encoding failed";
-        break;
-    case EncodeError::TriangleEncode:
-        os << "Triangle encoding failed";
-        break;
-    case EncodeError::TextureEncode:
-        os << "Texture encoding failed";
-        break;
-    default:
-        os << "Unknown EncodeError";
-        break;
-    }
-    return os;
-}
 
 template <glm::length_t n_dims, typename T>
 tl::expected<Encoded, EncodeError> encode(const Simple_<n_dims, T>& mesh, const EncodeOptions options = {}) {
@@ -154,38 +127,6 @@ tl::expected<Encoded, EncodeError> encode(const Simple_<n_dims, T>& mesh, const 
 
 struct DecodeOptions {
 };
-
-enum class DecodeError {
-    IncompatibleData,
-    PositionDecode,
-    UvDecode,
-    TriangleDecode,
-    TextureDecode
-};
-
-inline std::ostream &operator<<(std::ostream &os, const DecodeError &err) {
-    switch (err) {
-    case DecodeError::IncompatibleData:
-        os << "Incompatible data";
-        break;
-    case DecodeError::PositionDecode:
-        os << "Position decoding failed";
-        break;
-    case DecodeError::UvDecode:
-        os << "UV decoding failed";
-        break;
-    case DecodeError::TriangleDecode:
-        os << "Triangle decoding failed";
-        break;
-    case DecodeError::TextureDecode:
-        os << "Texture decoding failed";
-        break;
-    default:
-        os << "Unknown DecodeError";
-        break;
-    }
-    return os;
-}
 
 
 template <glm::length_t n_dims = 3, typename T = double>

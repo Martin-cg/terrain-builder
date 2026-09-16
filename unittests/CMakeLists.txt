@@ -22,6 +22,7 @@ add_executable(unittests_terrainlib
     terrainlib/dataset.cpp
     terrainlib/enumerate.cpp
     terrainlib/error.cpp
+    terrainlib/file_error.cpp
     terrainlib/fixed_vector.cpp
     terrainlib/geometry_frames.cpp
     terrainlib/grid.cpp
@@ -30,9 +31,11 @@ add_executable(unittests_terrainlib
     terrainlib/hybrid_vector.cpp
     terrainlib/offset_table.cpp
     terrainlib/segmented_buffer.cpp
+    terrainlib/serde_error.cpp
     terrainlib/stamp_set.cpp
     terrainlib/index_map.cpp
     terrainlib/index_traverse.cpp
+    terrainlib/io.cpp
     terrainlib/mesh_boundary.cpp
     terrainlib/mesh_bounds.cpp
     terrainlib/mesh_cleanup.cpp

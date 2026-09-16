@@ -1,0 +1,52 @@
+#pragma once
+
+#include <filesystem>
+#include <system_error>
+#include <utility>
+
+#include <fmt/format.h>
+#include <libassert/assert.hpp>
+
+namespace io {
+
+// A file or filesystem operation that failed.
+class FileError {
+public:
+    explicit FileError(const std::error_code code, std::filesystem::path path) : _code(code), _path(std::move(path)) {
+        ASSERT(code);
+    }
+
+    bool operator==(const FileError &) const = default;
+
+    // Whether the code corresponds to `condition`.
+    bool operator==(const std::errc condition) const {
+        return this->_code == condition;
+    }
+
+    // The code the operation reported.
+    const std::error_code &code() const {
+        return this->_code;
+    }
+
+    // The path the operation was on.
+    const std::filesystem::path &path() const {
+        return this->_path;
+    }
+
+private:
+    std::error_code _code;
+    std::filesystem::path _path;
+};
+
+} // namespace io
+
+template <>
+struct fmt::formatter<io::FileError> {
+    constexpr fmt::format_parse_context::iterator parse(fmt::format_parse_context &context) {
+        return context.begin();
+    }
+
+    fmt::format_context::iterator format(const io::FileError &error, fmt::format_context &context) const {
+        return fmt::format_to(context.out(), "{}: {}", error.path().string(), error.code().message());
+    }
+};

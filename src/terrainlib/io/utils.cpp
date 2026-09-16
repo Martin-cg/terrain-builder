@@ -1,11 +1,23 @@
 #include "io/utils.h"
 
+#include <system_error>
+
+#include "error/utils.h"
+
 namespace io::utils {
 
-std::filesystem::path create_parent_directories(const std::filesystem::path &path) {
-    const std::filesystem::path parent_path = std::filesystem::absolute(path).parent_path();
-    std::filesystem::create_directories(parent_path);
-    return parent_path;
+alp::Result<void, FileError> create_parent_directories(const std::filesystem::path &path) {
+    const std::filesystem::path parent_path = path.parent_path();
+    if (parent_path.empty()) {
+        return {};
+    }
+
+    std::error_code code;
+    std::filesystem::create_directories(parent_path, code);
+    if (code) {
+        return alp::make_unexpected(FileError(code, parent_path));
+    }
+    return {};
 }
 
 } // namespace io::utils

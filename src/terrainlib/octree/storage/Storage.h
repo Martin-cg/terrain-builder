@@ -150,7 +150,7 @@ public:
         }
 
         if (!this->_index.contains(id, true)) {
-            return tl::unexpected(Codec::file_not_found());
+            return tl::unexpected(Codec::file_not_found(this->_inner.layout().get_node_path(id)));
         }
 
         const auto result = this->_inner.load(id);

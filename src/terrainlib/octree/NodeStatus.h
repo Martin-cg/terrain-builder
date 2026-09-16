@@ -1,5 +1,6 @@
 #pragma once
 
+#include <libassert/assert.hpp>
 #include <zpp_bits.h>
 
 #include "log.h"

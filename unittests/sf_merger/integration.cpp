@@ -6,6 +6,9 @@
 #include <string>
 #include <system_error>
 
+#include <fmt/format.h>
+
+#include "error/format.h"
 #include "mesh/io.h"
 
 namespace {
@@ -110,7 +113,7 @@ TEST_CASE("SF builders reproduce working and malformed mask-border merges", "[in
     const auto malformed_mesh = mesh::io::load_from_path(malformed_path);
     const std::string malformed_error = malformed_mesh.has_value()
                                             ? std::string()
-                                            : malformed_mesh.error().description();
+                                            : fmt::to_string(malformed_mesh.error());
     INFO("Malformed mask-border merge: " << malformed_error);
     REQUIRE(malformed_mesh.has_value());
     CHECK_FALSE(malformed_mesh->is_empty());

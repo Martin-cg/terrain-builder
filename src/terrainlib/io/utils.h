@@ -2,8 +2,13 @@
 
 #include <filesystem>
 
+#include "error/Result.h"
+#include "io/FileError.h"
+
 namespace io::utils {
 
-std::filesystem::path create_parent_directories(const std::filesystem::path &path);
+// Creates the missing parent directories of `path`.
+[[nodiscard]]
+alp::Result<void, FileError> create_parent_directories(const std::filesystem::path &path);
 
 } // namespace io::utils

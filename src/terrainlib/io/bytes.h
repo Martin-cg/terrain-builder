@@ -1,16 +1,21 @@
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
 #include <span>
 #include <vector>
-
-#include <tl/expected.hpp>
 
 #include "io/Error.h"
 
 namespace io {
 
-tl::expected<void, Error> write_bytes_to_path(const std::span<const uint8_t> bytes, const std::filesystem::path &path, bool make_dirs = true);
-tl::expected<std::vector<uint8_t>, Error> read_bytes_from_path(const std::filesystem::path &path);
+// Writes `bytes` to the file at `path`.
+// Creates the parent directories first if `make_dirs` is set.
+[[nodiscard]]
+alp::Result<void, FileError> write_bytes_to_path(std::span<const uint8_t> bytes, const std::filesystem::path &path, bool make_dirs = true);
 
-}
+// Reads the whole file at `path`.
+[[nodiscard]]
+alp::Result<std::vector<uint8_t>, FileError> read_bytes_from_path(const std::filesystem::path &path);
+
+} // namespace io

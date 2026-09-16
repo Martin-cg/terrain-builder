@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <optional>
+#include <system_error>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -52,7 +53,8 @@ std::optional<Clustering> load_and_clusterize_mesh(
     const auto result = storage.load(id);
 
     if (!result) {
-        if (result.error() != mesh::io::LoadMeshErrorKind::FileNotFound) {
+        const ::io::FileError *file_error = result.error().get_if<::io::FileError>();
+        if (file_error == nullptr || *file_error != std::errc::no_such_file_or_directory) {
             LOG_ERROR("Failed to read node {}: {}", id, result.error());
         }
         return std::nullopt;

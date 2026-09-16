@@ -72,6 +72,8 @@ using EntryWriter = ChunkedRingWriter<frontier::Entry>;
 
 // The round ended under this worker before it finished.
 struct Cancelled {
+    bool operator==(const Cancelled &) const = default;
+
     friend std::string_view format_as(const Cancelled) {
         return "cancelled";
     }

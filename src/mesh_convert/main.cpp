@@ -11,9 +11,9 @@
 
 void run(const cli::Args& args) {
     LOG_INFO("Loading input mesh...");
-    const tl::expected<SimpleMesh, mesh::io::LoadMeshError> load_result = mesh::io::load_from_path(args.input_path);
+    const mesh::io::Result<SimpleMesh> load_result = mesh::io::load_from_path(args.input_path);
     if (!load_result.has_value()) {
-        LOG_ERROR("Failed to load mesh: {}", load_result.error().description());
+        LOG_ERROR("Failed to load mesh: {}", load_result.error());
         return;
     }
     SimpleMesh mesh = load_result.value();
@@ -30,9 +30,9 @@ void run(const cli::Args& args) {
     }
 
     LOG_INFO("Writing output mesh...");
-    const tl::expected<void, mesh::io::SaveMeshError> save_result = mesh::io::save_to_path(mesh, args.output_path);
+    const mesh::io::Result<void> save_result = mesh::io::save_to_path(mesh, args.output_path);
     if (!save_result.has_value()) {
-        LOG_ERROR("Failed to save mesh: {}", save_result.error().description());
+        LOG_ERROR("Failed to save mesh: {}", save_result.error());
         return;
     }
 }
