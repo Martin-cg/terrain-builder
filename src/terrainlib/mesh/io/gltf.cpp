@@ -197,15 +197,6 @@ std::optional<cv::Mat> load_texture_from_material(const cgltf_material &material
     return texture;
 }
 
-#define GET_OR_INVALID_FORMAT(var, opt)                              \
-    do {                                                             \
-        if (!(opt).has_value()) {                                    \
-            return alp::make_unexpected(UnsupportedGltf{});           \
-        } else {                                                     \
-            var = opt.value();                                       \
-        }                                                            \
-    } while (false)
-
 template <typename T>
 static std::optional<std::reference_wrapper<const T>> get_single_element(cgltf_size count, T const *items) {
     if (count != 1) {
