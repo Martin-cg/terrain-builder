@@ -6,6 +6,7 @@
 #include <glm/glm.hpp>
 #include <libassert/assert.hpp>
 
+#include "numeric/glm_math.h"
 #include "octree/Id.h"
 
 namespace octree {
@@ -151,6 +152,18 @@ public:
         const Id::Coords coords = id.coords();
         return glm::all(glm::greaterThanEqual(coords, this->_begin.coords())) &&
                glm::all(glm::lessThanEqual(coords, this->_end.coords()));
+    }
+
+    // The rect grown by `count` nodes on every side.
+    IdRect grow(const Id::Coord count) const {
+        if (this->_empty) {
+            return {};
+        }
+
+        const Id::Level level = this->_begin.level();
+        const Id::Coords begin = saturating_sub(this->_begin.coords(), Id::Coords(count));
+        const Id::Coords end = glm::min(saturating_add(this->_end.coords(), Id::Coords(count)), Id::max_coords_on_level(level));
+        return IdRect(Id(level, begin), Id(level, end));
     }
 
 private:
