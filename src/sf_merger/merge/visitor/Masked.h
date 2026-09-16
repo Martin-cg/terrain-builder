@@ -70,7 +70,7 @@ public:
 
         LOG_TRACE("Clipping mask for {}", id);
         const auto bounds = geometry::pad_bounds_relative(this->_space.get_node_bounds(id), 0.05);
-        MeshMask mask(mesh::clip_on_bounds_and_cap(ctx.mask.mesh, bounds));
+        MeshMask mask(mesh::clip_on_bounds_and_cap(ctx.mask.mesh, bounds).into_owned());
 
         // Same when the current mask is empty
         if constexpr (LeftStatus != Status::Missing) {
@@ -95,10 +95,10 @@ public:
             auto result = clip_on_mask(left.mesh(), mask, false);
             if (result->is_empty()) {
                 return Ignore{};
-            } else if (result.is_ref()) {
+            } else if (result.is_borrowed()) {
                 return Unchanged{Source::Left};
             } else {
-                return Merged{result};
+                return Merged{std::move(result).into_owned()};
             }
         }
 
@@ -113,10 +113,10 @@ public:
             auto result = clip_on_mask(right.mesh(), mask, true);
             if (result->is_empty()) {
                 return Ignore{};
-            } else if (result.is_ref()) {
+            } else if (result.is_borrowed()) {
                 return Unchanged{Source::Right};
             } else {
-                return Merged{result};
+                return Merged{std::move(result).into_owned()};
             }
         }
 
@@ -127,7 +127,7 @@ public:
                 if (result->is_empty()) {
                     return Ignore{};
                 } else {
-                    return Merged{result};
+                    return Merged{std::move(result).into_owned()};
                 }
             }
             if (ctx.has_right_parent) {
@@ -135,7 +135,7 @@ public:
                 if (result->is_empty()) {
                     return Ignore{};
                 } else {
-                    return Merged{result};
+                    return Merged{std::move(result).into_owned()};
                 }
             }
         }
@@ -159,21 +159,21 @@ private:
         const bool can_ref_new_mesh,
         const MeshMask &mask) {
         LOG_TRACE("Clipping meshes on mask");
-        const Cow<const SimpleMesh> new_mesh_clipped = clip_on_mask(new_mesh, mask, true);
-        const Cow<const SimpleMesh> base_mesh_clipped = clip_on_mask(base_mesh, mask, false);
+        Cow<SimpleMesh> new_mesh_clipped = clip_on_mask(new_mesh, mask, true);
+        Cow<SimpleMesh> base_mesh_clipped = clip_on_mask(base_mesh, mask, false);
 
-        if (base_mesh_clipped.is_ref() && new_mesh_clipped->is_empty()) {
+        if (base_mesh_clipped.is_borrowed() && new_mesh_clipped->is_empty()) {
             if (can_ref_base_mesh) {
                 return Unchanged{Source::Left};
             } else {
-                return Merged{base_mesh_clipped};
+                return Merged{std::move(base_mesh_clipped).into_owned()};
             }
         }
-        if (new_mesh_clipped.is_ref() && base_mesh_clipped->is_empty()) {
+        if (new_mesh_clipped.is_borrowed() && base_mesh_clipped->is_empty()) {
             if (can_ref_new_mesh) {
                 return Unchanged{Source::Right};
             } else {
-                return Merged{new_mesh_clipped};
+                return Merged{std::move(new_mesh_clipped).into_owned()};
             }
         }
 

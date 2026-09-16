@@ -205,7 +205,7 @@ tl::expected<SimpleMesh, BuildMeshError> build_reference_mesh_patch(
 
     LOG_TRACE("Clipping mesh based on target bounds");
     const SimpleMesh mesh_in_clip_srs = transform_mesh(std::move(mesh_in_source_srs), source_srs, clip_srs);
-    SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh_in_clip_srs, clip_bounds);
+    SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh_in_clip_srs, clip_bounds).into_owned();
     // Check if there are any vertices left
     if (clipped_mesh.vertex_count() == 0 || clipped_mesh.face_count() == 0) {
         return tl::unexpected(BuildMeshError::EmptyRegion);

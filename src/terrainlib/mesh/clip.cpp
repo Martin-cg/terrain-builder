@@ -291,11 +291,11 @@ private:
 
 } // namespace
 
-Cow<const SimpleMesh> clip_on_bounds(const SimpleMesh &mesh, const radix::geometry::Aabb3d &bounds) {
+Cow<SimpleMesh> clip_on_bounds(const SimpleMesh &mesh, const radix::geometry::Aabb3d &bounds) {
     validate(mesh);
 
     if (mesh.vertex_count() == 0 || mesh.face_count() == 0) {
-        return Cow(SimpleMesh());
+        return Cow<SimpleMesh>::owned(SimpleMesh());
     }
 
     if (mesh.has_uvs() && mesh.uvs.size() != mesh.vertex_count()) {
@@ -613,7 +613,7 @@ Cow<const SimpleMesh> clip_on_bounds(const SimpleMesh &mesh, const radix::geomet
 
     SimpleMesh clipped_mesh(new_triangles, new_positions, new_uvs, mesh.texture);
     validate(clipped_mesh);
-    return Cow(std::move(clipped_mesh));
+    return Cow<SimpleMesh>::owned(std::move(clipped_mesh));
 }
 
 namespace {
@@ -634,7 +634,7 @@ struct HasIntersectionsVisitor : public CGAL::Polygon_mesh_processing::Corefinem
 };
 } // namespace
 
-Cow<const SimpleMesh> clip_on_bounds_and_cap(const SimpleMesh &mesh, const radix::geometry::Aabb3d &bounds, const bool remesh_planar_patches) {
+Cow<SimpleMesh> clip_on_bounds_and_cap(const SimpleMesh &mesh, const radix::geometry::Aabb3d &bounds, const bool remesh_planar_patches) {
     ASSERT(!mesh.has_uvs());
     cgal::Mesh cgal_mesh = convert::to_cgal_mesh(mesh);
 
@@ -649,23 +649,23 @@ Cow<const SimpleMesh> clip_on_bounds_and_cap(const SimpleMesh &mesh, const radix
         throw std::runtime_error("CGAL::Polygon_mesh_processing::clip failed");
     }
     if (cgal_mesh.number_of_faces() == 0) {
-        return Cow(SimpleMesh());
+        return Cow<SimpleMesh>::owned(SimpleMesh());
     }
     if (!visitor.has_intersections && cgal_mesh.number_of_faces() == mesh.face_count()) {
-        return Cow(mesh);
+        return Cow<SimpleMesh>::borrowed(mesh);
     }
 
     cgal_mesh.collect_garbage();
 
     if (!remesh_planar_patches) {
-        return Cow(convert::to_simple_mesh(cgal_mesh));
+        return Cow<SimpleMesh>::owned(convert::to_simple_mesh(cgal_mesh));
     }
     
     cgal::Mesh remeshed_cgal_mesh;
     const auto remesh_params = CGAL::Polygon_mesh_processing::parameters::cosine_of_maximum_angle(0.999);
     CGAL::Polygon_mesh_processing::remesh_planar_patches(cgal_mesh, remeshed_cgal_mesh, remesh_params);
     remeshed_cgal_mesh.collect_garbage();
-    return Cow(convert::to_simple_mesh(remeshed_cgal_mesh));
+    return Cow<SimpleMesh>::owned(convert::to_simple_mesh(remeshed_cgal_mesh));
 }
 
 namespace {
@@ -765,15 +765,15 @@ struct UvInterpolatorVisitor : public CGAL::Polygon_mesh_processing::Corefinemen
 };
 } // namespace
 
-Cow<const SimpleMesh> clip_on_mesh(const SimpleMesh &mesh, const SimpleMesh &clip_mesh, const bool keep_inside) {
+Cow<SimpleMesh> clip_on_mesh(const SimpleMesh &mesh, const SimpleMesh &clip_mesh, const bool keep_inside) {
     // short circuit the empty mesh case
     // this is a common case since we clip the mask in the terrainmerger on the octree node bounds
     // which often results in empty masks
     if (clip_mesh.face_count() == 0) {
         if (keep_inside) {
-            return Cow<const SimpleMesh>::from_owned(SimpleMesh());
+            return Cow<SimpleMesh>::owned(SimpleMesh());
         } else {
-            return Cow<const SimpleMesh>::from_ref(mesh);
+            return Cow<SimpleMesh>::borrowed(mesh);
         }
     }
     
@@ -808,10 +808,10 @@ Cow<const SimpleMesh> clip_on_mesh(const SimpleMesh &mesh, const SimpleMesh &cli
         throw std::runtime_error("CGAL::Polygon_mesh_processing::clip failed");
     }
     if (cgal_mesh.number_of_faces() == 0) {
-        return Cow(SimpleMesh());
+        return Cow<SimpleMesh>::owned(SimpleMesh());
     }
     if (!has_intersections && cgal_mesh.number_of_faces() == mesh.face_count()) {
-        return Cow(mesh);
+        return Cow<SimpleMesh>::borrowed(mesh);
     }
     
     cgal_mesh.collect_garbage();
@@ -819,7 +819,7 @@ Cow<const SimpleMesh> clip_on_mesh(const SimpleMesh &mesh, const SimpleMesh &cli
     if (mesh.has_texture()) {
         result.texture = mesh.texture.value();
     }
-    return Cow(std::move(result));
+    return Cow<SimpleMesh>::owned(std::move(result));
 }
 
 }
