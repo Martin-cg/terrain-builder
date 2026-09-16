@@ -11,10 +11,11 @@
 
 #include <glm/glm.hpp>
 
-#include "atlas/BakeSource.h"
 #include "atlas/bake_cluster_texture.h"
+#include "bake/bake.h"
 #include "cluster.h"
 #include "cluster_adjacency.h"
+#include "cluster_views.h"
 #include "containers/StampSet.h"
 #include "compact.h"
 #include "enumerate.h"
@@ -49,7 +50,8 @@ enum class ChartingMode {
 
 struct TextureOptions {
     uv::AtlasOptions atlas = {};
-    BakeTextureOptions bake = {};
+    bake::Options bake = {};
+    bake::Mode bake_mode = bake::ProjectAlongNormal{};
     TextureSizingOptions sizing = {};
     ChartingMode charting = ChartingMode::PerCluster;
     bool allow_texture_reuse = true;
@@ -314,7 +316,8 @@ inline void bake_node_textures(
     const Clustering &source,
     const PartitionToClusters &partition_to_clusters,
     const std::span<const BakePlan> plans,
-    const BakeTextureOptions &options) {
+    const bake::Options &options,
+    const bake::Mode &mode) {
     const ClusterAdjacency adjacency = compute_cluster_adjacency(source);
     StampSet visited(source.cluster_count());
 
@@ -326,8 +329,8 @@ inline void bake_node_textures(
         const std::vector<uint32_t> source_clusters =
             collect_source_clusters(plan.clusters, partition_to_clusters, adjacency, visited);
 
-        const BakeSource bake_source = collect_bake_source(source, source_clusters);
-        const cv::Mat baked = bake_clusters_texture(merged, plan.clusters, bake_source, plan.size, options);
+        const cv::Mat baked = bake::render_texture(
+            ClusteringView{merged, plan.clusters}, ClusteringView{source, source_clusters}, plan.size, options, mode);
         const uint32_t texture_id = merged.textures.add(baked);
 
         for (const uint32_t index : plan.clusters) {
@@ -363,7 +366,7 @@ inline Clustering texture_clusters(
 
     // Realize at new size
     rescale_inherited_textures(merged, textures);
-    bake_node_textures(merged, source, partition_to_clusters, textures, options.bake);
+    bake_node_textures(merged, source, partition_to_clusters, textures, options.bake, options.bake_mode);
 
     remove_unused_textures_inplace(merged);
     return merged;
