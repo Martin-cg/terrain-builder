@@ -18,7 +18,7 @@ inline void check_equal(const glm::dvec3& a, const glm::dvec3& b) {
     CHECK(a.z == Catch::Approx(b.z).margin(epsilon));
 }
 
-TEST_CASE("SphereProjector: roundtrip for standard origin") {
+TEST_CASE("SphereProjector: roundtrip for standard origin", "[SphereProjector]") {
     const double radius = 10.0;
     const glm::dvec3 tangent_point(radius, 0.0, 0.0);
     const SphereProjector projector(tangent_point);
@@ -43,7 +43,7 @@ TEST_CASE("SphereProjector: roundtrip for standard origin") {
     }
 }
 
-TEST_CASE("SphereProjector: roundtrip for non-standard origin") {
+TEST_CASE("SphereProjector: roundtrip for non-standard origin", "[SphereProjector]") {
     const glm::dvec3 tangent_point(10, 5, 6);
     const double radius = glm::length(tangent_point);
     const SphereProjector projector(tangent_point);

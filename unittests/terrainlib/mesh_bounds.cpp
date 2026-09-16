@@ -6,7 +6,7 @@
 #include "mesh/SimpleMesh.h"
 #include "mesh/bounds.h"
 
-TEST_CASE("calculate_bounds") {
+TEST_CASE("calculate_bounds", "[mesh][bounds]") {
     SimpleMesh mesh;
     mesh.positions = {
         glm::dvec3(0.0, 0.0, 0.0),

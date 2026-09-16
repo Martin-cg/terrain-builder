@@ -3,7 +3,7 @@
 
 #include <utility>
 
-TEST_CASE("TinyVector default construction is empty") {
+TEST_CASE("TinyVector default construction is empty", "[containers][TinyVector]") {
     TinyVector<int> vec;
 
     CHECK(vec.empty());
@@ -12,7 +12,7 @@ TEST_CASE("TinyVector default construction is empty") {
     CHECK(vec.begin() == vec.end());
 }
 
-TEST_CASE("TinyVector push one element stays inline") {
+TEST_CASE("TinyVector push one element stays inline", "[containers][TinyVector]") {
     TinyVector<int> vec;
     vec.push_back(42);
 
@@ -22,7 +22,7 @@ TEST_CASE("TinyVector push one element stays inline") {
     CHECK(vec.data() != nullptr);
 }
 
-TEST_CASE("TinyVector push two elements promotes to vector") {
+TEST_CASE("TinyVector push two elements promotes to vector", "[containers][TinyVector]") {
     TinyVector<int> vec;
     vec.push_back(10);
     vec.push_back(20);
@@ -32,7 +32,7 @@ TEST_CASE("TinyVector push two elements promotes to vector") {
     CHECK(vec[1] == 20);
 }
 
-TEST_CASE("TinyVector push three elements") {
+TEST_CASE("TinyVector push three elements", "[containers][TinyVector]") {
     TinyVector<int> vec;
     vec.push_back(1);
     vec.push_back(2);
@@ -44,7 +44,7 @@ TEST_CASE("TinyVector push three elements") {
     CHECK(vec[2] == 3);
 }
 
-TEST_CASE("TinyVector pop_back from size 2 to 1") {
+TEST_CASE("TinyVector pop_back from size 2 to 1", "[containers][TinyVector]") {
     TinyVector<int> vec;
     vec.push_back(5);
     vec.push_back(6);
@@ -55,7 +55,7 @@ TEST_CASE("TinyVector pop_back from size 2 to 1") {
     CHECK(vec[0] == 5);
 }
 
-TEST_CASE("TinyVector pop_back from size 1 to 0") {
+TEST_CASE("TinyVector pop_back from size 1 to 0", "[containers][TinyVector]") {
     TinyVector<int> vec;
     vec.push_back(99);
 
@@ -64,13 +64,13 @@ TEST_CASE("TinyVector pop_back from size 1 to 0") {
     CHECK(vec.empty());
 }
 
-TEST_CASE("TinyVector pop_back on empty throws") {
+TEST_CASE("TinyVector pop_back on empty throws", "[containers][TinyVector]") {
     TinyVector<int> vec;
 
     REQUIRE_THROWS_AS(vec.pop_back(), std::out_of_range);
 }
 
-TEST_CASE("TinyVector clear from various sizes") {
+TEST_CASE("TinyVector clear from various sizes", "[containers][TinyVector]") {
     SECTION("clear from size 0") {
         TinyVector<int> vec;
         vec.clear();
@@ -96,7 +96,7 @@ TEST_CASE("TinyVector clear from various sizes") {
     }
 }
 
-TEST_CASE("TinyVector resize") {
+TEST_CASE("TinyVector resize", "[containers][TinyVector]") {
     SECTION("resize to 0") {
         TinyVector<int> vec;
         vec.push_back(1);
@@ -123,7 +123,7 @@ TEST_CASE("TinyVector resize") {
     }
 }
 
-TEST_CASE("TinyVector at with valid and out-of-range index") {
+TEST_CASE("TinyVector at with valid and out-of-range index", "[containers][TinyVector]") {
     TinyVector<int> vec;
     vec.push_back(7);
     vec.push_back(8);
@@ -145,7 +145,7 @@ TEST_CASE("TinyVector at with valid and out-of-range index") {
     }
 }
 
-TEST_CASE("TinyVector range-based for loop") {
+TEST_CASE("TinyVector range-based for loop", "[containers][TinyVector]") {
     TinyVector<int> vec;
     vec.push_back(1);
     vec.push_back(2);
@@ -158,7 +158,7 @@ TEST_CASE("TinyVector range-based for loop") {
     CHECK(sum == 6);
 }
 
-TEST_CASE("TinyVector reserve then push") {
+TEST_CASE("TinyVector reserve then push", "[containers][TinyVector]") {
     TinyVector<int> vec;
     vec.reserve(5);
 
@@ -172,7 +172,7 @@ TEST_CASE("TinyVector reserve then push") {
     CHECK(vec[2] == 30);
 }
 
-TEST_CASE("TinyVector emplace_back with pair") {
+TEST_CASE("TinyVector emplace_back with pair", "[containers][TinyVector]") {
     TinyVector<std::pair<int, int>> vec;
 
     auto &first = vec.emplace_back(1, 2);
@@ -188,7 +188,7 @@ TEST_CASE("TinyVector emplace_back with pair") {
     CHECK(vec[1].first == 3);
 }
 
-TEST_CASE("TinyVector span conversion") {
+TEST_CASE("TinyVector span conversion", "[containers][TinyVector]") {
     TinyVector<int> vec;
     vec.push_back(1);
     vec.push_back(2);

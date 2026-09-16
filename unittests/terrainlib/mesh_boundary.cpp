@@ -9,7 +9,7 @@
 #include "mesh/SimpleMesh.h"
 #include "mesh/connectivity/boundary.h"
 
-TEST_CASE("mesh::find_boundary_edges") {
+TEST_CASE("mesh::find_boundary_edges", "[mesh][connectivity][boundary]") {
     SECTION("empty for empty mesh") {
         SimpleMesh mesh;
         auto edges = mesh::find_boundary_edges(mesh);
@@ -103,7 +103,7 @@ void normalize_boundaries(std::vector<std::vector<uint32_t>> &boundaries) {
     std::sort(boundaries.begin(), boundaries.end());
 }
 
-TEST_CASE("mesh::find_boundaries") {
+TEST_CASE("mesh::find_boundaries", "[mesh][connectivity][boundary]") {
     SECTION("empty for empty mesh") {
         SimpleMesh mesh;
         auto actual = mesh::find_boundaries(mesh);
@@ -219,7 +219,7 @@ TEST_CASE("mesh::find_boundaries") {
     }
 }
 
-TEST_CASE("mesh::find_boundaries_non_manifold") {
+TEST_CASE("mesh::find_boundaries_non_manifold", "[mesh][connectivity][boundary]") {
     SECTION("empty for empty mesh") {
         SimpleMesh mesh;
         auto actual = mesh::find_boundaries_non_manifold(mesh);
@@ -351,7 +351,7 @@ TEST_CASE("mesh::find_boundaries_non_manifold") {
     }
 }
 
-TEST_CASE("mesh::build_boundary_triangle_mask") {
+TEST_CASE("mesh::build_boundary_triangle_mask", "[mesh][connectivity][boundary]") {
     SECTION("open box with more triangles than vertices") {
         // 5 faces of a cube (top removed): 8 vertices, 10 triangles
         std::vector<glm::uvec3> triangles = {

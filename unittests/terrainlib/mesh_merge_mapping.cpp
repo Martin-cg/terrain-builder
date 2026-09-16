@@ -33,7 +33,7 @@
 using mesh::merging::VertexId;
 using mesh::merging::VertexMapping;
 
-TEST_CASE("merging::create_mapping") {
+TEST_CASE("merging::create_mapping", "[mesh][merging][mapping]") {
     SECTION("minimum test") {
         SimpleMesh mesh1;
         mesh1.positions.push_back(glm::dvec3(0, 0, 0));

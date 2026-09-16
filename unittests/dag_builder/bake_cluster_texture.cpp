@@ -47,7 +47,7 @@ BakeTextureOptions nearest_options() {
 
 } // namespace
 
-TEST_CASE("bake_cluster_texture carries a mirrored layout through", "[dag_builder][bake_cluster]") {
+TEST_CASE("bake_cluster_texture carries a mirrored layout through", "[atlas][bake_cluster_texture]") {
     const Clustering clustering = make_quad_clustering(make_distinct_texture());
     const std::vector<uint32_t> sources = {0};
     const BakeSource source = collect_bake_source(clustering, sources);
@@ -66,7 +66,7 @@ TEST_CASE("bake_cluster_texture carries a mirrored layout through", "[dag_builde
     }
 }
 
-TEST_CASE("bake_cluster_texture reads each half from its own source", "[dag_builder][bake_cluster]") {
+TEST_CASE("bake_cluster_texture reads each half from its own source", "[atlas][bake_cluster_texture]") {
     const cv::Vec3b left_colour(200, 0, 0);
     const cv::Vec3b right_colour(0, 200, 0);
 
@@ -105,7 +105,7 @@ TEST_CASE("bake_cluster_texture reads each half from its own source", "[dag_buil
 }
 // A node atlas lays out every cluster's triangles in one uv space, in the order they were
 // handed to the unwrap, and duplicates a vertex wherever a chart seam runs through it.
-TEST_CASE("apply_node_atlas splits a shared atlas back into its clusters", "[dag_builder][atlas]") {
+TEST_CASE("apply_node_atlas splits a shared atlas back into its clusters", "[atlas][bake_cluster_texture]") {
     Clustering clustering;
     clustering.positions = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}};
 

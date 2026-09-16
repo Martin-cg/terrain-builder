@@ -114,7 +114,7 @@ radix::geometry::Aabb3d extend_bounds_to_3d(radix::geometry::Aabb2d bounds2d) {
     return radix::geometry::Aabb3d(min, max);
 }
 
-TEST_CASE("can build reference mesh patches for various datasets", "[terrainbuilder]") {
+TEST_CASE("can build reference mesh patches for various datasets", "[mesh_builder]") {
     struct TestData {
         std::string path_suffix;
         radix::geometry::Aabb3d target_bounds;
@@ -239,7 +239,7 @@ TEST_CASE("can build reference mesh patches for various datasets", "[terrainbuil
     }
 }
 
-TEST_CASE("neighbouring patches fit together", "[terrainbuilder]") {
+TEST_CASE("neighbouring patches fit together", "[mesh_builder]") {
     const auto mgi_srs = srs::mgi();
     const auto ecef_srs = srs::ecef();
     const auto wgs84_srs = srs::wgs84();

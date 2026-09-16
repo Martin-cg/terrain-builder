@@ -35,7 +35,7 @@ radix::tile::Border testTypeValue2Border(bool v)
     return v ? radix::tile::Border::Yes : radix::tile::Border::No;
 }
 
-TEMPLATE_TEST_CASE("alpine raster format, border ", "", std::true_type, std::false_type)
+TEMPLATE_TEST_CASE("alpine raster format, border ", "[alpine_raster]", std::true_type, std::false_type)
 {
     std::filesystem::remove_all("./unittest_tiles/");
 

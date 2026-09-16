@@ -31,7 +31,7 @@ std::vector<glm::uvec2> sorted_edges_from_set(const std::unordered_set<glm::uvec
 
 } // namespace
 
-TEST_CASE("mesh::is_degenerate") {
+TEST_CASE("mesh::is_degenerate", "[mesh][connectivity][adjacency]") {
     SECTION("triangle with three distinct vertices is not degenerate") {
         CHECK_FALSE(mesh::is_degenerate(glm::uvec3(0, 1, 2)));
     }
@@ -49,7 +49,7 @@ TEST_CASE("mesh::is_degenerate") {
     }
 }
 
-TEST_CASE("mesh::sort_and_normalize_triangles(span)") {
+TEST_CASE("mesh::sort_and_normalize_triangles(span)", "[mesh][normalize]") {
     SECTION("normalizes each triangle and sorts whole triangle list") {
         std::vector<glm::uvec3> actual = {
             glm::uvec3(4, 2, 3),
@@ -73,7 +73,7 @@ TEST_CASE("mesh::sort_and_normalize_triangles(span)") {
     }
 }
 
-TEST_CASE("mesh::flip_triangle_orientation and flip_triangle_orientations") {
+TEST_CASE("mesh::flip_triangle_orientation and flip_triangle_orientations", "[mesh][connectivity][adjacency]") {
     SECTION("flip_triangle_orientation swaps winding") {
         glm::uvec3 actual(1, 2, 3);
 
@@ -98,7 +98,7 @@ TEST_CASE("mesh::flip_triangle_orientation and flip_triangle_orientations") {
     }
 }
 
-TEST_CASE("mesh::compute_vertex_count") {
+TEST_CASE("mesh::compute_vertex_count", "[mesh][connectivity][vertex_index_range]") {
     SECTION("returns zero for empty triangle list") {
         const std::vector<glm::uvec3> triangles;
         CHECK(mesh::compute_vertex_count(triangles) == 0);
@@ -122,7 +122,7 @@ TEST_CASE("mesh::compute_vertex_count") {
     }
 }
 
-TEST_CASE("mesh::get_edges last overload") {
+TEST_CASE("mesh::get_edges last overload", "[mesh][connectivity][edges]") {
     SECTION("returns all directed edges when normalize is false") {
         const std::vector<glm::uvec3> triangles = {
             glm::uvec3(0, 1, 2),
@@ -160,7 +160,7 @@ TEST_CASE("mesh::get_edges last overload") {
     }
 }
 
-TEST_CASE("mesh::for_each_halfedge") {
+TEST_CASE("mesh::for_each_halfedge", "[mesh][connectivity][edges]") {
     SECTION("iterates all directed edges in triangle order") {
         const std::vector<glm::uvec3> triangles = {
             glm::uvec3(0, 1, 2),
@@ -197,7 +197,7 @@ TEST_CASE("mesh::for_each_halfedge") {
     }
 }
 
-TEST_CASE("mesh::other_vertices_in_triangle") {
+TEST_CASE("mesh::other_vertices_in_triangle", "[mesh][connectivity][adjacency]") {
     SECTION("returns the two non-matching vertices") {
         CHECK(mesh::other_vertices_in_triangle(glm::uvec3(5, 7, 9), 5) == glm::uvec2(7, 9));
         CHECK(mesh::other_vertices_in_triangle(glm::uvec3(5, 7, 9), 7) == glm::uvec2(5, 9));
@@ -205,7 +205,7 @@ TEST_CASE("mesh::other_vertices_in_triangle") {
     }
 }
 
-TEST_CASE("mesh::change_vertex and change_vertex_inplace") {
+TEST_CASE("mesh::change_vertex and change_vertex_inplace", "[mesh][connectivity][adjacency]") {
     SECTION("change_vertex returns modified copy") {
         const glm::uvec3 actual = mesh::change_vertex(glm::uvec3(1, 2, 3), 2, 9);
         CHECK(actual == glm::uvec3(1, 9, 3));
@@ -228,7 +228,7 @@ TEST_CASE("mesh::change_vertex and change_vertex_inplace") {
     }
 }
 
-TEST_CASE("mesh::normalize_face_index_rotation") {
+TEST_CASE("mesh::normalize_face_index_rotation", "[mesh][normalize]") {
     SECTION("rotates smallest vertex to the front while keeping orientation") {
         std::array<uint32_t, 4> actual = {4, 7, 1, 3};
 
@@ -246,7 +246,7 @@ TEST_CASE("mesh::normalize_face_index_rotation") {
     }
 }
 
-TEST_CASE("mesh::normalize_edge and normalize_edge_inplace") {
+TEST_CASE("mesh::normalize_edge and normalize_edge_inplace", "[mesh][normalize]") {
     SECTION("returns ascending edge") {
         CHECK(mesh::normalize_edge(glm::uvec2(7, 2)) == glm::uvec2(2, 7));
         CHECK(mesh::normalize_edge(glm::uvec2(2, 7)) == glm::uvec2(2, 7));
@@ -259,7 +259,7 @@ TEST_CASE("mesh::normalize_edge and normalize_edge_inplace") {
     }
 }
 
-TEST_CASE("mesh::normalize_triangle and normalize_triangle_inplace") {
+TEST_CASE("mesh::normalize_triangle and normalize_triangle_inplace", "[mesh][normalize]") {
     SECTION("keep_orientation keeps winding while rotating smallest index first") {
         const glm::uvec3 actual = mesh::normalize_triangle(glm::uvec3(5, 2, 4), true);
         CHECK(actual == glm::uvec3(2, 4, 5));
@@ -282,7 +282,7 @@ TEST_CASE("mesh::normalize_triangle and normalize_triangle_inplace") {
     }
 }
 
-TEST_CASE("mesh::normalize_quad and normalize_quad_inplace") {
+TEST_CASE("mesh::normalize_quad and normalize_quad_inplace", "[mesh][normalize]") {
     SECTION("rotates smallest index first with orientation kept") {
         const glm::uvec4 actual = mesh::normalize_quad(glm::uvec4(4, 7, 1, 3), true);
         CHECK(actual == glm::uvec4(1, 3, 4, 7));
@@ -298,7 +298,7 @@ TEST_CASE("mesh::normalize_quad and normalize_quad_inplace") {
     }
 }
 
-TEST_CASE("mesh::compare triangle helpers") {
+TEST_CASE("mesh::compare triangle helpers", "[mesh][connectivity][triangle_compare]") {
     SECTION("compare_triangles uses normalized ordering") {
         CHECK(mesh::compare_triangles(glm::uvec3(0, 1, 2), glm::uvec3(1, 2, 3)));
         CHECK_FALSE(mesh::compare_triangles(glm::uvec3(4, 1, 2), glm::uvec3(1, 2, 3)));
@@ -319,7 +319,7 @@ TEST_CASE("mesh::compare triangle helpers") {
     }
 }
 
-TEST_CASE("mesh::create_edge_to_triangle_mapping_manifold") {
+TEST_CASE("mesh::create_edge_to_triangle_mapping_manifold", "[mesh][connectivity][adjacency]") {
     SECTION("maps each normalized edge to one or two incident triangles") {
         const std::vector<glm::uvec3> triangles = {
             glm::uvec3(0, 1, 2),
@@ -341,7 +341,7 @@ TEST_CASE("mesh::create_edge_to_triangle_mapping_manifold") {
     }
 }
 
-TEST_CASE("mesh::create_edge_to_triangle_mapping_non_manifold") {
+TEST_CASE("mesh::create_edge_to_triangle_mapping_non_manifold", "[mesh][connectivity][adjacency]") {
     SECTION("stores all incident triangles for non-manifold edge") {
         const std::vector<glm::uvec3> triangles = {
             glm::uvec3(0, 1, 2),
@@ -355,7 +355,7 @@ TEST_CASE("mesh::create_edge_to_triangle_mapping_non_manifold") {
     }
 }
 
-TEST_CASE("mesh::create_edge_to_triangle_mapping_non_manifold2") {
+TEST_CASE("mesh::create_edge_to_triangle_mapping_non_manifold2", "[mesh][connectivity][adjacency]") {
     SECTION("stores all incident triangles in std::vector") {
         const std::vector<glm::uvec3> triangles = {
             glm::uvec3(0, 1, 2),
@@ -369,7 +369,7 @@ TEST_CASE("mesh::create_edge_to_triangle_mapping_non_manifold2") {
     }
 }
 
-TEST_CASE("mesh::create_vertex_to_triangle_mapping") {
+TEST_CASE("mesh::create_vertex_to_triangle_mapping", "[mesh][connectivity][adjacency]") {
     SECTION("maps each vertex to all incident triangles") {
         const std::vector<glm::uvec3> triangles = {
             glm::uvec3(0, 1, 2),
@@ -385,7 +385,7 @@ TEST_CASE("mesh::create_vertex_to_triangle_mapping") {
     }
 }
 
-TEST_CASE("mesh::count_vertex_adjacent_triangles") {
+TEST_CASE("mesh::count_vertex_adjacent_triangles", "[mesh][connectivity][adjacency]") {
     SECTION("counts incident triangles per vertex") {
         const std::vector<glm::uvec3> triangles = {
             glm::uvec3(1, 2, 3),
@@ -397,7 +397,7 @@ TEST_CASE("mesh::count_vertex_adjacent_triangles") {
     }
 }
 
-TEST_CASE("mesh::is_consistently_oriented") {
+TEST_CASE("mesh::is_consistently_oriented", "[mesh][connectivity][adjacency]") {
     SECTION("empty mesh is orientable") {
         const std::vector<glm::uvec3> triangles = {};
         CHECK(mesh::is_consistently_oriented(triangles));
@@ -445,7 +445,7 @@ TEST_CASE("mesh::is_consistently_oriented") {
     }
 }
 
-TEST_CASE("mesh::find_isolated_vertices") {
+TEST_CASE("mesh::find_isolated_vertices", "[mesh][connectivity][adjacency]") {
     SECTION("returns vertices not referenced by any triangle") {
         const mesh::Simple mesh(
             {
@@ -477,7 +477,7 @@ TEST_CASE("mesh::find_isolated_vertices") {
     }
 }
 
-TEST_CASE("mesh::compute_topology empty mesh") {
+TEST_CASE("mesh::compute_topology empty mesh", "[mesh][connectivity][topology]") {
     const std::vector<glm::uvec3> triangles;
 
     const auto t = mesh::compute_topology(triangles);
@@ -497,7 +497,7 @@ TEST_CASE("mesh::compute_topology empty mesh") {
     CHECK_FALSE(t.is_torus());
 }
 
-TEST_CASE("mesh::compute_topology single triangle") {
+TEST_CASE("mesh::compute_topology single triangle", "[mesh][connectivity][topology]") {
     const std::vector<glm::uvec3> triangles = {
         glm::uvec3(0, 1, 2)};
 
@@ -532,7 +532,7 @@ TEST_CASE("mesh::compute_topology single triangle") {
     CHECK_FALSE(t.is_torus());
 }
 
-TEST_CASE("mesh::compute_topology square patch") {
+TEST_CASE("mesh::compute_topology square patch", "[mesh][connectivity][topology]") {
     const std::vector<glm::uvec3> triangles = {
         glm::uvec3(0, 1, 2),
         glm::uvec3(2, 1, 3)};
@@ -568,7 +568,7 @@ TEST_CASE("mesh::compute_topology square patch") {
     CHECK_FALSE(t.is_torus());
 }
 
-TEST_CASE("mesh::compute_topology annulus") {
+TEST_CASE("mesh::compute_topology annulus", "[mesh][connectivity][topology]") {
     const std::vector<glm::uvec3> triangles = {
         glm::uvec3(0, 1, 5),
         glm::uvec3(0, 5, 4),
@@ -609,7 +609,7 @@ TEST_CASE("mesh::compute_topology annulus") {
     CHECK_FALSE(t.is_torus());
 }
 
-TEST_CASE("mesh::compute_topology tetrahedron sphere") {
+TEST_CASE("mesh::compute_topology tetrahedron sphere", "[mesh][connectivity][topology]") {
     const std::vector<glm::uvec3> triangles = {
         glm::uvec3(0, 2, 1),
         glm::uvec3(0, 3, 2),
@@ -646,7 +646,7 @@ TEST_CASE("mesh::compute_topology tetrahedron sphere") {
     CHECK_FALSE(t.is_torus());
 }
 
-TEST_CASE("mesh::compute_topology torus") {
+TEST_CASE("mesh::compute_topology torus", "[mesh][connectivity][topology]") {
     // 3x3 periodic torus grid:
     // V = 9, F = 18, E = 27, chi = 0, genus = 1
     const std::vector<glm::uvec3> triangles = {

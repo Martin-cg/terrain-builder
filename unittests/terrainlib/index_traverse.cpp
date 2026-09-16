@@ -9,7 +9,7 @@
 
 using namespace octree;
 
-TEST_CASE("octree::traverse basic") {
+TEST_CASE("octree::traverse basic", "[octree][traverse]") {
     IndexMap index;
 
     const Id root = Id::root();
@@ -71,7 +71,7 @@ TEST_CASE("octree::traverse basic") {
     }
 }
 
-TEST_CASE("octree::traverse with depth") {
+TEST_CASE("octree::traverse with depth", "[octree][traverse]") {
     IndexMap index;
 
     const Id root = Id::root();

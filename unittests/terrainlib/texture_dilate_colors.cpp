@@ -31,7 +31,7 @@ void cover(Input &input, const glm::uvec2 at, const Pixel value) {
 
 } // namespace
 
-TEST_CASE("dilate_colors leaves everything alone for a zero radius", "[terrainlib][texture_dilate_colors]") {
+TEST_CASE("dilate_colors leaves everything alone for a zero radius", "[texture][dilate_colors]") {
     Input input = make_input(glm::uvec2(5));
     cover<uint8_t>(input, glm::uvec2(2), 100);
     const cv::Mat image_before = input.image.clone();
@@ -42,7 +42,7 @@ TEST_CASE("dilate_colors leaves everything alone for a zero radius", "[terrainli
     CHECK(input.coverage.count() == 1);
 }
 
-TEST_CASE("dilate_colors grows the covered region by one ring per round", "[terrainlib][texture_dilate_colors]") {
+TEST_CASE("dilate_colors grows the covered region by one ring per round", "[texture][dilate_colors]") {
     Input input = make_input(glm::uvec2(5));
     cover<uint8_t>(input, glm::uvec2(2), 100);
 
@@ -59,7 +59,7 @@ TEST_CASE("dilate_colors grows the covered region by one ring per round", "[terr
     }
 }
 
-TEST_CASE("dilate_colors reaches the whole image given enough rounds", "[terrainlib][texture_dilate_colors]") {
+TEST_CASE("dilate_colors reaches the whole image given enough rounds", "[texture][dilate_colors]") {
     Input input = make_input(glm::uvec2(5));
     cover<uint8_t>(input, glm::uvec2(2), 100);
 
@@ -73,7 +73,7 @@ TEST_CASE("dilate_colors reaches the whole image given enough rounds", "[terrain
     }
 }
 
-TEST_CASE("dilate_colors averages only the covered neighbours", "[terrainlib][texture_dilate_colors]") {
+TEST_CASE("dilate_colors averages only the covered neighbours", "[texture][dilate_colors]") {
     Input input = make_input(glm::uvec2(3, 1));
     cover<uint8_t>(input, glm::uvec2(0, 0), 40);
     cover<uint8_t>(input, glm::uvec2(2, 0), 200);
@@ -83,7 +83,7 @@ TEST_CASE("dilate_colors averages only the covered neighbours", "[terrainlib][te
     CHECK(input.image.at<uint8_t>(0, 1) == 120);
 }
 
-TEST_CASE("dilate_colors has nothing to spread when nothing is covered", "[terrainlib][texture_dilate_colors]") {
+TEST_CASE("dilate_colors has nothing to spread when nothing is covered", "[texture][dilate_colors]") {
     Input input = make_input(glm::uvec2(4));
     input.image.setTo(cv::Scalar::all(70));
     const cv::Mat image_before = input.image.clone();
@@ -94,7 +94,7 @@ TEST_CASE("dilate_colors has nothing to spread when nothing is covered", "[terra
     CHECK(input.coverage.count() == 0);
 }
 
-TEST_CASE("dilate_colors leaves a fully covered image alone", "[terrainlib][texture_dilate_colors]") {
+TEST_CASE("dilate_colors leaves a fully covered image alone", "[texture][dilate_colors]") {
     Input input = make_input(glm::uvec2(3));
     for (const uint32_t y : range<uint32_t>(3)) {
         for (const uint32_t x : range<uint32_t>(3)) {
@@ -108,7 +108,7 @@ TEST_CASE("dilate_colors leaves a fully covered image alone", "[terrainlib][text
     CHECK(mat_equals(input.image, image_before));
 }
 
-TEST_CASE("dilate_colors spreads every channel", "[terrainlib][texture_dilate_colors]") {
+TEST_CASE("dilate_colors spreads every channel", "[texture][dilate_colors]") {
     Input input = make_input(glm::uvec2(3), CV_8UC3);
     cover<cv::Vec3b>(input, glm::uvec2(1), cv::Vec3b(10, 20, 30));
 
@@ -118,7 +118,7 @@ TEST_CASE("dilate_colors spreads every channel", "[terrainlib][texture_dilate_co
     CHECK(input.image.at<cv::Vec3b>(2, 2) == cv::Vec3b(10, 20, 30));
 }
 
-TEST_CASE("dilate_colors dispatches on the image depth", "[terrainlib][texture_dilate_colors]") {
+TEST_CASE("dilate_colors dispatches on the image depth", "[texture][dilate_colors]") {
     Input input = make_input(glm::uvec2(3), CV_32FC1);
     cover<float>(input, glm::uvec2(1), 1.5f);
 
@@ -127,14 +127,14 @@ TEST_CASE("dilate_colors dispatches on the image depth", "[terrainlib][texture_d
     CHECK(input.image.at<float>(0, 0) == Catch::Approx(1.5));
 }
 
-TEST_CASE("dilate_colors rejects a coverage that does not match the image", "[terrainlib][texture_dilate_colors]") {
+TEST_CASE("dilate_colors rejects a coverage that does not match the image", "[texture][dilate_colors]") {
     Input input = make_input(glm::uvec2(3));
     texture::Mask wrong_size(glm::uvec2(4));
 
     CHECK_THROWS(texture::dilate_colors_inplace(input.image, wrong_size, 1));
 }
 
-TEST_CASE("dilate_colors leaves the input alone when returning a copy", "[terrainlib][texture_dilate_colors]") {
+TEST_CASE("dilate_colors leaves the input alone when returning a copy", "[texture][dilate_colors]") {
     Input input = make_input(glm::uvec2(3));
     cover<uint8_t>(input, glm::uvec2(1), 100);
     const cv::Mat image_before = input.image.clone();

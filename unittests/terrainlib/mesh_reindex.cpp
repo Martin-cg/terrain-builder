@@ -6,7 +6,7 @@
 #include "mesh/SimpleMesh.h"
 #include "mesh/reindex.h"
 
-TEST_CASE("mesh::reindex") {
+TEST_CASE("mesh::reindex", "[mesh][reindex]") {
     using Catch::Matchers::UnorderedEquals;
 
     SimpleMesh mesh;

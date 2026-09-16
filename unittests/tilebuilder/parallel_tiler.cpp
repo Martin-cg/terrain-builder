@@ -33,7 +33,7 @@
 using Catch::Approx;
 using namespace radix;
 
-TEMPLATE_TEST_CASE("ParallelTiler, using tms scheme", "", std::true_type, std::false_type)
+TEMPLATE_TEST_CASE("ParallelTiler, using tms scheme", "[ParallelTiler]", std::true_type, std::false_type)
 {
     //  const auto bounds = radix::tile::SrsBounds(1'000'000, 6'000'000, 2'000'000, 6'700'000); // in m
     SECTION("mercator / level 0")
@@ -277,7 +277,7 @@ TEMPLATE_TEST_CASE("ParallelTiler, using tms scheme", "", std::true_type, std::f
     }
 }
 
-TEST_CASE("ParallelTiler returns tiles for several zoom levels")
+TEST_CASE("ParallelTiler returns tiles for several zoom levels", "[ParallelTiler]")
 {
     const auto dataset = Dataset(ALP_TEST_DATA_DIR "/austria/at_mgi.tif");
     const auto grid = ctb::GlobalMercator(256);

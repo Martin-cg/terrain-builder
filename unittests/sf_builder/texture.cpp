@@ -32,7 +32,7 @@
 #include "mesh/SimpleMesh.h"
 #include "texture_assembler.h"
 
-TEST_CASE("estimate_zoom_level", "[terrainbuilder]") {
+TEST_CASE("estimate_zoom_level", "[texture_assembler]") {
     const ctb::Grid grid = ctb::GlobalMercator();
     const radix::tile::Id tile(20, glm::uvec2(0, 1), radix::tile::Scheme::SlippyMap);
     const radix::tile::SrsBounds tile_bounds = grid.srsBounds(tile, false);
@@ -66,7 +66,7 @@ public:
     }
 };
 
-TEST_CASE("texture assembler takes root tile if only available ", "[terrainbuilder]") {
+TEST_CASE("texture assembler takes root tile if only available ", "[texture_assembler]") {
     const radix::tile::Id root_tile(3, glm::uvec2(5, 4), radix::tile::Scheme::SlippyMap);
     const std::set<radix::tile::Id> available_tiles = {
         {3, {5, 4}, radix::tile::Scheme::SlippyMap}};
@@ -87,7 +87,7 @@ TEST_CASE("texture assembler takes root tile if only available ", "[terrainbuild
     CHECK(expected_tiles == actual_tiles);
 }
 
-TEST_CASE("texture assembler ignores parent if all children are present", "[terrainbuilder]") {
+TEST_CASE("texture assembler ignores parent if all children are present", "[texture_assembler]") {
     const radix::tile::Id root_tile(3, glm::uvec2(5, 4), radix::tile::Scheme::SlippyMap);
     const std::set<radix::tile::Id> available_tiles = {
         {3, {5, 4}, radix::tile::Scheme::SlippyMap},
@@ -115,7 +115,7 @@ TEST_CASE("texture assembler ignores parent if all children are present", "[terr
     CHECK(expected_tiles == actual_tiles);
 }
 
-TEST_CASE("texture assembler considers max zoom level", "[terrainbuilder]") {
+TEST_CASE("texture assembler considers max zoom level", "[texture_assembler]") {
     const radix::tile::Id root_tile(3, glm::uvec2(5, 4), radix::tile::Scheme::SlippyMap);
     const std::set<radix::tile::Id> available_tiles = {
         {3, {5, 4}, radix::tile::Scheme::SlippyMap},
@@ -141,7 +141,7 @@ TEST_CASE("texture assembler considers max zoom level", "[terrainbuilder]") {
     CHECK(expected_tiles == actual_tiles);
 }
 
-TEST_CASE("texture assembler works for arbitrary bounds", "[terrainbuilder]") {
+TEST_CASE("texture assembler works for arbitrary bounds", "[texture_assembler]") {
     const std::set<radix::tile::Id> available_tiles = {
         // {21, {1048576, 1048576}, radix::tile::Scheme::Tms},
         {21, {1048577, 1048576}, radix::tile::Scheme::Tms},
@@ -186,7 +186,7 @@ TEST_CASE("texture assembler works for arbitrary bounds", "[terrainbuilder]") {
     CHECK(expected_tiles == actual_tiles);
 }
 
-TEST_CASE("texture assembler does not fail if there are not tiles", "[terrainbuilder]") {
+TEST_CASE("texture assembler does not fail if there are not tiles", "[texture_assembler]") {
     const std::set<radix::tile::Id> available_tiles = {};
     const std::set<radix::tile::Id> expected_tiles = {};
 
@@ -206,7 +206,7 @@ TEST_CASE("texture assembler does not fail if there are not tiles", "[terrainbui
     CHECK(expected_tiles == actual_tiles);
 }
 
-TEST_CASE("texture assembler assembles single tile", "[terrainbuilder]") {
+TEST_CASE("texture assembler assembles single tile", "[texture_assembler]") {
     const std::unordered_map<radix::tile::Id, cv::Mat, radix::tile::Id::Hasher> tiles_to_texture = {
         {radix::tile::Id(0, {0, 0}, radix::tile::Scheme::SlippyMap), cv::Mat(1, 1, CV_8UC3, cv::Vec3b(0, 0, 255))},
     };
@@ -232,7 +232,7 @@ TEST_CASE("texture assembler assembles single tile", "[terrainbuilder]") {
     CHECK(assembled_texture.at<cv::Vec3b>(0, 0) == cv::Vec3b(0, 0, 255));
 }
 
-TEST_CASE("texture assembler assembles two tiles", "[terrainbuilder]") {
+TEST_CASE("texture assembler assembles two tiles", "[texture_assembler]") {
     const std::unordered_map<radix::tile::Id, cv::Mat, radix::tile::Id::Hasher> tiles_to_texture = {
         {radix::tile::Id(1, {0, 0}, radix::tile::Scheme::SlippyMap), cv::Mat(1, 1, CV_8UC3, cv::Vec3b(0, 0, 255))},
         {radix::tile::Id(1, {0, 1}, radix::tile::Scheme::SlippyMap), cv::Mat(1, 1, CV_8UC3, cv::Vec3b(0, 255, 0))},
@@ -260,7 +260,7 @@ TEST_CASE("texture assembler assembles two tiles", "[terrainbuilder]") {
     CHECK(assembled_texture.at<cv::Vec3b>(1, 0) == cv::Vec3b(0, 0, 255));
 }
 
-TEST_CASE("texture assembler correct order of texture writes", "[terrainbuilder]") {
+TEST_CASE("texture assembler correct order of texture writes", "[texture_assembler]") {
     const std::unordered_map<radix::tile::Id, cv::Mat, radix::tile::Id::Hasher> tiles_to_texture = {
         {radix::tile::Id(0, {0, 0}, radix::tile::Scheme::SlippyMap), cv::Mat(1, 1, CV_8UC1, uint8_t(1))},
         {radix::tile::Id(1, {0, 1}, radix::tile::Scheme::Tms), cv::Mat(1, 1, CV_8UC1, uint8_t(2))},
@@ -303,7 +303,7 @@ static radix::tile::SrsBounds bounds_of_root_tile_pixels(
         root_tile_bounds.min + root_tile_bounds.size() * (glm::dvec2(pixel_max) / 256.0));
 }
 
-TEST_CASE("target image region without padding or alignment", "[terrainbuilder]") {
+TEST_CASE("target image region without padding or alignment", "[texture_assembler]") {
     const radix::tile::SrsBounds root_tile_bounds(glm::dvec2(0, 0), glm::dvec2(256, 256));
     const radix::tile::SrsBounds target_bounds = bounds_of_root_tile_pixels(root_tile_bounds, glm::uvec2(100, 70), glm::uvec2(150, 160));
 
@@ -317,7 +317,7 @@ TEST_CASE("target image region without padding or alignment", "[terrainbuilder]"
     CHECK(region.content.max == region.full.size());
 }
 
-TEST_CASE("target image region applies padding and alignment", "[terrainbuilder]") {
+TEST_CASE("target image region applies padding and alignment", "[texture_assembler]") {
     const radix::tile::SrsBounds root_tile_bounds(glm::dvec2(0, 0), glm::dvec2(256, 256));
     const radix::tile::SrsBounds target_bounds = bounds_of_root_tile_pixels(root_tile_bounds, glm::uvec2(100, 70), glm::uvec2(150, 160));
 
@@ -331,7 +331,7 @@ TEST_CASE("target image region applies padding and alignment", "[terrainbuilder]
     CHECK(region.content.max == glm::uvec2(54, 106));
 }
 
-TEST_CASE("target image region is clamped to the root tile image", "[terrainbuilder]") {
+TEST_CASE("target image region is clamped to the root tile image", "[texture_assembler]") {
     const radix::tile::SrsBounds root_tile_bounds(glm::dvec2(0, 0), glm::dvec2(256, 256));
     const radix::tile::SrsBounds target_bounds = bounds_of_root_tile_pixels(root_tile_bounds, glm::uvec2(0, 0), glm::uvec2(256, 256));
 
@@ -344,7 +344,7 @@ TEST_CASE("target image region is clamped to the root tile image", "[terrainbuil
     CHECK(region.content.max == glm::uvec2(256, 256));
 }
 
-TEST_CASE("texture assembler reports the content region", "[terrainbuilder]") {
+TEST_CASE("texture assembler reports the content region", "[texture_assembler]") {
     // Row gradient, so every row of the assembled image can be traced back to its source row.
     cv::Mat tile_image(256, 256, CV_8UC1);
     for (uint32_t row = 0; row < 256; row++) {
@@ -377,7 +377,7 @@ TEST_CASE("texture assembler reports the content region", "[terrainbuilder]") {
     CHECK(assembled.image.at<uint8_t>(assembled.content.max.y - 1, assembled.content.min.x) == uint8_t(96));
 }
 
-TEST_CASE("assembled texture remaps uvs into the padded image", "[terrainbuilder]") {
+TEST_CASE("assembled texture remaps uvs into the padded image", "[texture_assembler]") {
     const terrainbuilder::AssembledTexture assembled{
         .image = cv::Mat::zeros(100, 100, CV_8UC1),
         .content = radix::geometry::Aabb2ui(glm::uvec2(10, 20), glm::uvec2(60, 70))};

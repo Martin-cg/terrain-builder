@@ -84,7 +84,7 @@ SimpleMesh make_triangle_fan_with_uvs() {
 
 } // namespace
 
-TEST_CASE("mesh::split_by_vertex") {
+TEST_CASE("mesh::split_by_vertex", "[mesh][split]") {
     SECTION("empty mesh produces empty groups") {
         const SimpleMesh mesh;
         const auto result = mesh::split_by_vertex(mesh, 3, [](uint32_t) { return 0u; });
@@ -198,7 +198,7 @@ TEST_CASE("mesh::split_by_vertex") {
     }
 }
 
-TEST_CASE("mesh::split_by_triangle") {
+TEST_CASE("mesh::split_by_triangle", "[mesh][split]") {
     SECTION("empty mesh produces empty groups") {
         const SimpleMesh mesh;
         const auto result = mesh::split_by_triangle(mesh, 4, [](uint32_t) { return 0u; });

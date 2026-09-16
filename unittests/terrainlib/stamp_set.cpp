@@ -5,7 +5,7 @@
 
 #include "containers/StampSet.h"
 
-TEST_CASE("StampSet starts empty", "[terrainlib][stampset]") {
+TEST_CASE("StampSet starts empty", "[containers][StampSet]") {
     const StampSet set(4);
 
     REQUIRE(set.capacity() == 4);
@@ -14,7 +14,7 @@ TEST_CASE("StampSet starts empty", "[terrainlib][stampset]") {
     }
 }
 
-TEST_CASE("StampSet::insert reports only the first insert", "[terrainlib][stampset]") {
+TEST_CASE("StampSet::insert reports only the first insert", "[containers][StampSet]") {
     StampSet set(4);
 
     CHECK(set.insert(2));
@@ -23,7 +23,7 @@ TEST_CASE("StampSet::insert reports only the first insert", "[terrainlib][stamps
     CHECK_FALSE(set.contains(3));
 }
 
-TEST_CASE("StampSet::reset empties the set", "[terrainlib][stampset]") {
+TEST_CASE("StampSet::reset empties the set", "[containers][StampSet]") {
     StampSet set(4);
     set.insert(1);
     set.insert(3);
@@ -35,7 +35,7 @@ TEST_CASE("StampSet::reset empties the set", "[terrainlib][stampset]") {
     CHECK(set.insert(1));
 }
 
-TEST_CASE("StampSet::reset resizes without carrying entries over", "[terrainlib][stampset]") {
+TEST_CASE("StampSet::reset resizes without carrying entries over", "[containers][StampSet]") {
     StampSet set(2);
     set.insert(0);
     set.insert(1);
@@ -48,7 +48,7 @@ TEST_CASE("StampSet::reset resizes without carrying entries over", "[terrainlib]
     }
 }
 
-TEST_CASE("StampSet survives running out of generations", "[terrainlib][stampset]") {
+TEST_CASE("StampSet survives running out of generations", "[containers][StampSet]") {
     // A narrow generation reaches the wraparound in a few hundred resets rather than billions.
     StampSet_<uint8_t> set(3);
 

@@ -113,7 +113,7 @@ void check_triangle_cluster_topology(const Cluster &cluster) {
 
 TEST_CASE(
     "merge_clusterings returns an empty clustering for empty input",
-    "[dag_builder][merge]") {
+    "[merge][clusterings]") {
     const std::vector<Clustering> clusterings;
     const Clustering merged = merge_clusterings(clusterings, 0.01);
 
@@ -123,7 +123,7 @@ TEST_CASE(
 
 TEST_CASE(
     "merge_clusterings returns a copy of the single input clustering unchanged",
-    "[dag_builder][merge]") {
+    "[merge][clusterings]") {
     const Clustering clustering = make_triangle_clustering(
         glm::dvec3(0.0, 0.0, 0.0),
         glm::dvec3(1.0, 0.0, 0.0),
@@ -146,7 +146,7 @@ TEST_CASE(
 
 TEST_CASE(
     "merge_clusterings throws std::invalid_argument for negative or non-finite epsilon",
-    "[dag_builder][merge]") {
+    "[merge][clusterings]") {
     const std::vector<Clustering> clusterings = {
         make_triangle_clustering(
             glm::dvec3(0.0, 0.0, 0.0),
@@ -169,7 +169,7 @@ TEST_CASE(
 
 TEST_CASE(
     "merge_clusterings welds boundary vertices within epsilon and remaps both clusters",
-    "[dag_builder][merge]") {
+    "[merge][clusterings]") {
     const MergeMode merge_mode = GENERATE(
         MergeMode::GreedyLocal,
         MergeMode::ConnectedComponents,
@@ -216,7 +216,7 @@ TEST_CASE(
 
 TEST_CASE(
     "merge_clusterings welds boundary vertices within zero epsilon and remaps both clusters",
-    "[dag_builder][merge]") {
+    "[merge][clusterings]") {
     const MergeMode merge_mode = MergeMode::ExactHashBased;
 
     const Clustering a = make_triangle_clustering(
@@ -246,7 +246,7 @@ TEST_CASE(
 
 TEST_CASE(
     "merge_clusterings does not weld boundary vertices further apart than epsilon",
-    "[dag_builder][merge]") {
+    "[merge][clusterings]") {
     const MergeMode merge_mode = GENERATE(
         MergeMode::GreedyLocal,
         MergeMode::ConnectedComponents,
@@ -281,7 +281,7 @@ TEST_CASE(
 
 TEST_CASE(
     "merge_clusterings maps mutually close boundary vertices from three clusterings to one vertex",
-    "[dag_builder][merge]") {
+    "[merge][clusterings]") {
     const MergeMode merge_mode = GENERATE(
         MergeMode::GreedyLocal,
         MergeMode::ConnectedComponents,
@@ -320,7 +320,7 @@ TEST_CASE(
 
 TEST_CASE(
     "merge_clusterings averages an asymmetric three-clustering weld",
-    "[dag_builder][merge]") {
+    "[merge][clusterings]") {
     const MergeMode merge_mode = GENERATE(
         MergeMode::GreedyLocal,
         MergeMode::ConnectedComponents,
@@ -355,7 +355,7 @@ TEST_CASE(
 
 TEST_CASE(
     "merge_clusterings welds boundary vertices but never coincident interior vertices",
-    "[dag_builder][merge]") {
+    "[merge][clusterings]") {
     const MergeMode merge_mode = GENERATE(
         MergeMode::GreedyLocal,
         MergeMode::ConnectedComponents,
@@ -395,7 +395,7 @@ TEST_CASE(
 
 TEST_CASE(
     "merge_clusterings averages positions of welded vertices when average_positions is true",
-    "[dag_builder][merge]") {
+    "[merge][clusterings]") {
     const MergeMode merge_mode = GENERATE(
         MergeMode::GreedyLocal,
         MergeMode::ConnectedComponents,
@@ -425,7 +425,7 @@ TEST_CASE(
 
 TEST_CASE(
     "merge_clusterings keeps the last contributing position when average_positions is false",
-    "[dag_builder][merge]") {
+    "[merge][clusterings]") {
     const MergeMode merge_mode = GENERATE(
         MergeMode::GreedyLocal,
         MergeMode::ConnectedComponents,
@@ -455,7 +455,7 @@ TEST_CASE(
 
 TEST_CASE(
     "merge_clusterings welds coincident boundary vertices at earth-centered magnitudes",
-    "[dag_builder][merge]") {
+    "[merge][clusterings]") {
     const MergeMode merge_mode = GENERATE(
         MergeMode::GreedyLocal,
         MergeMode::ConnectedComponents,
@@ -524,7 +524,7 @@ Clustering make_distant_clustering() {
 
 TEST_CASE(
     "merge_clusterings keeps coincident vertices of one clustering apart by default",
-    "[dag_builder][merge]") {
+    "[merge][clusterings]") {
     const MergeMode merge_mode = GENERATE(
         MergeMode::GreedyLocal,
         MergeMode::ConnectedComponents,
@@ -543,7 +543,7 @@ TEST_CASE(
 
 TEST_CASE(
     "merge_clusterings welds coincident vertices of one clustering in exact mode",
-    "[dag_builder][merge]") {
+    "[merge][clusterings]") {
     const std::vector<Clustering> clusterings = {make_cracked_clustering(), make_distant_clustering()};
     const Clustering merged = merge_clusterings(
         clusterings,
@@ -557,7 +557,7 @@ TEST_CASE(
 
 TEST_CASE(
     "merge_clusterings welds coincident vertices of one clustering when interior merges are allowed",
-    "[dag_builder][merge]") {
+    "[merge][clusterings]") {
     const MergeMode merge_mode = GENERATE(
         MergeMode::GreedyLocal,
         MergeMode::ConnectedComponents);
@@ -576,7 +576,7 @@ TEST_CASE(
 
 TEST_CASE(
     "merge_clusterings falls back to connected components for interior merges",
-    "[dag_builder][merge]") {
+    "[merge][clusterings]") {
     const std::vector<Clustering> clusterings = {make_cracked_clustering(), make_distant_clustering()};
     const Clustering merged = merge_clusterings(
         clusterings,

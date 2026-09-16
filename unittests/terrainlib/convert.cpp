@@ -10,7 +10,7 @@
 #include "mesh/convert.h"
 #include "mesh/cgal.h"
 
-TEST_CASE("convert rountrip keeps precision") {
+TEST_CASE("convert rountrip keeps precision", "[mesh][convert]") {
     SimpleMesh mesh;
 
     const double pi = std::numbers::pi_v<double>;

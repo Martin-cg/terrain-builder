@@ -1,7 +1,7 @@
 #include "../catch2_helpers.h"
 #include "containers/FixedVector.h"
 
-TEST_CASE("FixedVector default construction") {
+TEST_CASE("FixedVector default construction", "[containers][FixedVector]") {
     FixedVector<int, 5> vec;
     CHECK(vec.size() == 0);
     CHECK(vec.capacity() == 5);
@@ -9,7 +9,7 @@ TEST_CASE("FixedVector default construction") {
     CHECK(!vec.full());
 }
 
-TEST_CASE("FixedVector initializer_list construction") {
+TEST_CASE("FixedVector initializer_list construction", "[containers][FixedVector]") {
     FixedVector<int, 5> vec{1, 2, 3};
     REQUIRE(vec.size() == 3);
     CHECK(vec[0] == 1);
@@ -19,7 +19,7 @@ TEST_CASE("FixedVector initializer_list construction") {
     REQUIRE_THROWS_AS((FixedVector<int, 2>{1, 2, 3}), std::out_of_range);
 }
 
-TEST_CASE("FixedVector copy constructor and assignment") {
+TEST_CASE("FixedVector copy constructor and assignment", "[containers][FixedVector]") {
     FixedVector<int, 5> vec{1, 2, 3};
     FixedVector<int, 5> copy_vec(vec);
     REQUIRE(copy_vec.size() == vec.size());
@@ -36,7 +36,7 @@ TEST_CASE("FixedVector copy constructor and assignment") {
     CHECK(vec.size() == 3);
 }
 
-TEST_CASE("FixedVector move constructor and assignment") {
+TEST_CASE("FixedVector move constructor and assignment", "[containers][FixedVector]") {
     FixedVector<int, 5> vec{1, 2, 3};
     FixedVector<int, 5> moved_vec(std::move(vec));
     CHECK(moved_vec.size() == 3);
@@ -48,7 +48,7 @@ TEST_CASE("FixedVector move constructor and assignment") {
     CHECK(moved_vec.size() == 0);
 }
 
-TEST_CASE("FixedVector emplace_back and push_back") {
+TEST_CASE("FixedVector emplace_back and push_back", "[containers][FixedVector]") {
     FixedVector<std::pair<int, int>, 3> vec;
     vec.emplace_back(1, 2);
     vec.emplace_back(3, 4);
@@ -62,7 +62,7 @@ TEST_CASE("FixedVector emplace_back and push_back") {
     REQUIRE_THROWS_AS(vec.push_back(std::make_pair(9, 10)), std::out_of_range);
 }
 
-TEST_CASE("FixedVector try_emplace_back and try_push_back") {
+TEST_CASE("FixedVector try_emplace_back and try_push_back", "[containers][FixedVector]") {
     FixedVector<int, 2> vec;
     CHECK(vec.try_emplace_back(1));
     CHECK(vec.try_push_back(2));
@@ -70,7 +70,7 @@ TEST_CASE("FixedVector try_emplace_back and try_push_back") {
     REQUIRE_FALSE(vec.try_push_back(4));
 }
 
-TEST_CASE("FixedVector pop_back") {
+TEST_CASE("FixedVector pop_back", "[containers][FixedVector]") {
     FixedVector<int, 3> vec{1, 2};
     vec.pop_back();
     REQUIRE(vec.size() == 1);
@@ -80,14 +80,14 @@ TEST_CASE("FixedVector pop_back") {
     REQUIRE_THROWS_AS(vec.pop_back(), std::out_of_range);
 }
 
-TEST_CASE("FixedVector at() bounds checking") {
+TEST_CASE("FixedVector at() bounds checking", "[containers][FixedVector]") {
     FixedVector<int, 2> vec{5, 6};
     CHECK(vec.at(0) == 5);
     CHECK(vec.at(1) == 6);
     REQUIRE_THROWS_AS(vec.at(2), std::out_of_range);
 }
 
-TEST_CASE("FixedVector clear()") {
+TEST_CASE("FixedVector clear()", "[containers][FixedVector]") {
     FixedVector<int, 3> vec{1, 2, 3};
     vec.clear();
     CHECK(vec.empty());
@@ -95,7 +95,7 @@ TEST_CASE("FixedVector clear()") {
     REQUIRE_THROWS_AS(vec.pop_back(), std::out_of_range);
 }
 
-TEST_CASE("FixedVector resize") {
+TEST_CASE("FixedVector resize", "[containers][FixedVector]") {
     FixedVector<int, 4> vec{1, 2};
     vec.resize(4);
     REQUIRE(vec.size() == 4);
@@ -110,7 +110,7 @@ TEST_CASE("FixedVector resize") {
     REQUIRE_THROWS_AS(vec.resize(5), std::out_of_range);
 }
 
-TEST_CASE("FixedVector begin/end iterators") {
+TEST_CASE("FixedVector begin/end iterators", "[containers][FixedVector]") {
     FixedVector<int, 3> vec{1, 2, 3};
     int sum = 0;
     for (auto it = vec.begin(); it != vec.end(); ++it)
@@ -123,7 +123,7 @@ TEST_CASE("FixedVector begin/end iterators") {
     CHECK(sum == 6);
 }
 
-TEST_CASE("FixedVector std::span conversion") {
+TEST_CASE("FixedVector std::span conversion", "[containers][FixedVector]") {
     FixedVector<int, 3> vec{1, 2, 3};
     std::span<int> s = vec;
     REQUIRE(s.size() == 3);
@@ -133,7 +133,7 @@ TEST_CASE("FixedVector std::span conversion") {
     CHECK(cs[1] == 2);
 }
 
-TEST_CASE("FixedVector full() and empty()") {
+TEST_CASE("FixedVector full() and empty()", "[containers][FixedVector]") {
     FixedVector<int, 2> vec;
     CHECK(vec.empty());
     REQUIRE_FALSE(vec.full());
@@ -144,7 +144,7 @@ TEST_CASE("FixedVector full() and empty()") {
     REQUIRE_FALSE(vec.empty());
 }
 
-TEST_CASE("FixedVector capacity()") {
+TEST_CASE("FixedVector capacity()", "[containers][FixedVector]") {
     FixedVector<int, 4> vec;
     CHECK(vec.capacity() == 4);
     vec.push_back(1);
@@ -152,7 +152,7 @@ TEST_CASE("FixedVector capacity()") {
     CHECK(vec.capacity() == 4);
 }
 
-TEST_CASE("FixedVector works with std::unique_ptr") {
+TEST_CASE("FixedVector works with std::unique_ptr", "[containers][FixedVector]") {
     FixedVector<std::unique_ptr<int>, 3> vec;
 
     // emplace_back
@@ -197,7 +197,7 @@ TEST_CASE("FixedVector works with std::unique_ptr") {
     CHECK(moved_vec.empty());
 }
 
-TEST_CASE("FixedVector resize with std::unique_ptr") {
+TEST_CASE("FixedVector resize with std::unique_ptr", "[containers][FixedVector]") {
     FixedVector<std::unique_ptr<int>, 4> vec;
     vec.emplace_back(std::make_unique<int>(1));
     vec.emplace_back(std::make_unique<int>(2));

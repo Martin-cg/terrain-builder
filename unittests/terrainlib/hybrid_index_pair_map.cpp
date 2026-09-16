@@ -9,7 +9,7 @@
 using Map = HybridIndexPairMap<uint32_t, uint32_t>;
 using Map64 = HybridIndexPairMap<uint32_t, double>;
 
-TEST_CASE("HybridIndexPairMap empty map") {
+TEST_CASE("HybridIndexPairMap empty map", "[containers][HybridIndexPairMap]") {
     Map map;
     CHECK(map.empty());
     CHECK(map.size() == 0);
@@ -18,7 +18,7 @@ TEST_CASE("HybridIndexPairMap empty map") {
     CHECK_FALSE(map.contains(0, 0));
 }
 
-TEST_CASE("HybridIndexPairMap single insert") {
+TEST_CASE("HybridIndexPairMap single insert", "[containers][HybridIndexPairMap]") {
     Map map;
     map.insert_or_assign(3, 7, 42);
 
@@ -32,7 +32,7 @@ TEST_CASE("HybridIndexPairMap single insert") {
     CHECK(*ptr == 42);
 }
 
-TEST_CASE("HybridIndexPairMap assign over existing key") {
+TEST_CASE("HybridIndexPairMap assign over existing key", "[containers][HybridIndexPairMap]") {
     Map map;
     map.insert_or_assign(5, 10, 100);
     CHECK(map.find(5, 10) == 100);
@@ -43,7 +43,7 @@ TEST_CASE("HybridIndexPairMap assign over existing key") {
     CHECK(map.size() == 1);
 }
 
-TEST_CASE("HybridIndexPairMap two different primary keys stay direct") {
+TEST_CASE("HybridIndexPairMap two different primary keys stay direct", "[containers][HybridIndexPairMap]") {
     Map map;
     map.insert_or_assign(1, 10, 100);
     map.insert_or_assign(2, 20, 200);
@@ -53,7 +53,7 @@ TEST_CASE("HybridIndexPairMap two different primary keys stay direct") {
     CHECK(map.find(2, 20) == 200);
 }
 
-TEST_CASE("HybridIndexPairMap same primary two secondary keys triggers overflow") {
+TEST_CASE("HybridIndexPairMap same primary two secondary keys triggers overflow", "[containers][HybridIndexPairMap]") {
     Map map;
     map.insert_or_assign(1, 10, 100);
     map.insert_or_assign(1, 20, 200);
@@ -63,7 +63,7 @@ TEST_CASE("HybridIndexPairMap same primary two secondary keys triggers overflow"
     CHECK(map.find(1, 20) == 200);
 }
 
-TEST_CASE("HybridIndexPairMap same primary three secondary keys") {
+TEST_CASE("HybridIndexPairMap same primary three secondary keys", "[containers][HybridIndexPairMap]") {
     Map map;
     map.insert_or_assign(1, 10, 100);
     map.insert_or_assign(1, 20, 200);
@@ -75,7 +75,7 @@ TEST_CASE("HybridIndexPairMap same primary three secondary keys") {
     CHECK(map.find(1, 30) == 300);
 }
 
-TEST_CASE("HybridIndexPairMap find and contains for non-existent keys") {
+TEST_CASE("HybridIndexPairMap find and contains for non-existent keys", "[containers][HybridIndexPairMap]") {
     Map map;
     map.insert_or_assign(5, 10, 42);
 
@@ -95,7 +95,7 @@ TEST_CASE("HybridIndexPairMap find and contains for non-existent keys") {
     CHECK(map.find(5, 99) == std::nullopt);
 }
 
-TEST_CASE("HybridIndexPairMap clear resets everything") {
+TEST_CASE("HybridIndexPairMap clear resets everything", "[containers][HybridIndexPairMap]") {
     Map map;
     map.insert_or_assign(1, 10, 100);
     map.insert_or_assign(2, 20, 200);
@@ -115,7 +115,7 @@ TEST_CASE("HybridIndexPairMap clear resets everything") {
     CHECK(map.find(4, 40) == 400);
 }
 
-TEST_CASE("HybridIndexPairMap entries iteration") {
+TEST_CASE("HybridIndexPairMap entries iteration", "[containers][HybridIndexPairMap]") {
     Map map;
     map.insert_or_assign(0, 10, 100);
     map.insert_or_assign(1, 20, 200);
@@ -136,7 +136,7 @@ TEST_CASE("HybridIndexPairMap entries iteration") {
     CHECK(collected.count({2, 40, 400}) == 1);
 }
 
-TEST_CASE("HybridIndexPairMap with Index == Value (uint32_t, uint32_t)") {
+TEST_CASE("HybridIndexPairMap with Index == Value (uint32_t, uint32_t)", "[containers][HybridIndexPairMap]") {
     // This exercises the std::is_same_v<Index, Value> code path
     Map map;
     map.reserve_primary(10);
@@ -156,7 +156,7 @@ TEST_CASE("HybridIndexPairMap with Index == Value (uint32_t, uint32_t)") {
     CHECK(map.size() == 3);
 }
 
-TEST_CASE("HybridIndexPairMap with different Index and Value types") {
+TEST_CASE("HybridIndexPairMap with different Index and Value types", "[containers][HybridIndexPairMap]") {
     Map64 map;
     map.insert_or_assign(1, 2, 3.14);
     map.insert_or_assign(1, 3, 2.72);

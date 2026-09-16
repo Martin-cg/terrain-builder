@@ -32,13 +32,13 @@ std::string vec2d_to_string(const std::vector<std::vector<uint32_t>> &v) {
     return oss.str();
 }
 
-TEST_CASE("find_boundaries returns empty for empty mesh") {
+TEST_CASE("find_boundaries returns empty for empty mesh", "[mesh][connectivity][boundary]") {
     SimpleMesh mesh;
     auto boundaries = mesh::find_boundaries(mesh);
     CHECK(boundaries.empty());
 }
 
-TEST_CASE("find_boundaries returns single boundary of all vertices for single triangle") {
+TEST_CASE("find_boundaries returns single boundary of all vertices for single triangle", "[mesh][connectivity][boundary]") {
     SimpleMesh mesh;
     mesh.positions = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}};
     mesh.triangles = {glm::uvec3(0, 1, 2)};
@@ -51,7 +51,7 @@ TEST_CASE("find_boundaries returns single boundary of all vertices for single tr
     CHECK_THAT(boundaries[0], Catch::Matchers::UnorderedEquals(expected));
 }
 
-TEST_CASE("find_boundaries returns single boundary of all vertices for two connected triangle") {
+TEST_CASE("find_boundaries returns single boundary of all vertices for two connected triangle", "[mesh][connectivity][boundary]") {
     SimpleMesh mesh;
     mesh.positions = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 1, 1}};
     mesh.triangles = {glm::uvec3(0, 1, 3), glm::uvec3(1, 2, 3)};
@@ -64,7 +64,7 @@ TEST_CASE("find_boundaries returns single boundary of all vertices for two conne
     mesh::normalize_face_index_rotation(boundary, true);
     CHECK_THAT(boundary, Catch::Matchers::UnorderedEquals(expected));
 }
-TEST_CASE("find_boundaries returns two boundaries for two isolated triangles") {
+TEST_CASE("find_boundaries returns two boundaries for two isolated triangles", "[mesh][connectivity][boundary]") {
     SimpleMesh mesh;
     mesh.positions = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 1, 1}, {0, 2, 1}, {0, 1, 2}};
     mesh.triangles = {glm::uvec3(0, 1, 2), glm::uvec3(3, 4, 5)};
@@ -80,7 +80,7 @@ TEST_CASE("find_boundaries returns two boundaries for two isolated triangles") {
     CHECK_THAT(boundaries[1], Catch::Matchers::UnorderedEquals(expected2));
 }
 
-TEST_CASE("find_holes find square hole") {
+TEST_CASE("find_holes find square hole", "[mesh][holes]") {
     SimpleMesh mesh;
     // Outer square: 0,1,2,3
     // Inner hole square: 4,5,6,7
@@ -126,7 +126,7 @@ TEST_CASE("find_holes find square hole") {
     CHECK_THAT(holes[0], Catch::Matchers::UnorderedEquals(inner_loop));
 }
 
-TEST_CASE("fill_planar_hole fill square hole") {
+TEST_CASE("fill_planar_hole fill square hole", "[mesh][holes]") {
     SimpleMesh mesh;
     // Outer square: 0,1,2,3
     // Inner hole square: 4,5,6,7
@@ -191,7 +191,7 @@ TEST_CASE("fill_planar_hole fill square hole") {
     }
 }
 
-TEST_CASE("square frame with two holes sharing a vertex") {
+TEST_CASE("square frame with two holes sharing a vertex", "[mesh][connectivity][boundary][holes]") {
     SimpleMesh mesh;
     mesh.positions = {
         {0, 0, 0},       // 0

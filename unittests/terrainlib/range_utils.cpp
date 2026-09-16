@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-TEST_CASE("contains: found and not found") {
+TEST_CASE("contains: found and not found", "[range_utils]") {
     std::vector<int> v = {1, 2, 3, 4, 5};
 
     CHECK(contains(v, 3));
@@ -14,7 +14,7 @@ TEST_CASE("contains: found and not found") {
     CHECK_FALSE(contains(v, 6));
 }
 
-TEST_CASE("index_of: found returns index") {
+TEST_CASE("index_of: found returns index", "[range_utils]") {
     std::vector<int> v = {10, 20, 30, 40};
 
     CHECK(index_of(v, 10) == 0);
@@ -22,19 +22,19 @@ TEST_CASE("index_of: found returns index") {
     CHECK(index_of(v, 40) == 3);
 }
 
-TEST_CASE("index_of: not found returns nullopt") {
+TEST_CASE("index_of: not found returns nullopt", "[range_utils]") {
     std::vector<int> v = {10, 20, 30};
 
     CHECK(index_of(v, 99) == std::nullopt);
 }
 
-TEST_CASE("index_of: duplicates returns first occurrence") {
+TEST_CASE("index_of: duplicates returns first occurrence", "[range_utils]") {
     std::vector<int> v = {5, 3, 7, 3, 9};
 
     CHECK(index_of(v, 3) == 1);
 }
 
-TEST_CASE("find_ptr: found returns non-null pointer to correct value") {
+TEST_CASE("find_ptr: found returns non-null pointer to correct value", "[range_utils]") {
     std::vector<int> v = {10, 20, 30};
 
     auto *ptr = find_ptr(v, 20);
@@ -43,13 +43,13 @@ TEST_CASE("find_ptr: found returns non-null pointer to correct value") {
     CHECK(ptr == &v[1]);
 }
 
-TEST_CASE("find_ptr: not found returns nullptr") {
+TEST_CASE("find_ptr: not found returns nullptr", "[range_utils]") {
     std::vector<int> v = {10, 20, 30};
 
     CHECK(find_ptr(v, 99) == nullptr);
 }
 
-TEST_CASE("find: found returns optional with value") {
+TEST_CASE("find: found returns optional with value", "[range_utils]") {
     std::vector<std::string> v = {"alpha", "beta", "gamma"};
 
     auto result = find(v, std::string("beta"));
@@ -57,13 +57,13 @@ TEST_CASE("find: found returns optional with value") {
     CHECK(*result == "beta");
 }
 
-TEST_CASE("find: not found returns nullopt") {
+TEST_CASE("find: not found returns nullopt", "[range_utils]") {
     std::vector<std::string> v = {"alpha", "beta"};
 
     CHECK(find(v, std::string("delta")) == std::nullopt);
 }
 
-TEST_CASE("find_single: exactly one occurrence returns iterator") {
+TEST_CASE("find_single: exactly one occurrence returns iterator", "[range_utils]") {
     std::vector<int> v = {1, 2, 3, 4, 5};
 
     auto it = find_single(v, 3);
@@ -71,19 +71,19 @@ TEST_CASE("find_single: exactly one occurrence returns iterator") {
     CHECK(*it == 3);
 }
 
-TEST_CASE("find_single: zero occurrences returns end") {
+TEST_CASE("find_single: zero occurrences returns end", "[range_utils]") {
     std::vector<int> v = {1, 2, 3};
 
     CHECK(find_single(v, 99) == v.end());
 }
 
-TEST_CASE("find_single: two occurrences returns end") {
+TEST_CASE("find_single: two occurrences returns end", "[range_utils]") {
     std::vector<int> v = {1, 2, 3, 2, 5};
 
     CHECK(find_single(v, 2) == v.end());
 }
 
-TEST_CASE("find_single_index: exactly one occurrence returns index") {
+TEST_CASE("find_single_index: exactly one occurrence returns index", "[range_utils]") {
     std::vector<int> v = {10, 20, 30, 40};
 
     auto result = find_single_index(v, 30);
@@ -91,19 +91,19 @@ TEST_CASE("find_single_index: exactly one occurrence returns index") {
     CHECK(*result == 2);
 }
 
-TEST_CASE("find_single_index: zero occurrences returns nullopt") {
+TEST_CASE("find_single_index: zero occurrences returns nullopt", "[range_utils]") {
     std::vector<int> v = {10, 20, 30};
 
     CHECK(find_single_index(v, 99) == std::nullopt);
 }
 
-TEST_CASE("find_single_index: two occurrences returns nullopt") {
+TEST_CASE("find_single_index: two occurrences returns nullopt", "[range_utils]") {
     std::vector<int> v = {10, 20, 10, 30};
 
     CHECK(find_single_index(v, 10) == std::nullopt);
 }
 
-TEST_CASE("transform_vector: transform ints to strings") {
+TEST_CASE("transform_vector: transform ints to strings", "[range_utils]") {
     std::vector<int> v = {1, 2, 3};
 
     auto result = transform_vector(v, [](int x) { return std::to_string(x); });
@@ -114,7 +114,7 @@ TEST_CASE("transform_vector: transform ints to strings") {
     CHECK(result[2] == "3");
 }
 
-TEST_CASE("transform_vector: transform with identity") {
+TEST_CASE("transform_vector: transform with identity", "[range_utils]") {
     std::vector<int> v = {4, 5, 6};
 
     auto result = transform_vector(v, [](int x) { return x; });
@@ -125,7 +125,7 @@ TEST_CASE("transform_vector: transform with identity") {
     CHECK(result[2] == 6);
 }
 
-TEST_CASE("sum with projection: sum of sizes of strings") {
+TEST_CASE("sum with projection: sum of sizes of strings", "[range_utils]") {
     std::vector<std::string> v = {"ab", "cdef", "g"};
 
     auto result = sum(v, size_t{0}, [](const std::string &s) { return s.size(); });
@@ -133,13 +133,13 @@ TEST_CASE("sum with projection: sum of sizes of strings") {
     CHECK(result == 7);
 }
 
-TEST_CASE("sum direct: sum of ints") {
+TEST_CASE("sum direct: sum of ints", "[range_utils]") {
     std::vector<int> v = {1, 2, 3, 4, 5};
 
     CHECK(sum(v) == 15);
 }
 
-TEST_CASE("range(end): generates [0, end)") {
+TEST_CASE("range(end): generates [0, end)", "[range_utils]") {
     auto r = range(5);
     std::vector<int> result(std::ranges::begin(r), std::ranges::end(r));
 
@@ -147,7 +147,7 @@ TEST_CASE("range(end): generates [0, end)") {
     CHECK(result == std::vector<int>{0, 1, 2, 3, 4});
 }
 
-TEST_CASE("range(begin, end): generates [begin, end)") {
+TEST_CASE("range(begin, end): generates [begin, end)", "[range_utils]") {
     auto r = range(3, 7);
     std::vector<int> result(std::ranges::begin(r), std::ranges::end(r));
 
@@ -155,7 +155,7 @@ TEST_CASE("range(begin, end): generates [begin, end)") {
     CHECK(result == std::vector<int>{3, 4, 5, 6});
 }
 
-TEST_CASE("edge case: empty range") {
+TEST_CASE("edge case: empty range", "[range_utils]") {
     std::vector<int> empty;
 
     CHECK_FALSE(contains(empty, 1));

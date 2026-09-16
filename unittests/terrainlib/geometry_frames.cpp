@@ -6,7 +6,7 @@
 #include "geometry/PlaneFrame.h"
 #include "geometry/geometry.h"
 
-TEST_CASE("PlaneFrame::from_triangle spans the triangle's plane", "[terrainlib][frames]") {
+TEST_CASE("PlaneFrame::from_triangle spans the triangle's plane", "[geometry][PlaneFrame]") {
     const radix::geometry::Triangle<3, double> triangle = {
         glm::dvec3(1.0, -2.0, 3.0),
         glm::dvec3(4.0, 5.0, -1.0),
@@ -23,7 +23,7 @@ TEST_CASE("PlaneFrame::from_triangle spans the triangle's plane", "[terrainlib][
     CHECK_THAT(glm::dot(frame->bitangent, frame->normal), Catch::Matchers::WithinAbs(0.0, geometry::epsilon<double>()));
 }
 
-TEST_CASE("PlaneFrame::from_triangle rejects a degenerate triangle", "[terrainlib][frames]") {
+TEST_CASE("PlaneFrame::from_triangle rejects a degenerate triangle", "[geometry][PlaneFrame]") {
     const radix::geometry::Triangle<3, double> collinear = {
         glm::dvec3(0.0, 0.0, 0.0),
         glm::dvec3(1.0, 1.0, 1.0),
@@ -39,7 +39,7 @@ TEST_CASE("PlaneFrame::from_triangle rejects a degenerate triangle", "[terrainli
     CHECK_FALSE(PlaneFrame::from_triangle(repeated).has_value());
 }
 
-TEST_CASE("CoordFrame maps to local coordinates and back", "[terrainlib][frames]") {
+TEST_CASE("CoordFrame maps to local coordinates and back", "[geometry][CoordFrame]") {
     const radix::geometry::Triangle<3, double> triangle = {
         glm::dvec3(1.0, -2.0, 3.0),
         glm::dvec3(4.0, 5.0, -1.0),
@@ -58,7 +58,7 @@ TEST_CASE("CoordFrame maps to local coordinates and back", "[terrainlib][frames]
     }
 }
 
-TEST_CASE("PlaneFrame separates the in-plane position from the height", "[terrainlib][frames]") {
+TEST_CASE("PlaneFrame separates the in-plane position from the height", "[geometry][PlaneFrame]") {
     const radix::geometry::Triangle<3, double> triangle = {
         glm::dvec3(1.0, -2.0, 3.0),
         glm::dvec3(4.0, 5.0, -1.0),
@@ -75,7 +75,7 @@ TEST_CASE("PlaneFrame separates the in-plane position from the height", "[terrai
     CHECK_THAT(frame->distance_to(sunk), Catch::Matchers::WithinRel(-1.5));
 }
 
-TEST_CASE("PlaneFrame::flatten lays a triangle out counter-clockwise", "[terrainlib][frames]") {
+TEST_CASE("PlaneFrame::flatten lays a triangle out counter-clockwise", "[geometry][PlaneFrame]") {
     const radix::geometry::Triangle<3, double> triangle = {
         glm::dvec3(1.0, -2.0, 3.0),
         glm::dvec3(4.0, 5.0, -1.0),

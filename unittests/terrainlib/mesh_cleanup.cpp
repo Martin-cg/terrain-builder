@@ -127,7 +127,7 @@ SimpleMesh make_mesh_with_one_tiny_and_one_large_triangle() {
 
 } // namespace
 
-TEST_CASE("mesh::find_duplicate_triangles") {
+TEST_CASE("mesh::find_duplicate_triangles", "[mesh][cleanup]") {
 
     SECTION("unique mesh has no duplicates") {
         const SimpleMesh mesh = make_unique_triangle_mesh();
@@ -186,7 +186,7 @@ TEST_CASE("mesh::find_duplicate_triangles") {
     }
 }
 
-TEST_CASE("mesh::remove_duplicate_triangles") {
+TEST_CASE("mesh::remove_duplicate_triangles", "[mesh][cleanup]") {
     SECTION("removing from unique mesh changes nothing") {
         SimpleMesh mesh = make_unique_triangle_mesh();
         const auto old_triangles = mesh.triangles;
@@ -242,7 +242,7 @@ TEST_CASE("mesh::remove_duplicate_triangles") {
     }
 }
 
-TEST_CASE("mesh::remove_isolated_vertices") {
+TEST_CASE("mesh::remove_isolated_vertices", "[mesh][cleanup]") {
     SECTION("mesh without isolated vertices stays unchanged") {
         SimpleMesh mesh = make_mesh_with_no_isolated_vertices();
         const auto old_positions = mesh.positions;
@@ -283,7 +283,7 @@ TEST_CASE("mesh::remove_isolated_vertices") {
     }
 }
 
-TEST_CASE("mesh::remove_degenerate_triangles") {
+TEST_CASE("mesh::remove_degenerate_triangles", "[mesh][cleanup]") {
     SECTION("removes triangles with repeated vertex indices") {
         SimpleMesh mesh = make_mesh_with_degenerate_triangles();
 
@@ -304,7 +304,7 @@ TEST_CASE("mesh::remove_degenerate_triangles") {
     }
 }
 
-TEST_CASE("mesh::remove_triangles_of_negligible_size") {
+TEST_CASE("mesh::remove_triangles_of_negligible_size", "[mesh][cleanup]") {
     SECTION("removes very small triangles relative to average size") {
         SimpleMesh mesh = make_mesh_with_one_tiny_and_one_large_triangle();
 

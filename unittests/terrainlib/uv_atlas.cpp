@@ -113,7 +113,7 @@ void check_fully_mapped(const uv::Atlas &atlas, const mesh::Simple &mesh) {
 
 } // namespace
 
-TEST_CASE("build_atlas lays out a flat quad as one chart", "[terrainlib][uv_atlas]") {
+TEST_CASE("build_atlas lays out a flat quad as one chart", "[uv][atlas]") {
     const mesh::Simple mesh = make_quad();
 
     const uv::Atlas atlas = uv::build_atlas(mesh);
@@ -124,7 +124,7 @@ TEST_CASE("build_atlas lays out a flat quad as one chart", "[terrainlib][uv_atla
     CHECK(atlas.uvs.size() == mesh.vertex_count());
 }
 
-TEST_CASE("build_atlas keeps input triangle order", "[terrainlib][uv_atlas]") {
+TEST_CASE("build_atlas keeps input triangle order", "[uv][atlas]") {
     const mesh::Simple mesh = make_cube();
 
     const uv::Atlas atlas = uv::build_atlas(mesh);
@@ -138,7 +138,7 @@ TEST_CASE("build_atlas keeps input triangle order", "[terrainlib][uv_atlas]") {
     }
 }
 
-TEST_CASE("build_atlas cuts a closed cube without manifold repair", "[terrainlib][uv_atlas]") {
+TEST_CASE("build_atlas cuts a closed cube without manifold repair", "[uv][atlas]") {
     const mesh::Simple mesh = make_cube();
 
     const uv::Atlas atlas = uv::build_atlas(mesh);
@@ -149,7 +149,7 @@ TEST_CASE("build_atlas cuts a closed cube without manifold repair", "[terrainlib
     CHECK(atlas.uvs.size() > mesh.vertex_count());
 }
 
-TEST_CASE("build_atlas unwraps non manifold input", "[terrainlib][uv_atlas]") {
+TEST_CASE("build_atlas unwraps non manifold input", "[uv][atlas]") {
     const auto [name, mesh] = GENERATE(
         std::pair{"bowtie", make_bowtie()},
         std::pair{"fin", make_fin()},
@@ -163,7 +163,7 @@ TEST_CASE("build_atlas unwraps non manifold input", "[terrainlib][uv_atlas]") {
     CHECK(atlas.chart_count >= 1);
 }
 
-TEST_CASE("build_atlas reports degenerate triangles instead of dropping them", "[terrainlib][uv_atlas]") {
+TEST_CASE("build_atlas reports degenerate triangles instead of dropping them", "[uv][atlas]") {
     // The two shapes xatlas refuses: a repeated corner, and three distinct but collinear ones.
     const auto [name, degenerate] = GENERATE(
         std::pair{"repeated corner", glm::uvec3(1, 4, 4)},
@@ -185,7 +185,7 @@ TEST_CASE("build_atlas reports degenerate triangles instead of dropping them", "
     CHECK(uv_area(atlas, 3) > 0.0);
 }
 
-TEST_CASE("build_atlas leaves out a triangle far thinner than a texel", "[terrainlib][uv_atlas]") {
+TEST_CASE("build_atlas leaves out a triangle far thinner than a texel", "[uv][atlas]") {
     // A cap under the quad's bottom edge, far below a thousandth of a texel at this resolution.
     mesh::Simple mesh = make_quad();
     mesh.positions.push_back(glm::dvec3(0.5, -1e-7, 0));
@@ -198,7 +198,7 @@ TEST_CASE("build_atlas leaves out a triangle far thinner than a texel", "[terrai
     CHECK(atlas.unmapped_triangles == std::vector<uint32_t>{2});
 }
 
-TEST_CASE("build_atlas keeps a triangle thinner than a texel but far above the limit", "[terrainlib][uv_atlas]") {
+TEST_CASE("build_atlas keeps a triangle thinner than a texel but far above the limit", "[uv][atlas]") {
     // A cap a tenth of a texel thick at this resolution.
     mesh::Simple mesh = make_quad();
     mesh.positions.push_back(glm::dvec3(0.5, -1.0 / 640, 0));
@@ -210,7 +210,7 @@ TEST_CASE("build_atlas keeps a triangle thinner than a texel but far above the l
     check_fully_mapped(atlas, mesh);
 }
 
-TEST_CASE("build_atlas normalises the uvs against the packed size", "[terrainlib][uv_atlas]") {
+TEST_CASE("build_atlas normalises the uvs against the packed size", "[uv][atlas]") {
     const mesh::Simple mesh = make_cube();
 
     const uv::Atlas atlas = uv::build_atlas(mesh);
@@ -223,7 +223,7 @@ TEST_CASE("build_atlas normalises the uvs against the packed size", "[terrainlib
     }
 }
 
-TEST_CASE("build_atlas tolerates an empty mesh", "[terrainlib][uv_atlas]") {
+TEST_CASE("build_atlas tolerates an empty mesh", "[uv][atlas]") {
     const uv::Atlas atlas = uv::build_atlas(mesh::Simple{});
 
     CHECK(atlas.triangles.empty());

@@ -49,7 +49,7 @@ void compare_tile_lists(const std::vector<radix::tile::Descriptor>& a_tiles, std
 
 }
 
-TEMPLATE_TEST_CASE("BottomUpTiler, using tms scheme", "", std::true_type, std::false_type)
+TEMPLATE_TEST_CASE("BottomUpTiler, using tms scheme", "[TopDownTiler]", std::true_type, std::false_type)
 {
     const auto scheme = TestType::value ? radix::tile::Scheme::Tms : radix::tile::Scheme::SlippyMap;
 

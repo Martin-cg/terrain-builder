@@ -20,7 +20,7 @@
 #include "octree/Space.h"
 #include "octree/Id.h"
 
-TEST_CASE("empty mesh") {
+TEST_CASE("empty mesh", "[mesh][clip]") {
     const SimpleMesh mesh;
     const radix::geometry::Aabb3d bounds(glm::dvec3(-1.0, -1.0, -1.0), glm::dvec3(1.0, 1.0, 1.0));
     const SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh, bounds);
@@ -30,7 +30,7 @@ TEST_CASE("empty mesh") {
     CHECK(!clipped_mesh.texture.has_value());
 }
 
-TEST_CASE("single triangle in bounds") {
+TEST_CASE("single triangle in bounds", "[mesh][clip]") {
     SimpleMesh mesh;
     mesh.positions = {
         glm::dvec3(0, 0, 0),
@@ -51,7 +51,7 @@ TEST_CASE("single triangle in bounds") {
     CHECK(mesh.triangles == clipped_mesh.triangles);
 }
 
-TEST_CASE("single triangle out of bounds") {
+TEST_CASE("single triangle out of bounds", "[mesh][clip]") {
     SimpleMesh mesh;
     mesh.positions = {
         glm::dvec3(0, 0, 0),
@@ -72,7 +72,7 @@ TEST_CASE("single triangle out of bounds") {
     CHECK(clipped_mesh.triangles == std::vector<glm::uvec3>{});
 }
 
-TEST_CASE("single triangle touching bounds in point") {
+TEST_CASE("single triangle touching bounds in point", "[mesh][clip]") {
     SimpleMesh mesh;
     mesh.positions = {
         glm::dvec3(0, 0, 0),
@@ -93,7 +93,7 @@ TEST_CASE("single triangle touching bounds in point") {
     CHECK(clipped_mesh.triangles == std::vector<glm::uvec3>{});
 }
 
-TEST_CASE("single triangle touching bounds") {
+TEST_CASE("single triangle touching bounds", "[mesh][clip]") {
     SimpleMesh mesh;
     mesh.positions = {
         glm::dvec3(0, 0, 0),
@@ -118,7 +118,7 @@ TEST_CASE("single triangle touching bounds") {
                                     }});
 }
 
-TEST_CASE("single triangle with single vertex in bounds") {
+TEST_CASE("single triangle with single vertex in bounds", "[mesh][clip]") {
     SimpleMesh mesh;
     mesh.positions = {
         glm::dvec3(0, 0, 0),
@@ -148,7 +148,7 @@ TEST_CASE("single triangle with single vertex in bounds") {
     }
 }
 
-TEST_CASE("clip returns empty mesh if triangle with vertices on bounds and outside") {
+TEST_CASE("clip returns empty mesh if triangle with vertices on bounds and outside", "[mesh][clip]") {
     SimpleMesh mesh;
     mesh.positions = {
         glm::dvec3(0.0, 0.0, 0.0),  // on plane y = 0
@@ -170,7 +170,7 @@ TEST_CASE("clip returns empty mesh if triangle with vertices on bounds and outsi
     CHECK(clipped_soup == TriangleSoup{});
 }
 
-TEST_CASE("single triangle around bounds") {
+TEST_CASE("single triangle around bounds", "[mesh][clip]") {
     SimpleMesh mesh;
     mesh.positions = {
         glm::dvec3(0.0, 3.0, 0.0),
@@ -214,7 +214,7 @@ TEST_CASE("single triangle around bounds") {
     CHECK(total_area == Catch::Approx(4.0));
 }
 
-TEST_CASE("single triangle with two vertices in bounds") {
+TEST_CASE("single triangle with two vertices in bounds", "[mesh][clip]") {
     SimpleMesh mesh;
     mesh.positions = {
         glm::dvec3(-0.5, 0, 0),
@@ -241,7 +241,7 @@ TEST_CASE("single triangle with two vertices in bounds") {
     CHECK((clipped_soup == expected1 || clipped_soup == expected2));
 }
 
-TEST_CASE("single triangle split by one plane and partly discarded by the next") {
+TEST_CASE("single triangle split by one plane and partly discarded by the next", "[mesh][clip]") {
     // The x plane leaves two vertices inside and splits the triangle in two. The piece clipped
     // first falls entirely outside the y plane, while the one held back still reaches into bounds.
     SimpleMesh mesh;
@@ -325,7 +325,7 @@ void run_checks(const SimpleMesh &mesh, const SimpleMesh &clipped_mesh, const ra
     }
 }
 
-TEST_CASE("clip_on_bounds produces manifold mesh") {
+TEST_CASE("clip_on_bounds produces manifold mesh", "[mesh][clip]") {
     SimpleMesh mesh;
     mesh.positions = {
         // Triangle A
@@ -356,7 +356,7 @@ TEST_CASE("clip_on_bounds produces manifold mesh") {
 }
 
 #ifdef NDEBUG
-TEST_CASE("mesh::clip_on_bounds benchmark") {
+TEST_CASE("mesh::clip_on_bounds benchmark", "[mesh][clip]") {
     BENCHMARK_ADVANCED("clip based on octree")(Catch::Benchmark::Chronometer meter) {
         const std::filesystem::path mesh_path = ALP_TEST_DATA_DIR "/meshes/6857.terrain";
         auto mesh_result = mesh::io::load_from_path(mesh_path);

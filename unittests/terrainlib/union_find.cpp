@@ -1,13 +1,13 @@
 #include "../catch2_helpers.h"
 #include "containers/UnionFind.h"
 
-TEST_CASE("UnionFind empty (size 0)", "[UnionFind]") {
+TEST_CASE("UnionFind empty (size 0)", "[containers][UnionFind]") {
     UnionFind uf(0);
     CHECK(uf.size() == 0);
     CHECK(uf.set_count() == 0);
 }
 
-TEST_CASE("UnionFind single element", "[UnionFind]") {
+TEST_CASE("UnionFind single element", "[containers][UnionFind]") {
     UnionFind uf(1);
     CHECK(uf.size() == 1);
     CHECK(uf.set_count() == 1);
@@ -15,7 +15,7 @@ TEST_CASE("UnionFind single element", "[UnionFind]") {
     CHECK(uf.is_joint());
 }
 
-TEST_CASE("UnionFind no unions", "[UnionFind]") {
+TEST_CASE("UnionFind no unions", "[containers][UnionFind]") {
     UnionFind uf(5);
     CHECK(uf.size() == 5);
     CHECK(uf.set_count() == 5);
@@ -25,7 +25,7 @@ TEST_CASE("UnionFind no unions", "[UnionFind]") {
     }
 }
 
-TEST_CASE("UnionFind union two elements", "[UnionFind]") {
+TEST_CASE("UnionFind union two elements", "[containers][UnionFind]") {
     UnionFind uf(4);
     uf.make_union(1, 3);
     CHECK(uf.set_count() == 3);
@@ -35,7 +35,7 @@ TEST_CASE("UnionFind union two elements", "[UnionFind]") {
     REQUIRE(uf.find(2) != uf.find(1));
 }
 
-TEST_CASE("UnionFind union chain", "[UnionFind]") {
+TEST_CASE("UnionFind union chain", "[containers][UnionFind]") {
     UnionFind uf(5);
     uf.make_union(0, 1);
     uf.make_union(1, 2);
@@ -44,7 +44,7 @@ TEST_CASE("UnionFind union chain", "[UnionFind]") {
     CHECK(uf.set_count() == 3);
 }
 
-TEST_CASE("UnionFind union already same set", "[UnionFind]") {
+TEST_CASE("UnionFind union already same set", "[containers][UnionFind]") {
     UnionFind uf(3);
     uf.make_union(0, 1);
     CHECK(uf.set_count() == 2);
@@ -54,7 +54,7 @@ TEST_CASE("UnionFind union already same set", "[UnionFind]") {
     CHECK(uf.set_count() == 2);
 }
 
-TEST_CASE("UnionFind get_sets", "[UnionFind]") {
+TEST_CASE("UnionFind get_sets", "[containers][UnionFind]") {
     UnionFind uf(5);
     uf.make_union(0, 2);
     uf.make_union(1, 3);
@@ -72,7 +72,7 @@ TEST_CASE("UnionFind get_sets", "[UnionFind]") {
     CHECK(set_with_4.size() == 1);
 }
 
-TEST_CASE("UnionFind reset restores individual sets", "[UnionFind]") {
+TEST_CASE("UnionFind reset restores individual sets", "[containers][UnionFind]") {
     UnionFind uf(4);
     uf.make_union(0, 1);
     uf.make_union(2, 3);
@@ -86,7 +86,7 @@ TEST_CASE("UnionFind reset restores individual sets", "[UnionFind]") {
     }
 }
 
-TEST_CASE("UnionFind reset with new size", "[UnionFind]") {
+TEST_CASE("UnionFind reset with new size", "[containers][UnionFind]") {
     UnionFind uf(3);
     uf.make_union(0, 1);
     CHECK(uf.size() == 3);
@@ -99,7 +99,7 @@ TEST_CASE("UnionFind reset with new size", "[UnionFind]") {
     }
 }
 
-TEST_CASE("UnionFindWithSizes get_set_size", "[UnionFind]") {
+TEST_CASE("UnionFindWithSizes get_set_size", "[containers][UnionFind]") {
     UnionFindWithSizes uf(5);
     for (size_t i = 0; i < 5; i++) {
         CHECK(uf.get_set_size(i) == 1);
@@ -118,7 +118,7 @@ TEST_CASE("UnionFindWithSizes get_set_size", "[UnionFind]") {
     CHECK(uf.get_set_size(4) == 1);
 }
 
-TEST_CASE("UnionFind is_joint after unioning all", "[UnionFind]") {
+TEST_CASE("UnionFind is_joint after unioning all", "[containers][UnionFind]") {
     UnionFind uf(4);
     CHECK(uf.is_disjoint());
 
@@ -131,7 +131,7 @@ TEST_CASE("UnionFind is_joint after unioning all", "[UnionFind]") {
     CHECK(uf.set_count() == 1);
 }
 
-TEST_CASE("UnionFind path compression consistency", "[UnionFind]") {
+TEST_CASE("UnionFind path compression consistency", "[containers][UnionFind]") {
     UnionFind uf(6);
     uf.make_union(0, 1);
     uf.make_union(1, 2);

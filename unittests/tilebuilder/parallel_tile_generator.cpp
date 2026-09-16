@@ -26,7 +26,7 @@
 
 using namespace radix;
 
-TEST_CASE("parallel tile generator")
+TEST_CASE("parallel tile generator", "[ParallelTileGenerator]")
 {
     std::atomic<int> tile_counter = 0;
     std::atomic<int> validation_error_counter = 0;
