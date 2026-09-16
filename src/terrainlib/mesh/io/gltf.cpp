@@ -271,17 +271,9 @@ Result<SimpleMesh> load_from_raw(const RawMesh &raw, const LoadOptions& /* optio
 
     const cgltf_data &data = *raw;
 
-    const auto mesh_opt = get_single_element(data.meshes_count, data.meshes);
-    if (!mesh_opt.has_value()) {
-        return alp::make_unexpected(UnsupportedGltf{}, "expected exactly one mesh");
-    }
-    const cgltf_mesh &mesh = mesh_opt.value();
+    ALP_TRY(const cgltf_mesh &mesh, alp::to_expected(get_single_element(data.meshes_count, data.meshes), UnsupportedGltf{}, "expected exactly one mesh"));
 
-    const auto mesh_primitive_opt = get_single_element(mesh.primitives_count, mesh.primitives);
-    if (!mesh_primitive_opt.has_value()) {
-        return alp::make_unexpected(UnsupportedGltf{}, "expected exactly one mesh primitive");
-    }
-    const cgltf_primitive &mesh_primitive = mesh_primitive_opt.value();
+    ALP_TRY(const cgltf_primitive &mesh_primitive, alp::to_expected(get_single_element(mesh.primitives_count, mesh.primitives), UnsupportedGltf{}, "expected exactly one mesh primitive"));
     if (mesh_primitive.type != cgltf_primitive_type::cgltf_primitive_type_triangles) {
         return alp::make_unexpected(UnsupportedGltf{}, "the mesh primitive is not made of triangles");
     }
