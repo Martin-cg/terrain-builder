@@ -2,152 +2,44 @@
 #include "../temp_directory.h"
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
+#include <filesystem>
 #include <limits>
-#include <span>
 #include <vector>
 
-#include "enumerate.h"
+#include <glm/glm.hpp>
+
 #include "range_utils.h"
 
 #include "build/lbvh.h"
+#include "bvh/BatchWriter.h"
 #include "bvh/Storage.h"
-#include "bvh/utils.h"
 #include "frontier/Storage.h"
 
 namespace {
 
 const morton::Code top_bit = morton::Code{1} << (morton::code_bits - 1);
 
-bvh::NodeHeader header_at(const uint32_t index) {
-    const double corner = index;
-    return bvh::NodeHeader{
-        .min_child_error = 1.0 + corner,
-        .max_parent_error = 2.0 + corner,
-        .triangle_count = index + 1,
-        .bounds = bvh::Bounds{glm::dvec3{corner}, glm::dvec3{corner + 1.0}},
-    };
-}
-
-// An entry naming no stored node, for the tests that only look at codes.
-frontier::Entry entry_with(const morton::Code &code) {
+// An entry holding nothing but `code`, for the tests that only look at codes.
+frontier::Entry make_entry(const morton::Code &code) {
     return frontier::Entry{
         .morton = code,
-        .header = header_at(0),
-        .ref = bvh::Reference{.batch = 0, .node = 0},
+        .header = {},
+        .ref = {},
     };
-}
-
-std::vector<frontier::Entry> entries_with(const std::vector<morton::Code> &codes) {
-    std::vector<frontier::Entry> entries;
-    for (const morton::Code &code : codes) {
-        entries.push_back(entry_with(code));
-    }
-    return entries;
 }
 
 // `count` codes in ascending order, spread out so that runs split at several bit depths.
-std::vector<morton::Code> ascending_codes(const uint32_t count) {
-    std::vector<morton::Code> codes;
-    for (const uint32_t index : range(count)) {
-        codes.push_back(morton::Code{index} << 7);
-    }
-    return codes;
+std::vector<morton::Code> make_ascending_codes(const uint32_t count) {
+    return transform_vector(range(count), [](const uint32_t i) { return morton::Code{i} << 7; });
 }
 
-std::vector<morton::Code> repeated_code(const uint32_t count, const morton::Code &code) {
-    return std::vector<morton::Code>(count, code);
-}
-
-// One leaf node per code, all in a single batch, returned as the entries naming them.
-std::vector<frontier::Entry> write_leaves(bvh::Storage &nodes, const std::vector<morton::Code> &codes) {
-    bvh::Batch batch = nodes.create_batch();
-
-    std::vector<frontier::Entry> entries;
-    for (const auto &[index, code] : enumerate<uint32_t>(codes)) {
-        const bvh::NodeHeader header = header_at(index);
-        const bvh::NodeIndex node = batch.add_leaf_node(header, dag::Id{octree::Id::root(), index});
-        entries.push_back(frontier::Entry{
-            .morton = code,
-            .header = header,
-            .ref = bvh::Reference{.batch = batch.index(), .node = node},
-        });
-    }
-
-    REQUIRE(nodes.write(batch).has_value());
-    REQUIRE(nodes.save_index().has_value());
-    return entries;
-}
-
-// `entries_per_batch[i]` entries in batch i, taken in order.
-void write_run(frontier::Storage &run, const std::vector<frontier::Entry> &entries, const std::vector<uint32_t> &entries_per_batch) {
-    std::span<const frontier::Entry> remaining(entries);
-    for (const uint32_t count : entries_per_batch) {
-        REQUIRE(count <= remaining.size());
-
-        frontier::Batch batch;
-        batch.entries.assign_range(remaining.first(count));
-        REQUIRE(run.write(batch).has_value());
-
-        remaining = remaining.subspan(count);
-    }
-
-    REQUIRE(remaining.empty());
-    REQUIRE(run.save_index().has_value());
-}
-
-std::vector<bvh::Batch> read_batches(const bvh::Storage &nodes) {
-    std::vector<bvh::Batch> batches;
-    for (const uint32_t index : range(nodes.size())) {
-        tl::expected<bvh::Batch, io::Error> batch = nodes.read(index);
-        REQUIRE(batch.has_value());
-        batches.push_back(std::move(batch).value());
-    }
-    return batches;
-}
-
-// What a walk from a root node arrives at.
-struct Reached {
-    std::vector<bvh::Reference> leaves;
-    uint32_t inner_count = 0;
-};
-
-void walk_from(const std::vector<bvh::Batch> &batches, const bvh::Reference &ref, Reached &reached) {
-    REQUIRE(ref.batch < batches.size());
-    const bvh::Batch &batch = batches[ref.batch];
-
-    REQUIRE(ref.node < batch.nodes().size());
-    const bvh::Node &node = batch.nodes()[ref.node];
-
-    if (node.is_leaf()) {
-        reached.leaves.push_back(ref);
-        return;
-    }
-
-    reached.inner_count++;
-    for (const bvh::Reference &child : batch.children().subspan(node.child_start, node.child_count)) {
-        walk_from(batches, child, reached);
-    }
-}
-
-Reached walk_from_root(const bvh::Storage &nodes, const bvh::Reference &root) {
-    const std::vector<bvh::Batch> batches = read_batches(nodes);
-
-    Reached reached;
-    walk_from(batches, root, reached);
-    return reached;
-}
-
-// The tree over `entries` reaches each of them once, in order, over one inner node fewer.
-void check_covers(const bvh::Storage &nodes, const frontier::Entry &root, const std::vector<frontier::Entry> &entries) {
-    const Reached reached = walk_from_root(nodes, root.ref);
-
-    REQUIRE(reached.leaves.size() == entries.size());
-    REQUIRE(reached.inner_count == entries.size() - 1);
-
-    for (const auto &[index, entry] : enumerate<size_t>(entries)) {
-        REQUIRE(reached.leaves[index].batch == entry.ref.batch);
-        REQUIRE(reached.leaves[index].node == entry.ref.node);
-    }
+// The children of the inner node `nodes` holds at `reference`.
+std::vector<bvh::Reference> read_children(const bvh::Storage &nodes, const bvh::Reference &reference) {
+    const auto batch = nodes.read(reference.batch);
+    REQUIRE(batch.has_value());
+    return to_vector(batch->resolve(batch->node(reference.node)).children());
 }
 
 }
@@ -180,37 +72,32 @@ TEST_CASE("a prefix keeps the leading bits of a code and clears the rest", "[lbv
 }
 
 TEST_CASE("a run splits at the highest bit its codes disagree on", "[lbvh]") {
-    const std::vector<frontier::Entry> low = entries_with({morton::Code{0}, morton::Code{1}});
+    const std::vector<frontier::Entry> low = transform_vector(std::array{morton::Code{0}, morton::Code{1}}, make_entry);
     CHECK(lbvh::detail::find_split(low) == 1);
 
-    const std::vector<frontier::Entry> high = entries_with({
-        morton::Code{0},
-        morton::Code{1},
-        top_bit,
-        top_bit | morton::Code{1},
-    });
+    const std::vector<frontier::Entry> high = transform_vector(std::array{morton::Code{0}, morton::Code{1}, top_bit, top_bit | morton::Code{1}}, make_entry);
     CHECK(lbvh::detail::find_split(high) == 2);
 }
 
 TEST_CASE("a run of equal codes splits in half", "[lbvh]") {
-    CHECK(lbvh::detail::find_split(entries_with(repeated_code(4, morton::Code{7}))) == 2);
-    CHECK(lbvh::detail::find_split(entries_with(repeated_code(5, morton::Code{7}))) == 2);
+    CHECK(lbvh::detail::find_split(std::vector<frontier::Entry>(4, make_entry(morton::Code{7}))) == 2);
+    CHECK(lbvh::detail::find_split(std::vector<frontier::Entry>(5, make_entry(morton::Code{7}))) == 2);
 }
 
 TEST_CASE("a split never leaves either side empty", "[lbvh]") {
     const std::vector<std::vector<morton::Code>> runs{
-        repeated_code(2, morton::Code{0}),
-        repeated_code(9, morton::Code{3}),
-        ascending_codes(2),
-        ascending_codes(3),
-        ascending_codes(16),
-        ascending_codes(17),
+        std::vector<morton::Code>(2, morton::Code{0}),
+        std::vector<morton::Code>(9, morton::Code{3}),
+        make_ascending_codes(2),
+        make_ascending_codes(3),
+        make_ascending_codes(16),
+        make_ascending_codes(17),
         {morton::Code{0}, morton::Code{0}, morton::Code{1}, morton::Code{1}, morton::Code{1}},
         {morton::Code{0}, top_bit, top_bit, top_bit | morton::Code{1}},
     };
 
     for (const std::vector<morton::Code> &codes : runs) {
-        const std::vector<frontier::Entry> entries = entries_with(codes);
+        const std::vector<frontier::Entry> entries = transform_vector(codes, make_entry);
         const size_t split = lbvh::detail::find_split(entries);
 
         REQUIRE(split > 0);
@@ -218,146 +105,156 @@ TEST_CASE("a split never leaves either side empty", "[lbvh]") {
     }
 }
 
-TEST_CASE("a single entry is its own root", "[lbvh]") {
-    const TempDirectory directory("lbvh_single");
-    bvh::Storage nodes(directory.path() / "nodes");
-    const std::vector<frontier::Entry> entries = write_leaves(nodes, ascending_codes(1));
+TEST_CASE("a single entry is its own root and writes nothing", "[lbvh]") {
+    const frontier::Entry entry{.morton = morton::Code{0b1}, .header = {}, .ref = {.batch = 100, .node = 0}};
 
-    bvh::BatchWriter sink(nodes);
-    const auto root = lbvh::detail::build_subtree(entries, sink);
+    const TempDirectory directory("lbvh");
+    bvh::Storage nodes(directory.path());
+    bvh::BatchWriter writer(nodes);
+    const auto root = lbvh::detail::build_subtree(std::array{entry}, writer);
     REQUIRE(root.has_value());
-    REQUIRE(sink.flush().has_value());
-    REQUIRE(nodes.save_index().has_value());
+    REQUIRE(writer.flush().has_value());
 
-    CHECK(root->morton == entries.front().morton);
-    CHECK(root->ref.batch == entries.front().ref.batch);
-    CHECK(root->ref.node == entries.front().ref.node);
-    // Nothing was written, so the leaf batch is still the only one.
-    CHECK(nodes.size() == 1);
+    CHECK(*root == entry);
+    CHECK(nodes.size() == 0);
 }
 
-TEST_CASE("a pair becomes one inner node carrying both", "[lbvh]") {
-    const TempDirectory directory("lbvh_pair");
-    bvh::Storage nodes(directory.path() / "nodes");
-    const std::vector<frontier::Entry> entries = write_leaves(nodes, ascending_codes(2));
+TEST_CASE("two entries are joined under a parent carrying both their headers", "[lbvh]") {
+    // The references name leaves stored elsewhere; the builder never reads them.
+    const frontier::Entry left{
+        .morton = morton::Code{0b01},
+        .header = {.min_child_error = 1.0, .max_parent_error = 3.0, .bounds = {glm::dvec3{0.0}, glm::dvec3{1.0}}},
+        .ref = {.batch = 100, .node = 0},
+    };
+    const frontier::Entry right{
+        .morton = morton::Code{0b10},
+        .header = {.min_child_error = 2.0, .max_parent_error = 4.0, .bounds = {glm::dvec3{5.0}, glm::dvec3{7.0}}},
+        .ref = {.batch = 100, .node = 1},
+    };
 
-    bvh::BatchWriter sink(nodes);
-    const auto root = lbvh::detail::build_subtree(entries, sink);
+    const TempDirectory directory("lbvh");
+    bvh::Storage nodes(directory.path());
+    bvh::BatchWriter writer(nodes);
+    const auto root = lbvh::detail::build_subtree(std::array{left, right}, writer);
     REQUIRE(root.has_value());
-    REQUIRE(sink.flush().has_value());
-    REQUIRE(nodes.save_index().has_value());
+    REQUIRE(writer.flush().has_value());
 
-    const bvh::NodeHeader merged = bvh::merge_headers(std::array{entries[0].header, entries[1].header});
-    CHECK(root->morton == entries.front().morton);
-    CHECK(root->header.bounds == merged.bounds);
-    CHECK(root->header.triangle_count == merged.triangle_count);
-    CHECK(root->header.min_child_error == merged.min_child_error);
-    CHECK(root->header.max_parent_error == merged.max_parent_error);
-
-    check_covers(nodes, root.value(), entries);
+    CHECK(root->morton == left.morton);
+    CHECK(root->header == bvh::NodeHeader{.min_child_error = 1.0, .max_parent_error = 4.0, .bounds = {glm::dvec3{0.0}, glm::dvec3{7.0}}});
+    CHECK(read_children(nodes, root->ref) == std::vector{left.ref, right.ref});
 }
 
-TEST_CASE("the tree reaches every entry of a run exactly once", "[lbvh]") {
-    const uint32_t count = GENERATE(2u, 3u, 5u, 8u, 33u);
+TEST_CASE("entries whose codes differ in the top bit end up in separate subtrees", "[lbvh]") {
+    const std::array entries{
+        frontier::Entry{.morton = morton::Code{0}, .header = {}, .ref = {.batch = 100, .node = 0}},
+        frontier::Entry{.morton = morton::Code{1}, .header = {}, .ref = {.batch = 100, .node = 1}},
+        frontier::Entry{.morton = top_bit, .header = {}, .ref = {.batch = 100, .node = 2}},
+        frontier::Entry{.morton = top_bit | morton::Code{1}, .header = {}, .ref = {.batch = 100, .node = 3}},
+    };
 
-    const TempDirectory directory("lbvh_covers");
-    bvh::Storage nodes(directory.path() / "nodes");
-    const std::vector<frontier::Entry> entries = write_leaves(nodes, ascending_codes(count));
-
-    bvh::BatchWriter sink(nodes);
-    const auto root = lbvh::detail::build_subtree(entries, sink);
+    const TempDirectory directory("lbvh");
+    bvh::Storage nodes(directory.path());
+    bvh::BatchWriter writer(nodes);
+    const auto root = lbvh::detail::build_subtree(entries, writer);
     REQUIRE(root.has_value());
-    REQUIRE(sink.flush().has_value());
-    REQUIRE(nodes.save_index().has_value());
+    REQUIRE(writer.flush().has_value());
 
-    check_covers(nodes, root.value(), entries);
+    const std::vector<bvh::Reference> children = read_children(nodes, root->ref);
+    REQUIRE(children.size() == 2);
+    CHECK(read_children(nodes, children[0]) == std::vector{entries[0].ref, entries[1].ref});
+    CHECK(read_children(nodes, children[1]) == std::vector{entries[2].ref, entries[3].ref});
 }
 
-TEST_CASE("a run of equal codes still builds a tree over all of them", "[lbvh]") {
-    const TempDirectory directory("lbvh_equal");
-    bvh::Storage nodes(directory.path() / "nodes");
-    const std::vector<frontier::Entry> entries = write_leaves(nodes, repeated_code(7, morton::Code{11}));
+TEST_CASE("entries with equal codes are still all joined, halving the run", "[lbvh]") {
+    const std::array entries{
+        frontier::Entry{.morton = morton::Code{7}, .header = {}, .ref = {.batch = 100, .node = 0}},
+        frontier::Entry{.morton = morton::Code{7}, .header = {}, .ref = {.batch = 100, .node = 1}},
+        frontier::Entry{.morton = morton::Code{7}, .header = {}, .ref = {.batch = 100, .node = 2}},
+    };
 
-    bvh::BatchWriter sink(nodes);
-    const auto root = lbvh::detail::build_subtree(entries, sink);
+    const TempDirectory directory("lbvh");
+    bvh::Storage nodes(directory.path());
+    bvh::BatchWriter writer(nodes);
+    const auto root = lbvh::detail::build_subtree(entries, writer);
     REQUIRE(root.has_value());
-    REQUIRE(sink.flush().has_value());
-    REQUIRE(nodes.save_index().has_value());
+    REQUIRE(writer.flush().has_value());
 
-    check_covers(nodes, root.value(), entries);
+    const std::vector<bvh::Reference> children = read_children(nodes, root->ref);
+    REQUIRE(children.size() == 2);
+    CHECK(children[0] == entries[0].ref);
+    CHECK(read_children(nodes, children[1]) == std::vector{entries[1].ref, entries[2].ref});
 }
 
-TEST_CASE("the batches of a run are merged into one tree", "[lbvh]") {
-    const TempDirectory directory("lbvh_batches");
-    bvh::Storage nodes(directory.path() / "nodes");
-    const std::vector<frontier::Entry> entries = write_leaves(nodes, ascending_codes(10));
+TEST_CASE("each batch of a run gets a subtree of its own before their roots are joined", "[lbvh]") {
+    const std::array entries{
+        frontier::Entry{.morton = morton::Code{0}, .header = {}, .ref = {.batch = 100, .node = 0}},
+        frontier::Entry{.morton = top_bit, .header = {}, .ref = {.batch = 100, .node = 1}},
+        frontier::Entry{.morton = top_bit | morton::Code{1}, .header = {}, .ref = {.batch = 100, .node = 2}},
+    };
 
+    const TempDirectory directory("lbvh");
+    // A single run would pair the last two; the batch boundary pairs the first two instead.
     frontier::Storage run(directory.path() / "run");
-    write_run(run, entries, {4, 1, 5});
+    REQUIRE(run.write(frontier::Batch{.entries = {entries[0], entries[1]}}).has_value());
+    REQUIRE(run.write(frontier::Batch{.entries = {entries[2]}}).has_value());
+    REQUIRE(run.save_index().has_value());
 
-    bvh::BatchWriter sink(nodes);
-    const auto root = lbvh::build(run, sink);
+    bvh::Storage nodes(directory.path() / "nodes");
+    bvh::BatchWriter writer(nodes);
+    const auto root = lbvh::build(run, writer);
     REQUIRE(root.has_value());
-    REQUIRE(sink.flush().has_value());
-    REQUIRE(nodes.save_index().has_value());
+    REQUIRE(writer.flush().has_value());
 
-    CHECK(root->morton == entries.front().morton);
-    check_covers(nodes, root.value(), entries);
+    const std::vector<bvh::Reference> children = read_children(nodes, root->ref);
+    REQUIRE(children.size() == 2);
+    CHECK(read_children(nodes, children[0]) == std::vector{entries[0].ref, entries[1].ref});
+    CHECK(children[1] == entries[2].ref);
 }
 
-TEST_CASE("building into a storage saves its index and returns the root reference", "[lbvh]") {
-    const TempDirectory directory("lbvh_storage");
-    bvh::Storage nodes(directory.path() / "nodes");
-    const std::vector<frontier::Entry> entries = write_leaves(nodes, ascending_codes(6));
-
+TEST_CASE("building into a storage saves its index", "[lbvh]") {
+    const TempDirectory directory("lbvh");
     frontier::Storage run(directory.path() / "run");
-    write_run(run, entries, {3, 3});
+    REQUIRE(run.write(frontier::Batch{.entries = {
+        frontier::Entry{.morton = morton::Code{0}, .header = {}, .ref = {.batch = 100, .node = 0}},
+        frontier::Entry{.morton = morton::Code{1}, .header = {}, .ref = {.batch = 100, .node = 1}},
+    }}).has_value());
+    REQUIRE(run.save_index().has_value());
 
-    const auto root = lbvh::build(run, nodes, lbvh::Options{});
-    REQUIRE(root.has_value());
+    bvh::Storage nodes(directory.path() / "nodes");
+    REQUIRE(lbvh::build(run, nodes, lbvh::Options{}).has_value());
 
     const bvh::Storage reopened(directory.path() / "nodes");
-    CHECK(reopened.size() == nodes.size());
-
-    const Reached reached = walk_from_root(nodes, root.value());
-    CHECK(reached.leaves.size() == entries.size());
-    CHECK(reached.inner_count == entries.size() - 1);
+    CHECK(reopened.size() == 1);
 }
 
-TEST_CASE("a small batch limit spreads the tree over several batches", "[lbvh]") {
-    const TempDirectory directory("lbvh_batch_limit");
-    bvh::Storage nodes(directory.path() / "nodes");
-    const std::vector<frontier::Entry> entries = write_leaves(nodes, ascending_codes(8));
-
+TEST_CASE("a batch limit below one node writes every inner node into a batch of its own", "[lbvh]") {
+    const TempDirectory directory("lbvh");
     frontier::Storage run(directory.path() / "run");
-    write_run(run, entries, {8});
+    REQUIRE(run.write(frontier::Batch{.entries = {
+        frontier::Entry{.morton = morton::Code{0}, .header = {}, .ref = {.batch = 100, .node = 0}},
+        frontier::Entry{.morton = morton::Code{1}, .header = {}, .ref = {.batch = 100, .node = 1}},
+        frontier::Entry{.morton = morton::Code{2}, .header = {}, .ref = {.batch = 100, .node = 2}},
+        frontier::Entry{.morton = morton::Code{3}, .header = {}, .ref = {.batch = 100, .node = 3}},
+    }}).has_value());
+    REQUIRE(run.save_index().has_value());
 
-    const auto root = lbvh::build(run, nodes, lbvh::Options{.max_batch_bytes = 1});
-    REQUIRE(root.has_value());
+    bvh::Storage nodes(directory.path() / "nodes");
+    REQUIRE(lbvh::build(run, nodes, lbvh::Options{.max_batch_bytes = 1}).has_value());
 
-    // One batch holds the leaves, and every inner node forced a batch of its own.
-    CHECK(nodes.size() == entries.size());
-
-    const Reached reached = walk_from_root(nodes, root.value());
-    CHECK(reached.leaves.size() == entries.size());
-    CHECK(reached.inner_count == entries.size() - 1);
+    // Four entries take three inner nodes.
+    CHECK(nodes.size() == 3);
 }
 
-TEST_CASE("a batch that cannot be read is reported rather than swallowed", "[lbvh]") {
-    const TempDirectory directory("lbvh_read_failure");
+TEST_CASE("a run whose batches cannot be read fails the build", "[lbvh]") {
+    const TempDirectory directory("lbvh");
+    frontier::Storage run(directory.path() / "run");
+    REQUIRE(run.write(frontier::Batch{.entries = {make_entry(morton::Code{0})}}).has_value());
+    REQUIRE(run.save_index().has_value());
+
+    // The storage still counts its batch, but it can no longer be read.
+    std::filesystem::remove_all(directory.path() / "run");
+
     bvh::Storage nodes(directory.path() / "nodes");
-    const std::vector<frontier::Entry> entries = write_leaves(nodes, ascending_codes(6));
-
-    {
-        frontier::Storage run(directory.path() / "run");
-        write_run(run, entries, {3, 3});
-    }
-    REQUIRE(std::filesystem::remove(directory.path() / "run" / "batch-00000001.bin"));
-
-    const frontier::Storage run(directory.path() / "run");
-    REQUIRE(run.size() == 2);
-
-    bvh::BatchWriter sink(nodes);
-    const auto root = lbvh::build(run, sink);
-    CHECK_FALSE(root.has_value());
+    bvh::BatchWriter writer(nodes);
+    CHECK_FALSE(lbvh::build(run, writer).has_value());
 }

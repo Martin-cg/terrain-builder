@@ -1,6 +1,7 @@
 #include "../catch2_helpers.h"
 #include "../temp_directory.h"
 
+#include <utility>
 #include <vector>
 
 #include "bvh/utils.h"
@@ -9,24 +10,17 @@
 
 namespace {
 
-bvh::NodeHeader header_with(const uint32_t triangle_count) {
-    return bvh::NodeHeader{
-        .min_child_error = 1.0,
-        .max_parent_error = 2.0,
-        .triangle_count = triangle_count,
-        .bounds = bvh::Bounds{glm::dvec3{0.0}, glm::dvec3{1.0}},
-    };
-}
+using StoredNode = std::pair<bvh::Reference, bvh::Node>;
 
-// `nodes_per_batch[i]` leaves in batch i, triangle counts running 0, 1, 2, ... across the whole store.
-std::vector<uint32_t> write_nodes(bvh::Storage &nodes, const std::vector<uint32_t> &nodes_per_batch) {
-    std::vector<uint32_t> written;
+// `nodes_per_batch[i]` leaves in batch i, and returns every node with its reference in write order.
+std::vector<StoredNode> write_nodes(bvh::Storage &nodes, const std::vector<uint32_t> &nodes_per_batch) {
+    std::vector<StoredNode> written;
     for (const uint32_t count : nodes_per_batch) {
         bvh::Batch batch = nodes.create_batch();
         for (uint32_t i = 0; i < count; i++) {
-            const auto triangle_count = static_cast<uint32_t>(written.size());
-            batch.add_leaf_node(header_with(triangle_count), dag::Id{octree::Id::root(), triangle_count});
-            written.push_back(triangle_count);
+            const auto cluster = static_cast<uint32_t>(written.size());
+            const bvh::NodeIndex node = batch.add_leaf_node(bvh::NodeHeader{}, dag::Id{octree::Id::root(), cluster});
+            written.emplace_back(bvh::Reference{.batch = batch.index(), .node = node}, batch.node(node));
         }
         REQUIRE(nodes.write(batch).has_value());
     }
@@ -36,41 +30,21 @@ std::vector<uint32_t> write_nodes(bvh::Storage &nodes, const std::vector<uint32_
 
 }
 
-TEST_CASE("flat_traverse visits every node in order", "[bvh]") {
+TEST_CASE("flat_traverse visits every node in order, with the reference naming it", "[flat_traverse]") {
     const TempDirectory directory("flat_traverse");
     bvh::Storage nodes(directory.path());
-    const std::vector<uint32_t> written = write_nodes(nodes, {3, 1, 4});
+    const std::vector<StoredNode> written = write_nodes(nodes, {3, 1, 4});
 
-    std::vector<uint32_t> visited;
-    const auto result = bvh::flat_traverse(nodes, [&](const bvh::Reference &, const bvh::Node &node) {
-        visited.push_back(static_cast<uint32_t>(node.header.triangle_count));
+    std::vector<StoredNode> visited;
+    const auto result = bvh::flat_traverse(nodes, [&](const bvh::Reference &reference, const bvh::Node &node) {
+        visited.emplace_back(reference, node);
     });
 
     REQUIRE(result.value_or(false));
     CHECK(visited == written);
 }
 
-TEST_CASE("flat_traverse names every node by the position it was read from", "[bvh]") {
-    const TempDirectory directory("flat_traverse");
-    bvh::Storage nodes(directory.path());
-    write_nodes(nodes, {2, 1});
-
-    std::vector<bvh::Reference> visited;
-    const auto result = bvh::flat_traverse(nodes, [&](const bvh::Reference &ref, const bvh::Node &) {
-        visited.push_back(ref);
-    });
-    REQUIRE(result.value_or(false));
-
-    REQUIRE(visited.size() == 3);
-    CHECK(visited[0].batch == 0);
-    CHECK(visited[0].node == 0);
-    CHECK(visited[1].batch == 0);
-    CHECK(visited[1].node == 1);
-    CHECK(visited[2].batch == 1);
-    CHECK(visited[2].node == 0);
-}
-
-TEST_CASE("flat_traverse handles an empty store and empty batches", "[bvh]") {
+TEST_CASE("flat_traverse handles an empty store and empty batches", "[flat_traverse]") {
     const TempDirectory directory("flat_traverse");
     bvh::Storage nodes(directory.path());
 
@@ -85,7 +59,7 @@ TEST_CASE("flat_traverse handles an empty store and empty batches", "[bvh]") {
     CHECK(visits == 2);
 }
 
-TEST_CASE("flat_traverse reports a missing batch", "[bvh]") {
+TEST_CASE("flat_traverse reports a missing batch", "[flat_traverse]") {
     const TempDirectory directory("flat_traverse");
     bvh::Storage nodes(directory.path());
     write_nodes(nodes, {2});
@@ -97,7 +71,7 @@ TEST_CASE("flat_traverse reports a missing batch", "[bvh]") {
     CHECK_FALSE(result.has_value());
 }
 
-TEST_CASE("a visitor returning false stops the flat walk", "[bvh]") {
+TEST_CASE("a visitor returning false stops the flat walk", "[flat_traverse]") {
     const TempDirectory directory("flat_traverse");
     bvh::Storage nodes(directory.path());
     write_nodes(nodes, {3, 2});

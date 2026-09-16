@@ -22,14 +22,14 @@ std::vector<std::span<const int>> collect_rows(const widen::RowBuffer<int, uint8
 
 }
 
-TEST_CASE("a new row buffer holds no rows", "[widen]") {
+TEST_CASE("a new row buffer holds no rows", "[row_buffer]") {
     const widen::RowBuffer<int, uint8_t> buffer;
 
     CHECK(buffer.size() == 0);
     CHECK(collect_rows(buffer).empty());
 }
 
-TEST_CASE("rows come back in the order they were pushed", "[widen]") {
+TEST_CASE("rows come back in the order they were pushed", "[row_buffer]") {
     const std::array first{1, 2, 3};
     const std::array second{4, 5};
 
@@ -45,7 +45,7 @@ TEST_CASE("rows come back in the order they were pushed", "[widen]") {
     CHECK(std::ranges::equal(rows[1], second));
 }
 
-TEST_CASE("an empty row is still a row", "[widen]") {
+TEST_CASE("an empty row is still a row", "[row_buffer]") {
     const std::array outer{7};
 
     widen::RowBuffer<int, uint8_t> buffer;
@@ -62,7 +62,7 @@ TEST_CASE("an empty row is still a row", "[widen]") {
     CHECK(rows[2].size() == 1);
 }
 
-TEST_CASE("rows of differing lengths keep their boundaries", "[widen]") {
+TEST_CASE("rows of differing lengths keep their boundaries", "[row_buffer]") {
     const std::vector<size_t> lengths{1, 4, 2, 255, 3};
 
     widen::RowBuffer<int, uint8_t> buffer;

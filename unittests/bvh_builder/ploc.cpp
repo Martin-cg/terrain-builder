@@ -1,69 +1,56 @@
+
 #include "../catch2_helpers.h"
 #include "../temp_directory.h"
 
+#include <algorithm>
+#include <cstdint>
+#include <filesystem>
+#include <optional>
 #include <span>
+#include <utility>
 #include <vector>
+
+#include <glm/glm.hpp>
 
 #include "enumerate.h"
 #include "range_utils.h"
 
 #include "build/ploc.h"
+#include "bvh/BatchWriter.h"
+#include "bvh/NodeCache.h"
 #include "bvh/Storage.h"
+#include "bvh/traverse_tree.h"
 #include "frontier/Storage.h"
+#include "frontier/sort.h"
+#include "morton/code.h"
 
 namespace {
 
 const bvh::Bounds scene_bounds{glm::dvec3{0.0}, glm::dvec3{256.0}};
 
-// Nodes of equal size, so that every region admits all of them.
-bvh::NodeHeader header_at(const uint32_t index) {
-    const double corner = index;
-    return bvh::NodeHeader{
-        .min_child_error = 1.0,
-        .max_parent_error = 2.0,
-        .triangle_count = index + 1,
-        .bounds = bvh::Bounds{glm::dvec3{corner}, glm::dvec3{corner + 1.0}},
-    };
-}
-
-// One leaf node per entry, all in a single batch, in ascending morton order.
-std::vector<frontier::Entry> write_leaves(bvh::Storage &nodes, const uint32_t count) {
-    bvh::Batch batch = nodes.create_batch();
-
-    std::vector<frontier::Entry> entries;
-    for (const uint32_t index : range(count)) {
-        const bvh::NodeHeader header = header_at(index);
-        const bvh::NodeIndex node = batch.add_leaf_node(header, dag::Id{octree::Id::root(), index});
-        entries.push_back(frontier::Entry{
-            .morton = morton::Code{index} << 7,
-            .header = header,
-            .ref = bvh::Reference{.batch = batch.index(), .node = node},
-        });
+// Stores a leaf for each of `boxes` in `nodes` and returns the frontier over them as a single sorted run under `directory`.
+frontier::Storage write_frontier(const std::filesystem::path &directory, bvh::Storage &nodes, const std::span<const bvh::Bounds> boxes) {
+    bvh::BatchWriter writer(nodes);
+    frontier::Batch batch;
+    for (const auto &[cluster, box] : enumerate<uint32_t>(boxes)) {
+        bvh::NodeHeader header{};
+        header.bounds = box;
+        const auto reference_result = writer.write_leaf(header, dag::Id{octree::Id::root(), cluster});
+        REQUIRE(reference_result.has_value());
+        batch.entries.push_back(frontier::Entry{.morton = morton::encode(scene_bounds, header), .header = header, .ref = *reference_result});
     }
-
-    REQUIRE(nodes.write(batch).has_value());
+    REQUIRE(writer.flush().has_value());
     REQUIRE(nodes.save_index().has_value());
-    return entries;
-}
+    frontier::sort_entries(batch.entries);
 
-// `entries_per_batch[i]` entries in batch i, taken in order.
-void write_run(frontier::Storage &run, const std::vector<frontier::Entry> &entries, const std::vector<uint32_t> &entries_per_batch) {
-    std::span<const frontier::Entry> remaining(entries);
-    for (const uint32_t count : entries_per_batch) {
-        REQUIRE(count <= remaining.size());
-
-        frontier::Batch batch;
-        batch.entries.assign_range(remaining.first(count));
-        REQUIRE(run.write(batch).has_value());
-
-        remaining = remaining.subspan(count);
-    }
-
-    REQUIRE(remaining.empty());
+    frontier::Storage run(directory);
+    REQUIRE(run.write(batch).has_value());
     REQUIRE(run.save_index().has_value());
+    return run;
 }
 
-ploc::Options options_for(const size_t worker_count, const size_t chunk_size) {
+// Options under which admission never holds a leaf back, so that only the chunking differs between them.
+ploc::Options make_options(const size_t worker_count, const size_t chunk_size) {
     return ploc::Options{
         .search_radius = 2,
         .scene_bounds = scene_bounds,
@@ -74,125 +61,114 @@ ploc::Options options_for(const size_t worker_count, const size_t chunk_size) {
     };
 }
 
-std::vector<bvh::Batch> read_batches(const bvh::Storage &nodes) {
-    std::vector<bvh::Batch> batches;
-    for (const uint32_t index : range(nodes.size())) {
-        tl::expected<bvh::Batch, io::Error> batch = nodes.read(index);
-        REQUIRE(batch.has_value());
-        batches.push_back(std::move(batch).value());
-    }
-    return batches;
+// The tree at `root` in pre-order, with each inner node as nothing and each leaf as its position among the leaves written.
+std::vector<std::optional<uint32_t>> read_shape(const bvh::Storage &nodes, const bvh::Reference &root) {
+    bvh::NodeCache cache(nodes, 1);
+    std::vector<std::optional<uint32_t>> shape;
+    const auto result = bvh::traverse_tree(cache, root, [&](const bvh::Reference &, const bvh::NodeView &view) {
+        if (view.is_leaf()) {
+            shape.push_back(view.leaf().cluster_index);
+        } else {
+            shape.push_back(std::nullopt);
+        }
+    });
+    REQUIRE(result.value_or(false));
+    return shape;
 }
 
-// What a walk from a root node arrives at.
-struct Reached {
-    std::vector<bvh::Reference> leaves;
-    uint32_t inner_count = 0;
-};
-
-void walk_from(const std::vector<bvh::Batch> &batches, const bvh::Reference &ref, Reached &reached) {
-    REQUIRE(ref.batch < batches.size());
-    const bvh::Batch &batch = batches[ref.batch];
-
-    REQUIRE(ref.node < batch.nodes().size());
-    const bvh::Node &node = batch.nodes()[ref.node];
-
-    if (node.is_leaf()) {
-        reached.leaves.push_back(ref);
-        return;
-    }
-
-    reached.inner_count++;
-    for (const bvh::Reference &child : batch.children().subspan(node.child_start, node.child_count)) {
-        walk_from(batches, child, reached);
-    }
+// `count` unit boxes in a row.
+std::vector<bvh::Bounds> make_row(const uint32_t count) {
+    return transform_vector(range(count), [](const uint32_t i) {
+        const glm::dvec3 min{static_cast<double>(i), 0.0, 0.0};
+        return bvh::Bounds{min, min + 1.0};
+    });
 }
 
-Reached walk_from_root(const bvh::Storage &nodes, const bvh::Reference &root) {
-    const std::vector<bvh::Batch> batches = read_batches(nodes);
-
-    Reached reached;
-    walk_from(batches, root, reached);
-    return reached;
 }
 
-// The leaves a build over `count` entries reaches, which is the tree it agreed on.
-std::vector<bvh::Reference> build_and_walk(
-    const TempDirectory &directory, const uint32_t count, const ploc::Options &options, uint32_t &inner_count) {
+TEST_CASE("a single leaf is the whole tree", "[ploc]") {
+    const std::vector<bvh::Bounds> leaves{{glm::dvec3{0.0}, glm::dvec3{1.0}}};
+
+    const TempDirectory directory("ploc");
     bvh::Storage nodes(directory.path() / "nodes");
-    const std::vector<frontier::Entry> entries = write_leaves(nodes, count);
+    frontier::Storage frontier = write_frontier(directory.path() / "frontier", nodes, leaves);
 
-    frontier::Storage run(directory.path() / "run");
-    write_run(run, entries, {count});
-
-    const auto root = ploc::build(std::move(run), nodes, directory.path() / "scratch", options);
+    const auto root = ploc::build(std::move(frontier), nodes, directory.path() / "scratch", make_options(2, 8));
     REQUIRE(root.has_value());
 
-    const Reached reached = walk_from_root(nodes, root.value());
-    REQUIRE(reached.leaves.size() == entries.size());
-
-    inner_count = reached.inner_count;
-    return reached.leaves;
+    CHECK(read_shape(nodes, *root) == std::vector<std::optional<uint32_t>>{0});
 }
 
-}
+TEST_CASE("neighbours are paired before distant nodes are joined", "[ploc]") {
+    // Two pairs of touching boxes, the pairs far apart from each other.
+    const std::vector<bvh::Bounds> leaves{
+        {glm::dvec3{0.0}, glm::dvec3{1.0}},
+        {glm::dvec3{1.0}, glm::dvec3{2.0}},
+        {glm::dvec3{100.0}, glm::dvec3{101.0}},
+        {glm::dvec3{101.0}, glm::dvec3{102.0}},
+    };
 
-TEST_CASE("a single entry is already the root of the frontier", "[ploc]") {
-    const TempDirectory directory("ploc_single");
+    const TempDirectory directory("ploc");
     bvh::Storage nodes(directory.path() / "nodes");
-    const std::vector<frontier::Entry> entries = write_leaves(nodes, 1);
+    frontier::Storage frontier = write_frontier(directory.path() / "frontier", nodes, leaves);
 
-    frontier::Storage run(directory.path() / "run");
-    write_run(run, entries, {1});
-
-    const auto root = ploc::build(std::move(run), nodes, directory.path() / "scratch", options_for(2, 8));
+    const auto root = ploc::build(std::move(frontier), nodes, directory.path() / "scratch", make_options(2, 8));
     REQUIRE(root.has_value());
 
-    CHECK(root->batch == entries.front().ref.batch);
-    CHECK(root->node == entries.front().ref.node);
+    const std::vector<std::optional<uint32_t>> expected{std::nullopt, std::nullopt, 0, 1, std::nullopt, 2, 3};
+    CHECK(read_shape(nodes, *root) == expected);
 }
 
-TEST_CASE("the tree reaches every entry of the frontier exactly once", "[ploc]") {
+TEST_CASE("the tree holds every leaf exactly once", "[ploc]") {
     const uint32_t count = GENERATE(2u, 3u, 8u, 17u);
 
-    const TempDirectory directory("ploc_covers");
-    uint32_t inner_count = 0;
-    const std::vector<bvh::Reference> leaves = build_and_walk(directory, count, options_for(2, 8), inner_count);
-
-    // Every merge adds one inner node, and merging down to one root takes count - 1 of them.
-    CHECK(leaves.size() == count);
-    CHECK(inner_count == count - 1);
-}
-
-TEST_CASE("the halo makes chunking invisible to the result", "[ploc]") {
-    const uint32_t count = 24;
-
-    const TempDirectory single_directory("ploc_halo_single");
-    uint32_t single_inner = 0;
-    const std::vector<bvh::Reference> single = build_and_walk(single_directory, count, options_for(1, 32), single_inner);
-
-    const TempDirectory split_directory("ploc_halo_split");
-    uint32_t split_inner = 0;
-    const std::vector<bvh::Reference> split = build_and_walk(split_directory, count, options_for(4, 8), split_inner);
-
-    CHECK(split_inner == single_inner);
-    CHECK(split == single);
-}
-
-TEST_CASE("a batch that cannot be read is reported rather than swallowed", "[ploc]") {
-    const TempDirectory directory("ploc_read_failure");
+    const TempDirectory directory("ploc");
     bvh::Storage nodes(directory.path() / "nodes");
-    const std::vector<frontier::Entry> entries = write_leaves(nodes, 12);
+    frontier::Storage frontier = write_frontier(directory.path() / "frontier", nodes, make_row(count));
 
-    {
-        frontier::Storage run(directory.path() / "run");
-        write_run(run, entries, {6, 6});
+    const auto root = ploc::build(std::move(frontier), nodes, directory.path() / "scratch", make_options(2, 8));
+    REQUIRE(root.has_value());
+
+    const std::vector<std::optional<uint32_t>> shape = read_shape(nodes, *root);
+    std::vector<uint32_t> clusters;
+    for (const std::optional<uint32_t> &node : shape) {
+        if (node.has_value()) {
+            clusters.push_back(*node);
+        }
     }
-    REQUIRE(std::filesystem::remove(directory.path() / "run" / "batch-00000001.bin"));
+    std::ranges::sort(clusters);
 
-    frontier::Storage run(directory.path() / "run");
-    REQUIRE(run.size() == 2);
+    // Every inner node joins two subtrees, and joining count leaves into one takes count - 1 of them.
+    CHECK(shape.size() - clusters.size() == count - 1);
+    CHECK(clusters == to_vector(range(count)));
+}
 
-    const auto root = ploc::build(std::move(run), nodes, directory.path() / "scratch", options_for(2, 8));
+TEST_CASE("splitting the frontier into chunks does not change the tree", "[ploc]") {
+    const std::vector<bvh::Bounds> leaves = make_row(24);
+
+    const TempDirectory single_directory("ploc");
+    bvh::Storage single_nodes(single_directory.path() / "nodes");
+    frontier::Storage single_frontier = write_frontier(single_directory.path() / "frontier", single_nodes, leaves);
+    const auto single_root = ploc::build(std::move(single_frontier), single_nodes, single_directory.path() / "scratch", make_options(1, 32));
+    REQUIRE(single_root.has_value());
+
+    const TempDirectory split_directory("ploc");
+    bvh::Storage split_nodes(split_directory.path() / "nodes");
+    frontier::Storage split_frontier = write_frontier(split_directory.path() / "frontier", split_nodes, leaves);
+    const auto split_root = ploc::build(std::move(split_frontier), split_nodes, split_directory.path() / "scratch", make_options(4, 8));
+    REQUIRE(split_root.has_value());
+
+    CHECK(read_shape(split_nodes, *split_root) == read_shape(single_nodes, *single_root));
+}
+
+TEST_CASE("a frontier that cannot be read fails the build", "[ploc]") {
+    const TempDirectory directory("ploc");
+    bvh::Storage nodes(directory.path() / "nodes");
+    frontier::Storage frontier = write_frontier(directory.path() / "frontier", nodes, make_row(4));
+
+    // The storage still counts its batch, but it can no longer be read.
+    std::filesystem::remove_all(directory.path() / "frontier");
+
+    const auto root = ploc::build(std::move(frontier), nodes, directory.path() / "scratch", make_options(2, 8));
     CHECK_FALSE(root.has_value());
 }

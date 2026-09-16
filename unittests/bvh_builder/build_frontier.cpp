@@ -10,27 +10,21 @@
 
 namespace {
 
-bvh::Bounds cube_at(const glm::dvec3 &centre, const double size) {
+bvh::Bounds make_cube(const glm::dvec3 &centre, const double size) {
     return bvh::Bounds{centre - size * 0.5, centre + size * 0.5};
 }
 
-bvh::NodeHeader header_at(const bvh::Bounds &bounds, const uint32_t triangle_count) {
-    return bvh::NodeHeader{
-        .min_child_error = 1.0,
-        .max_parent_error = 2.0,
-        .triangle_count = triangle_count,
-        .bounds = bounds,
-    };
-}
-
-// One leaf per bounds, all in a single batch.
-void write_nodes(bvh::Storage &nodes, const std::vector<bvh::Bounds> &bounds) {
+// One leaf per bounds, all in a single batch, and returns the headers as written.
+std::vector<bvh::NodeHeader> write_nodes(bvh::Storage &nodes, const std::vector<bvh::Bounds> &bounds) {
     bvh::Batch batch = nodes.create_batch();
+    std::vector<bvh::NodeHeader> written;
     for (const auto &[index, node_bounds] : enumerate<uint32_t>(bounds)) {
-        batch.add_leaf_node(header_at(node_bounds, index), dag::Id{octree::Id::root(), index});
+        written.push_back(bvh::NodeHeader{.min_child_error = 1.0, .max_parent_error = 2.0, .bounds = node_bounds});
+        batch.add_leaf_node(written.back(), dag::Id{octree::Id::root(), index});
     }
     REQUIRE(nodes.write(batch).has_value());
     REQUIRE(nodes.save_index().has_value());
+    return written;
 }
 
 std::vector<frontier::Entry> read_run(const frontier::Storage &run) {
@@ -42,11 +36,11 @@ std::vector<frontier::Entry> read_run(const frontier::Storage &run) {
 
 }
 
-TEST_CASE("every stored node enters the frontier carrying its header and reference", "[frontier]") {
+TEST_CASE("every stored node enters the frontier carrying its header and reference", "[build_frontier]") {
     const TempDirectory directory("build_frontier");
     std::filesystem::create_directories(directory.path() / "nodes");
     bvh::Storage nodes(directory.path() / "nodes");
-    write_nodes(nodes, {cube_at(glm::dvec3{0.25}, 0.1), cube_at(glm::dvec3{0.75}, 0.1)});
+    const std::vector<bvh::NodeHeader> written = write_nodes(nodes, {make_cube(glm::dvec3{0.25}, 0.1), make_cube(glm::dvec3{0.75}, 0.1)});
 
     std::filesystem::create_directories(directory.path() / "frontier");
     frontier::Storage run(directory.path() / "frontier");
@@ -58,23 +52,21 @@ TEST_CASE("every stored node enters the frontier carrying its header and referen
     for (const auto &[index, entry] : enumerate<uint32_t>(entries)) {
         CHECK(entry.ref.batch == 0);
         CHECK(entry.ref.node == index);
-        CHECK(entry.header.triangle_count == index);
-        CHECK(entry.header.min_child_error == 1.0);
-        CHECK(entry.header.max_parent_error == 2.0);
+        CHECK(entry.header == written[index]);
     }
     CHECK(entries[0].morton < entries[1].morton);
 }
 
-TEST_CASE("the entry's morton code comes from the bounds centre", "[frontier]") {
+TEST_CASE("the entry's morton code comes from the bounds centre", "[build_frontier]") {
     const TempDirectory directory("build_frontier");
     std::filesystem::create_directories(directory.path() / "nodes");
     bvh::Storage nodes(directory.path() / "nodes");
 
     // Same centre, different extent, so only a code taken at the centre makes these agree.
     write_nodes(nodes, {
-        cube_at(glm::dvec3{0.25}, 0.1),
-        cube_at(glm::dvec3{0.25}, 0.4),
-        cube_at(glm::dvec3{0.75}, 0.1),
+        make_cube(glm::dvec3{0.25}, 0.1),
+        make_cube(glm::dvec3{0.25}, 0.4),
+        make_cube(glm::dvec3{0.75}, 0.1),
     });
 
     std::filesystem::create_directories(directory.path() / "frontier");
@@ -88,14 +80,14 @@ TEST_CASE("the entry's morton code comes from the bounds centre", "[frontier]") 
     CHECK(entries[0].morton != entries[2].morton);
 }
 
-TEST_CASE("the byte budget splits the frontier into batches", "[frontier]") {
+TEST_CASE("the byte budget splits the frontier into batches", "[build_frontier]") {
     const TempDirectory directory("build_frontier");
     std::filesystem::create_directories(directory.path() / "nodes");
     bvh::Storage nodes(directory.path() / "nodes");
 
     std::vector<bvh::Bounds> bounds;
     for (uint32_t i = 0; i < 5; i++) {
-        bounds.push_back(cube_at(glm::dvec3{0.1 * (i + 1)}, 0.05));
+        bounds.push_back(make_cube(glm::dvec3{0.1 * (i + 1)}, 0.05));
     }
     write_nodes(nodes, bounds);
 
@@ -109,7 +101,7 @@ TEST_CASE("the byte budget splits the frontier into batches", "[frontier]") {
     CHECK(read_run(run).size() == 5);
 }
 
-TEST_CASE("an empty store yields an empty frontier", "[frontier]") {
+TEST_CASE("an empty store yields an empty frontier", "[build_frontier]") {
     const TempDirectory directory("build_frontier");
     std::filesystem::create_directories(directory.path() / "nodes");
     const bvh::Storage nodes(directory.path() / "nodes");
