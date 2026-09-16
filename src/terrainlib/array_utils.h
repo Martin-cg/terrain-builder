@@ -21,7 +21,7 @@ auto transform_array(std::span<const T, N> input, Func &&transform) {
     using Output = std::remove_cvref_t<std::invoke_result_t<Func &, const T &>>;
 
     std::array<Output, N> result{};
-    for (size_t i = 0; i < N; ++i) {
+    for (size_t i = 0; i < N; i++) {
         result[i] = std::invoke(transform, input[i]);
     }
     return result;

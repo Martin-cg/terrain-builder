@@ -52,7 +52,7 @@ public:
     FixedVector(const FixedVector &other) {
         const size_t old_size = this->_size;
         try {
-            for (size_t i = 0; i < other._size; ++i) {
+            for (size_t i = 0; i < other._size; i++) {
                 this->construct_back(other[i]);
             }
         } catch (...) {
@@ -68,7 +68,7 @@ public:
 
         const size_t common = std::min(this->_size, other._size);
 
-        for (size_t i = 0; i < common; ++i) {
+        for (size_t i = 0; i < common; i++) {
             (*this)[i] = other[i];
         }
 
@@ -79,7 +79,7 @@ public:
 
         const size_t old_size = this->_size;
         try {
-            for (size_t i = common; i < other._size; ++i) {
+            for (size_t i = common; i < other._size; i++) {
                 this->construct_back(other[i]);
             }
         } catch (...) {
@@ -93,7 +93,7 @@ public:
     FixedVector(FixedVector &&other) {
         const size_t old_size = this->_size;
         try {
-            for (size_t i = 0; i < other._size; ++i) {
+            for (size_t i = 0; i < other._size; i++) {
                 this->construct_back(std::move(other[i]));
             }
         } catch (...) {
@@ -110,7 +110,7 @@ public:
 
         const size_t common = std::min(this->_size, other._size);
 
-        for (size_t i = 0; i < common; ++i) {
+        for (size_t i = 0; i < common; i++) {
             (*this)[i] = std::move(other[i]);
         }
 
@@ -122,7 +122,7 @@ public:
 
         const size_t old_size = this->_size;
         try {
-            for (size_t i = common; i < other._size; ++i) {
+            for (size_t i = common; i < other._size; i++) {
                 this->construct_back(std::move(other[i]));
             }
         } catch (...) {

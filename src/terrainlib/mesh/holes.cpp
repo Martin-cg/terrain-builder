@@ -36,7 +36,7 @@ void remove_largest_boundaries(const SimpleMesh &mesh, std::vector<std::vector<V
 
     // For each component, find index of largest boundary
     std::vector<std::optional<size_t>> largest_boundary_index_per_component(component_count);
-    for (size_t i = 0; i < boundaries.size(); ++i) {
+    for (size_t i = 0; i < boundaries.size(); i++) {
         const auto &boundary = boundaries[i];
         DEBUG_ASSERT(!boundary.empty());
         const ComponentIndex component_index = vertex_to_component[boundary[0]];

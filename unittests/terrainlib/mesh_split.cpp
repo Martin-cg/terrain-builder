@@ -241,7 +241,7 @@ TEST_CASE("mesh::split_by_triangle", "[mesh][split]") {
 
         REQUIRE(result.groups.size() == 3);
 
-        for (uint32_t group_index = 0; group_index < 3; ++group_index) {
+        for (uint32_t group_index = 0; group_index < 3; group_index++) {
             CHECK(result.groups[group_index].triangles.size() == 1);
             CHECK(result.groups[group_index].positions.size() == 3);
             mesh::validate_basic(result.groups[group_index]);

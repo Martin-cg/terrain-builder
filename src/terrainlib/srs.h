@@ -225,7 +225,7 @@ inline std::vector<glm::tvec2<T>> transform_points_to_2d(OGRCoordinateTransforma
 
     std::vector<glm::tvec2<T>> transformed;
     transformed.resize(points.size());
-    for (size_t i = 0; i < points.size(); ++i) {
+    for (size_t i = 0; i < points.size(); i++) {
         transformed[i] = {xs[i], ys[i]};
     }
 

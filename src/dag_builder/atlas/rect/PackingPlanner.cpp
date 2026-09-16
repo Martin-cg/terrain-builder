@@ -55,7 +55,7 @@ Plan PackingPlanner::plan(const std::span<const glm::uvec2> texture_sizes) const
     std::vector<RectAndIndex> rects;
     rects.reserve(texture_sizes.size());
 
-    for (uint32_t i = 0; i < static_cast<uint32_t>(texture_sizes.size()); ++i) {
+    for (uint32_t i = 0; i < static_cast<uint32_t>(texture_sizes.size()); i++) {
         const glm::uvec2 &size = texture_sizes[i];
         rects.push_back(RectAndIndex{
             .rect = rectpack2D::rect_xywh(0, 0, size.x, size.y),

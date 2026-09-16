@@ -51,7 +51,7 @@ void apply_uv_rotation(
     const Vector_2 ex = edge / edge_length;
     const Vector_2 ey(-ex.y(), ex.x());
 
-    for (size_t i = 0; i < number_of_vertices; ++i) {
+    for (size_t i = 0; i < number_of_vertices; i++) {
         const cgal::Point2 uv = map[cgal::VertexIndex(i)];
         const Vector_2 p = uv - CGAL::ORIGIN;
         map[cgal::VertexIndex(i)] = cgal::Point2(p * ex, p * ey);

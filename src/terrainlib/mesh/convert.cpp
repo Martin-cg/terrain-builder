@@ -30,7 +30,7 @@ cgal::Mesh to_cgal_mesh(const mesh::View &mesh) {
         uv_map = std::move(map);
     }
 
-    for (size_t index = 0; index < mesh.positions.size(); ++index) {
+    for (size_t index = 0; index < mesh.positions.size(); index++) {
         const glm::dvec3 &position = mesh.positions[index];
         const cgal::VertexIndex vertex = cgal_mesh.add_vertex(to_cgal_point<cgal::Kernel>(position));
         DEBUG_ASSERT(vertex != cgal::Mesh::null_vertex());

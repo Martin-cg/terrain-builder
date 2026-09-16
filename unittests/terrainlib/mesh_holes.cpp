@@ -17,9 +17,9 @@
 std::string vec2d_to_string(const std::vector<std::vector<uint32_t>> &v) {
     std::ostringstream oss;
     oss << "{";
-    for (size_t i = 0; i < v.size(); ++i) {
+    for (size_t i = 0; i < v.size(); i++) {
         oss << "{";
-        for (size_t j = 0; j < v[i].size(); ++j) {
+        for (size_t j = 0; j < v[i].size(); j++) {
             oss << v[i][j];
             if (j + 1 < v[i].size())
                 oss << ", ";

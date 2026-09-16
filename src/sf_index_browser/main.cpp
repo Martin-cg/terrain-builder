@@ -237,7 +237,7 @@ int run(const cli::Args &args) {
 
         for (size_t i = scroll_offset;
              i < tree_view.size() && (i - scroll_offset) < visible_lines;
-             ++i) {
+             i++) {
             auto it = tree_view.begin();
             std::advance(it, i);
             lines.push_back(render_line(*it, tree_view.root.level(), i == selected));
