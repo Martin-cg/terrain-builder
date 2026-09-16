@@ -9,6 +9,7 @@
 
 #include "cli.h"
 #include "bvh/Storage.h"
+#include "storage/batch_limits.h"
 
 using namespace cli;
 
@@ -55,7 +56,7 @@ Args cli::parse(int argc, const char *const *argv) {
 
     app.add_option("--max-batch-size", args.max_batch_bytes, "Maximum size a batch file, e.g. 512MB or 1GB")
         ->transform(CLI::AsSizeValue(false))
-        ->default_str("64MB")
+        ->default_val(default_max_batch_bytes)
         ->check(CLI::PositiveNumber);
 
     app.add_option("--verbosity", args.log_level, "Verbosity level of logging")
