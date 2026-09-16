@@ -261,6 +261,28 @@ glm::vec<3, T> compute_normal(const radix::geometry::Triangle<3, T> &triangle, c
     return compute_normal(triangle[0], triangle[1], triangle[2], normalize);
 }
 
+template <typename T>
+glm::vec<3, T> compute_triangle_angles(const radix::geometry::Triangle<3, T> &triangle) {
+    std::array<glm::vec<3, T>, 3> edges;
+    for (const uint8_t k : range<uint8_t>(3)) {
+        const glm::vec<3, T> edge = triangle[(k + 1) % 3] - triangle[k];
+        if (glm::length2(edge) == T(0)) {
+            return glm::vec<3, T>(0);
+        }
+        edges[k] = glm::normalize(edge);
+    }
+
+    glm::vec<3, T> angles;
+    for (const uint8_t k : range<uint8_t>(3)) {
+        // The angle is enclosed by the edge leaving the vertex and the one arriving, which points
+        // the other way, so the dot product of the two outgoing directions is negated.
+        const T cosine = -glm::dot(edges[k], edges[(k + 2) % 3]);
+        angles[k] = std::acos(std::clamp(cosine, T(-1), T(1)));
+    }
+
+    return angles;
+}
+
 template <glm::length_t n_dims, typename T>
 T compute_squared_triangle_area(const glm::vec<n_dims, T> &v0, const glm::vec<n_dims, T> &v1, const glm::vec<n_dims, T> &v2) {
     const glm::vec<n_dims, T> e1 = v1 - v0;

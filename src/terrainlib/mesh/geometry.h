@@ -22,6 +22,12 @@ T compute_surface_area(const mesh::View_<n_dims, T> &mesh);
 template <glm::length_t n_dims, typename T>
 T compute_surface_area(const mesh::Simple_<n_dims, T> &mesh);
 
+// A unit normal per vertex, parallel to positions, weighted by the angle each triangle turns
+// through at that corner. Vertices no triangle touches are left at zero.
+std::vector<glm::dvec3> compute_vertex_normals(
+    std::span<const glm::uvec3> triangles,
+    std::span<const glm::dvec3> positions);
+
 std::optional<double> estimate_average_edge_length(const SimpleMesh &mesh, const size_t sample_size = 1000);
 
 std::optional<double> calculate_max_edge_length_squared(const SimpleMesh &mesh);

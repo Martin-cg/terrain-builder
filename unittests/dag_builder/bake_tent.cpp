@@ -99,6 +99,17 @@ TEST_CASE("project along normal reads the source along the target's face normal"
     check_texels(rendered, {{60, 120, 127}, {60, 120, 102}, {60, 120, 37}, {60, 120, 12}});
 }
 
+TEST_CASE("ray cast reads the source along the target's smooth normal", "[dag_builder][bake]") {
+    const Tent tent = make_tent(2.5);
+
+    const cv::Mat rendered = bake::render_texture(
+        tent.faces, tent.bulged, target_size, options, bake::RayCast{});
+
+    // The smooth normal swings from the face normal at the outer edge to vertical at the crease,
+    // reaching x = 4.35, 3.583, 1.95, 0.45 instead.
+    check_texels(rendered, {{60, 120, 130}, {60, 120, 107}, {60, 120, 58}, {60, 120, 13}});
+}
+
 TEST_CASE("closest point reads the nearest point on the source", "[dag_builder][bake]") {
     const Tent tent = make_tent(2.5);
 
@@ -131,6 +142,16 @@ TEST_CASE("closest point refuses a source facing away when require_facing is set
 
     // The same reach as above, refusing the source across the crease rather than falling back to it.
     check_texels(rendered, {uncovered, {60, 120, 101}, uncovered, {60, 120, 11}});
+}
+
+TEST_CASE("ray cast ignores a source beyond max_distance", "[dag_builder][bake]") {
+    const Tent tent = make_tent(2.5);
+
+    const cv::Mat rendered = bake::render_texture(
+        tent.faces, tent.bulged, target_size, options, bake::RayCast{.max_distance = 0.25});
+
+    // The bulge parts from the target by 0.395 at the nearest texel, so no cast travels far enough to reach it.
+    check_texels(rendered, {uncovered, uncovered, uncovered, uncovered});
 }
 
 TEST_CASE("a bake reads nothing where the source has no triangles", "[dag_builder][bake]") {
