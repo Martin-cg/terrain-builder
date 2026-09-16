@@ -25,9 +25,7 @@ inline tl::expected<bvh::Reference, io::Error> build(
     const bvh::Storage &input, const bvh::Reference &root, bvh::Storage &output,
     const std::filesystem::path &scratch, const Options &options) {
 
-    const auto max_resident_batches = static_cast<uint32_t>(std::max<size_t>(1, options.max_resident_bytes / options.max_batch_bytes));
-
-    bvh::NodeCache tree(input, max_resident_batches);
+    bvh::NodeCache tree(input, options.max_resident_bytes);
 
     SplitStorage splits(scratch / "splits");
     TRY(tabulate_splits(tree, root, splits, options));

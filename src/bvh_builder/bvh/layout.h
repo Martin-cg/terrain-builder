@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <span>
@@ -8,6 +9,7 @@
 
 #include <radix/geometry.h>
 
+#include "mem.h"
 #include "variant_utils.h"
 #include "zpp_bits_utils.h"
 
@@ -106,6 +108,11 @@ public:
     }
 
     bool operator==(const Batch &) const = default;
+
+    // How many bytes this batch occupies.
+    friend size_t size_bytes(const Batch &batch) {
+        return sizeof_val(batch.index(), batch.nodes(), batch.leaves(), batch.children());
+    }
 
     BatchIndex index() const {
         return this->_index;

@@ -41,6 +41,17 @@ TEST_CASE("a resident value is returned without being read again", "[bounded_cac
     CHECK(cache.count_misses() == 1);
 }
 
+TEST_CASE("a resident value is handed out without being copied", "[bounded_cache]") {
+    Cache cache(10);
+
+    const auto first_result = cache.get_or_try_insert_with(0, make_read(7, 1));
+    REQUIRE(first_result.has_value());
+    const auto second_result = cache.get_or_try_insert_with(0, make_read(7, 1));
+    REQUIRE(second_result.has_value());
+
+    CHECK(&first_result->get() == &second_result->get());
+}
+
 TEST_CASE("the least recently used value is evicted once the costs exceed the budget", "[bounded_cache]") {
     Cache cache(10);
 

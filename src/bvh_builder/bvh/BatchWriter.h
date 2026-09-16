@@ -11,7 +11,6 @@
 #include "bvh/Storage.h"
 #include "bvh/layout.h"
 #include "bvh/utils.h"
-#include "mem.h"
 #include "storage/BaseBatchWriter.h"
 #include "try.h"
 
@@ -58,7 +57,7 @@ protected:
     }
 
     size_t compute_buffered_bytes(const Batch &batch) const override {
-        return sizeof_val(batch.index(), batch.nodes(), batch.leaves(), batch.children());
+        return size_bytes(batch);
     }
 };
 

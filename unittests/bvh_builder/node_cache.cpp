@@ -1,7 +1,9 @@
 #include "../catch2_helpers.h"
 #include "../temp_directory.h"
 
+#include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <utility>
 #include <vector>
 
@@ -10,6 +12,8 @@
 #include "bvh/layout.h"
 
 namespace {
+
+constexpr size_t unbounded_bytes = std::numeric_limits<size_t>::max();
 
 // `nodes_per_batch[i]` leaves in batch i, and returns the batches as written.
 std::vector<bvh::Batch> write_leaves(bvh::Storage &nodes, const std::vector<uint32_t> &nodes_per_batch) {
@@ -35,7 +39,7 @@ TEST_CASE("a node comes back from the batch it was written to", "[node_cache]") 
     bvh::Storage nodes(directory.path());
     const std::vector<bvh::Batch> written = write_leaves(nodes, {2, 3});
 
-    bvh::NodeCache cache(nodes, 2);
+    bvh::NodeCache cache(nodes, unbounded_bytes);
 
     const auto node = cache.read_node(bvh::Reference{.batch = 1, .node = 2});
     REQUIRE(node.has_value());
@@ -47,7 +51,7 @@ TEST_CASE("nodes in the same batch are read once", "[node_cache]") {
     bvh::Storage nodes(directory.path());
     write_leaves(nodes, {2, 3});
 
-    bvh::NodeCache cache(nodes, 2);
+    bvh::NodeCache cache(nodes, unbounded_bytes);
 
     REQUIRE(cache.read_node(bvh::Reference{.batch = 1, .node = 0}).has_value());
     REQUIRE(cache.read_node(bvh::Reference{.batch = 1, .node = 1}).has_value());
@@ -75,7 +79,7 @@ TEST_CASE("the batch behind a node is reachable through the cache", "[node_cache
     bvh::Storage nodes(directory.path());
     const std::vector<bvh::Batch> written = write_leaves(nodes, {2, 3});
 
-    bvh::NodeCache cache(nodes, 2);
+    bvh::NodeCache cache(nodes, unbounded_bytes);
 
     const auto result = cache.read_batch(1);
     REQUIRE(result.has_value());
