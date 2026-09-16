@@ -774,44 +774,15 @@ alp::Result<int, FileError> add_pair() {
     return pair.first + pair.second;
 }
 
-// Two fields, so a braced value of it holds a comma outside any parentheses.
-struct Pair {
-    int first;
-    int second;
-};
-
-// The sum of `pair`, or an error if its fields are out of order.
-alp::Result<int, FileError> add_ordered(const Pair pair) {
-    if (pair.first > pair.second) {
-        return alp::make_unexpected(FileError::NotFound);
-    }
+alp::Result<int, FileError> add_pair_with_context() {
+    ALP_TRY_CONTEXT(const auto pair, (make_pair_result<int, int>(1, 2)), "adding the pair");
     return pair.first + pair.second;
-}
-
-alp::Result<int, FileError> bind_braced() {
-    ALP_TRY_BIND(const int sum, add_ordered(Pair{.first = 1, .second = 2}));
-    return sum;
-}
-
-alp::Result<void, FileError> discard_braced() {
-    ALP_TRY_DISCARD(add_ordered(Pair{.first = 2, .second = 1}));
-    return {};
-}
-
-alp::Result<int, FileError> bind_braced_with_context() {
-    ALP_TRY_BIND_CONTEXT(const int sum, "adding the pair", add_ordered(Pair{.first = 1, .second = 2}));
-    return sum;
-}
-
-alp::Result<void, FileError> discard_braced_with_context() {
-    ALP_TRY_DISCARD_CONTEXT("adding the pair", add_ordered(Pair{.first = 2, .second = 1}));
-    return {};
 }
 
 // Uses the names of the macro's own parameters for its variables.
 alp::Result<int, FileError> forward_with_parameter_names(alp::Result<int, FileError> result) {
-    const std::string message = fmt::format("reading {}, then {}", "app.cfg", "the index");
-    ALP_TRY_CONTEXT(const int target, std::move(result), message);
+    const std::string message = "app.cfg";
+    ALP_TRY_CONTEXT(const int target, std::move(result), fmt::format("reading {}, then {}", message, "the index"));
     return target;
 }
 
@@ -1071,17 +1042,8 @@ TEST_CASE("ALP_TRY takes an expression with commas inside parentheses") {
     CHECK(add_pair().value() == 3);
 }
 
-TEST_CASE("The dedicated forms take an expression with commas outside parentheses") {
-    CHECK(bind_braced().value() == 3);
-    CHECK(bind_braced_with_context().value() == 3);
-
-    const alp::Result<void, FileError> discarded = discard_braced();
-    REQUIRE(!discarded.has_value());
-    CHECK(discarded.error().frames().size() == 2);
-
-    const alp::Result<void, FileError> discarded_with_context = discard_braced_with_context();
-    REQUIRE(!discarded_with_context.has_value());
-    CHECK(fmt::format("{}", discarded_with_context.error()) == "adding the pair: file not found");
+TEST_CASE("ALP_TRY_CONTEXT takes an expression with commas inside parentheses") {
+    CHECK(add_pair_with_context().value() == 3);
 }
 
 TEST_CASE("ALP_TRY_CONTEXT takes a message with commas and variables named like its parameters") {

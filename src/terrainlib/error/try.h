@@ -73,7 +73,7 @@ decltype(auto) take_value(R &&result) {
 
 } // namespace alp::detail
 
-// ALP_TRY_DISCARD with its result variable and message spelled out; the message is nullopt for none.
+// ALP_TRY(expr) with its result variable and message spelled out; the message is nullopt for none.
 #define ALP_TRY_IMPL_DISCARD(result, message, ...)                                                              \
     do {                                                                                                        \
         auto result = (__VA_ARGS__);                                                                            \
@@ -82,7 +82,7 @@ decltype(auto) take_value(R &&result) {
         }                                                                                                       \
     } while (false)
 
-// ALP_TRY_BIND with its result variable and message spelled out; the message is nullopt for none.
+// ALP_TRY(target, expr) with its result variable and message spelled out; the message is nullopt for none.
 #define ALP_TRY_IMPL_BIND(result, target, message, ...)                                                     \
     auto result = (__VA_ARGS__);                                                                            \
     if (!result) {                                                                                          \
@@ -90,34 +90,27 @@ decltype(auto) take_value(R &&result) {
     }                                                                                                       \
     target = ::alp::detail::take_value(std::move(result))
 
-// Returns from the enclosing function if the expression, an expected or an optional, failed, passing the failure on as make_residual does.
-// The expression is all remaining arguments, so it may contain commas.
-#define ALP_TRY_DISCARD(...) ALP_TRY_IMPL_DISCARD(ALP_UNIQUE_IDENT(_alp_try_result_), ::std::nullopt, __VA_ARGS__)
+// ALP_TRY(expr).
+#define ALP_TRY_1(expr) ALP_TRY_IMPL_DISCARD(ALP_UNIQUE_IDENT(_alp_try_result_), ::std::nullopt, expr)
 
-// Like ALP_TRY_DISCARD, but binds the value to `target`, a declaration or an lvalue.
-// A reference target refers into the result, which lives until the end of the scope; under an `if` the macro needs braces.
-#define ALP_TRY_BIND(target, ...) ALP_TRY_IMPL_BIND(ALP_UNIQUE_IDENT(_alp_try_result_), target, ::std::nullopt, __VA_ARGS__)
-
-// Like ALP_TRY_DISCARD, but adds `message`, which is evaluated only on failure.
-#define ALP_TRY_DISCARD_CONTEXT(message, ...) ALP_TRY_IMPL_DISCARD(ALP_UNIQUE_IDENT(_alp_try_result_), message, __VA_ARGS__)
-
-// Like ALP_TRY_BIND, but adds `message`, which is evaluated only on failure.
-#define ALP_TRY_BIND_CONTEXT(target, message, ...) ALP_TRY_IMPL_BIND(ALP_UNIQUE_IDENT(_alp_try_result_), target, message, __VA_ARGS__)
+// ALP_TRY(target, expr).
+#define ALP_TRY_2(target, expr) ALP_TRY_IMPL_BIND(ALP_UNIQUE_IDENT(_alp_try_result_), target, ::std::nullopt, expr)
 
 // Picks the macro for ALP_TRY by argument count.
 #define ALP_TRY_SELECT(_1, _2, NAME, ...) NAME
 
 // ALP_TRY_CONTEXT(expr, message).
-#define ALP_TRY_CONTEXT_2(expr, message) ALP_TRY_DISCARD_CONTEXT(message, expr)
+#define ALP_TRY_CONTEXT_2(expr, message) ALP_TRY_IMPL_DISCARD(ALP_UNIQUE_IDENT(_alp_try_result_), message, expr)
 
 // ALP_TRY_CONTEXT(target, expr, message).
-#define ALP_TRY_CONTEXT_3(target, expr, message) ALP_TRY_BIND_CONTEXT(target, message, expr)
+#define ALP_TRY_CONTEXT_3(target, expr, message) ALP_TRY_IMPL_BIND(ALP_UNIQUE_IDENT(_alp_try_result_), target, message, expr)
 
 // Picks the macro for ALP_TRY_CONTEXT by argument count; any other count fails to compile.
 #define ALP_TRY_CONTEXT_SELECT(_1, _2, _3, NAME, ...) NAME
 
-// ALP_TRY(expr) or ALP_TRY(target, expr); an expression with commas outside parentheses needs ALP_TRY_DISCARD or ALP_TRY_BIND.
-#define ALP_TRY(...) ALP_TRY_SELECT(__VA_ARGS__, ALP_TRY_BIND, ALP_TRY_DISCARD)(__VA_ARGS__)
+// Returns from the enclosing function if `expr` failed; ALP_TRY(target, expr) otherwise binds its value to `target`.
+// An expression with commas outside parentheses needs its own parentheses.
+#define ALP_TRY(...) ALP_TRY_SELECT(__VA_ARGS__, ALP_TRY_2, ALP_TRY_1)(__VA_ARGS__)
 
 // ALP_TRY_CONTEXT(expr, message) or ALP_TRY_CONTEXT(target, expr, message).
 #define ALP_TRY_CONTEXT(...) ALP_TRY_CONTEXT_SELECT(__VA_ARGS__, ALP_TRY_CONTEXT_3, ALP_TRY_CONTEXT_2, ALP_TRY_CONTEXT_needs_2_or_3_arguments)(__VA_ARGS__)
