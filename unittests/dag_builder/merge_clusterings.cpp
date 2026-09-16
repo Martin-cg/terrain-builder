@@ -133,7 +133,7 @@ TEST_CASE(
     const Clustering merged = merge_clusterings(clusterings, 0.01);
 
     REQUIRE(merged.positions.size() == clustering.positions.size());
-    for (std::size_t i = 0; i < clustering.positions.size(); ++i) {
+    for (std::size_t i = 0; i < clustering.positions.size(); i++) {
         CHECK(merged.positions[i] == clustering.positions[i]);
     }
 

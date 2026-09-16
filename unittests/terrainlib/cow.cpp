@@ -12,12 +12,12 @@ namespace {
 struct CopyCounter {
     explicit CopyCounter(uint32_t &copies) : copies(&copies) {}
     CopyCounter(const CopyCounter &other) : copies(other.copies) {
-        ++*this->copies;
+        (*this->copies)++;
     }
     CopyCounter(CopyCounter &&) = default;
     CopyCounter &operator=(const CopyCounter &other) {
         this->copies = other.copies;
-        ++*this->copies;
+        (*this->copies)++;
         return *this;
     }
     CopyCounter &operator=(CopyCounter &&) = default;

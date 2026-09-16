@@ -293,7 +293,7 @@ void run_checks(const SimpleMesh &mesh, const SimpleMesh &clipped_mesh, const ra
         CAPTURE(mesh.positions[triangle[1]]);
         CAPTURE(mesh.positions[triangle[2]]);
         bool should_be_kept = true;
-        for (uint32_t i = 0; i < 3; ++i) {
+        for (uint32_t i = 0; i < 3; i++) {
             if (!bounds.contains_inclusive(mesh.positions[triangle[i]])) {
                 should_be_kept = false;
                 break;
@@ -307,7 +307,7 @@ void run_checks(const SimpleMesh &mesh, const SimpleMesh &clipped_mesh, const ra
             mesh.positions[triangle.z]};
         for (const auto &clipped_triangle : clipped_mesh.triangles) {
             bool matches = true;
-            for (uint32_t i = 0; i < 3; ++i) {
+            for (uint32_t i = 0; i < 3; i++) {
                 const auto &clipped_position = clipped_mesh.positions[clipped_triangle[i]];
                 if (std::find(vertices.begin(), vertices.end(), clipped_position) == vertices.end()) {
                     matches = false;

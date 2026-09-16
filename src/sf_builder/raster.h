@@ -107,8 +107,8 @@ template <typename In, TransformFnWithCoords<In> F>
 [[nodiscard]] auto transform(const Raster<In> &input, F &&f) {
     using Out = decltype(f(input.pixel(Coords(0, 0)), Coords(0, 0)));
     Raster<Out> output(input.width(), input.height());
-    for (Index y = 0; y < input.height(); ++y) {
-        for (Index x = 0; x < input.width(); ++x) {
+    for (Index y = 0; y < input.height(); y++) {
+        for (Index x = 0; x < input.width(); x++) {
             Coords coords(x, y);
             output.pixel(coords) = f(input.pixel(coords), coords);
         }
@@ -120,8 +120,8 @@ template <typename In, TransformFn<In> F>
 [[nodiscard]] auto transform(const Raster<In> &input, const Mask &mask, F &&f) {
     using Out = decltype(f(input.pixel(Coords(0, 0))));
     Raster<Out> output(input.width(), input.height());
-    for (Index y = 0; y < input.height(); ++y) {
-        for (Index x = 0; x < input.width(); ++x) {
+    for (Index y = 0; y < input.height(); y++) {
+        for (Index x = 0; x < input.width(); x++) {
             Coords coords(x, y);
             if (mask.pixel(coords)) {
                 output.pixel(coords) = f(input.pixel(coords));
@@ -135,8 +135,8 @@ template <typename In, TransformFnWithCoords<In> F>
 [[nodiscard]] auto transform(const Raster<In> &input, const Mask &mask, F &&f) {
     using Out = decltype(f(input.pixel(Coords(0, 0)), Coords(0, 0)));
     Raster<Out> output(input.width(), input.height());
-    for (Index y = 0; y < input.height(); ++y) {
-        for (Index x = 0; x < input.width(); ++x) {
+    for (Index y = 0; y < input.height(); y++) {
+        for (Index x = 0; x < input.width(); x++) {
             Coords coords(x, y);
             if (mask.pixel(coords)) {
                 output.pixel(coords) = f(input.pixel(coords), coords);
