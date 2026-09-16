@@ -45,7 +45,7 @@ std::unordered_set<Id> brute_force_intersecting_nodes_at_level(
 
 } // namespace
 
-TEST_CASE("OddLevelShifted::find_node_at_level_containing_point finds the containing node center", "[octree][odd_level_shifted]") {
+TEST_CASE("OddLevelShifted::find_node_at_level_containing_point finds the containing node center", "[octree][OddLevelShifted]") {
     const OddLevelShifted space = OddLevelShifted::earth();
 
     const Id expected_id{4, {3, 1, 2}};
@@ -59,7 +59,7 @@ TEST_CASE("OddLevelShifted::find_node_at_level_containing_point finds the contai
     CHECK(maybe_id.value() == expected_id);
 }
 
-TEST_CASE("OddLevelShifted::find_node_at_level_containing_point roundtrips centers for multiple nodes", "[octree][odd_level_shifted]") {
+TEST_CASE("OddLevelShifted::find_node_at_level_containing_point roundtrips centers for multiple nodes", "[octree][OddLevelShifted]") {
     const OddLevelShifted space = OddLevelShifted::earth();
 
     const std::vector<Id> ids{
@@ -99,7 +99,7 @@ TEST_CASE("OddLevelShifted::find_node_at_level_containing_point roundtrips cente
     }
 }
 
-TEST_CASE("OddLevelShifted::find_node_at_level_containing_point returns nullopt for points outside the space", "[octree][odd_level_shifted]") {
+TEST_CASE("OddLevelShifted::find_node_at_level_containing_point returns nullopt for points outside the space", "[octree][OddLevelShifted]") {
     const OddLevelShifted space = OddLevelShifted::earth();
 
     const Id root_id{0, {0, 0, 0}};
@@ -129,7 +129,7 @@ TEST_CASE("OddLevelShifted::find_node_at_level_containing_point returns nullopt 
     }
 }
 
-TEST_CASE("OddLevelShifted::find_node_at_level_containing_point handles lower node boundaries inclusively", "[octree][odd_level_shifted]") {
+TEST_CASE("OddLevelShifted::find_node_at_level_containing_point handles lower node boundaries inclusively", "[octree][OddLevelShifted]") {
     const OddLevelShifted space = OddLevelShifted::earth();
 
     const Id expected_id{4, {3, 1, 2}};
@@ -142,7 +142,7 @@ TEST_CASE("OddLevelShifted::find_node_at_level_containing_point handles lower no
     CHECK(maybe_id.value() == expected_id);
 }
 
-TEST_CASE("OddLevelShifted::find_node_at_level_containing_point handles upper node boundaries exclusively", "[octree][odd_level_shifted]") {
+TEST_CASE("OddLevelShifted::find_node_at_level_containing_point handles upper node boundaries exclusively", "[octree][OddLevelShifted]") {
     const OddLevelShifted space = OddLevelShifted::earth();
 
     const Id left_id(4, {3, 1, 2});
@@ -162,7 +162,7 @@ TEST_CASE("OddLevelShifted::find_node_at_level_containing_point handles upper no
     CHECK(maybe_id.value() == right_id);
 }
 
-TEST_CASE("OddLevelShifted::get_intersecting_nodes_on_level returns all intersecting nodes at target level", "[octree::OddLevelShifted]") {
+TEST_CASE("OddLevelShifted::get_intersecting_nodes_on_level returns all intersecting nodes at target level", "[octree][OddLevelShifted]") {
     const OddLevelShifted space(Bounds(glm::dvec3(-1), glm::dvec3(1)));
     const Id id(2, glm::uvec3(1, 1, 1));
 
@@ -212,7 +212,7 @@ TEST_CASE("OddLevelShifted::get_intersecting_nodes_on_level returns all intersec
 }
 
 TEST_CASE("OddLevelShifted::get_intersecting_nodes_on_level returns all intersecting nodes at levels 0..4",
-          "[octree::OddLevelShifted]") {
+          "[octree][OddLevelShifted]") {
     const OddLevelShifted space = OddLevelShifted::earth();
 
     constexpr Id::Level max_test_level = 3;
@@ -240,7 +240,7 @@ TEST_CASE("OddLevelShifted::get_intersecting_nodes_on_level returns all intersec
 }
 
 TEST_CASE("OddLevelShifted::find_intersecting_nodes_for_standard_id returns nodes covering standard bounds",
-          "[octree::OddLevelShifted]") {
+          "[octree][OddLevelShifted]") {
     const OddLevelShifted space = OddLevelShifted::earth();
     const Space standard_space = Space::earth();
 
@@ -266,7 +266,7 @@ TEST_CASE("OddLevelShifted::find_intersecting_nodes_for_standard_id returns node
 }
 
 TEST_CASE("OddLevelShifted::find_intersecting_nodes_for_standard_id returns self for even levels",
-          "[octree::OddLevelShifted]") {
+          "[octree][OddLevelShifted]") {
     const OddLevelShifted space = OddLevelShifted::earth();
 
     const std::vector<Id> even_ids{
@@ -287,7 +287,7 @@ TEST_CASE("OddLevelShifted::find_intersecting_nodes_for_standard_id returns self
 }
 
 TEST_CASE("OddLevelShifted::find_intersecting_nodes_for_standard_id returns multiple nodes for odd levels",
-          "[octree::OddLevelShifted]") {
+          "[octree][OddLevelShifted]") {
     const OddLevelShifted space = OddLevelShifted::earth();
 
     const Id id{3, {3, 3, 3}};
@@ -300,7 +300,7 @@ TEST_CASE("OddLevelShifted::find_intersecting_nodes_for_standard_id returns mult
     }
 }
 
-TEST_CASE("OddLevelShifted::get_node_bounds even level equals standard Space bounds", "[octree::OddLevelShifted]") {
+TEST_CASE("OddLevelShifted::get_node_bounds even level equals standard Space bounds", "[octree][OddLevelShifted]") {
     const OddLevelShifted space = OddLevelShifted::earth();
     const Space standard_space(space.bounds());
 
@@ -328,7 +328,7 @@ TEST_CASE("OddLevelShifted::get_node_bounds even level equals standard Space bou
     }
 }
 
-TEST_CASE("OddLevelShifted::get_node_bounds odd interior node is shifted by half node size", "[octree::OddLevelShifted]") {
+TEST_CASE("OddLevelShifted::get_node_bounds odd interior node is shifted by half node size", "[octree][OddLevelShifted]") {
     const OddLevelShifted space(Bounds(glm::dvec3(-8), glm::dvec3(8)));
     const Space standard_space(space.bounds());
 
@@ -347,7 +347,7 @@ TEST_CASE("OddLevelShifted::get_node_bounds odd interior node is shifted by half
     CHECK(shifted.max.z == Catch::Approx(standard.max.z - half));
 }
 
-TEST_CASE("OddLevelShifted::get_node_bounds odd border nodes are clipped and extended", "[octree::OddLevelShifted]") {
+TEST_CASE("OddLevelShifted::get_node_bounds odd border nodes are clipped and extended", "[octree][OddLevelShifted]") {
     const OddLevelShifted space(Bounds(glm::dvec3(-8), glm::dvec3(8)));
 
     const Id min_border{1, {0, 0, 0}};
@@ -365,7 +365,7 @@ TEST_CASE("OddLevelShifted::get_node_bounds odd border nodes are clipped and ext
     CHECK(max_bounds.max.z == Catch::Approx(space.bounds().max.z));
 }
 
-TEST_CASE("OddLevelShifted::get_node_bounds all level-1 nodes together tile the space", "[octree::OddLevelShifted]") {
+TEST_CASE("OddLevelShifted::get_node_bounds all level-1 nodes together tile the space", "[octree][OddLevelShifted]") {
     const OddLevelShifted space = OddLevelShifted::earth();
 
     const Bounds min_node = space.get_node_bounds(Id{1, {0, 0, 0}});
@@ -380,7 +380,7 @@ TEST_CASE("OddLevelShifted::get_node_bounds all level-1 nodes together tile the 
     CHECK(max_node.max.z == Catch::Approx(space.bounds().max.z));
 }
 
-TEST_CASE("OddLevelShifted::get_node_bounds_with_children non-leaf equals union of node and children bounds", "[octree::OddLevelShifted]") {
+TEST_CASE("OddLevelShifted::get_node_bounds_with_children non-leaf equals union of node and children bounds", "[octree][OddLevelShifted]") {
     const OddLevelShifted space = OddLevelShifted::earth();
 
     const Id id{2, {1, 1, 1}};
@@ -398,7 +398,7 @@ TEST_CASE("OddLevelShifted::get_node_bounds_with_children non-leaf equals union 
     CHECK(actual.max.z == Catch::Approx(expected.max.z));
 }
 
-TEST_CASE("OddLevelShifted::get_node_bounds_with_children even-level includes node and children", "[octree::OddLevelShifted]") {
+TEST_CASE("OddLevelShifted::get_node_bounds_with_children even-level includes node and children", "[octree][OddLevelShifted]") {
     const OddLevelShifted space = OddLevelShifted::earth();
 
     const Id id{2, {1, 1, 1}};
@@ -415,20 +415,20 @@ TEST_CASE("OddLevelShifted::get_node_bounds_with_children even-level includes no
     CHECK(with_children.max.z == node.max.z);
 }
 
-TEST_CASE("OddLevelShifted::contains interior point returns true", "[octree::OddLevelShifted]") {
+TEST_CASE("OddLevelShifted::contains interior point returns true", "[octree][OddLevelShifted]") {
     const OddLevelShifted space = OddLevelShifted::earth();
 
     CHECK(space.contains(space.bounds().centre()));
 }
 
-TEST_CASE("OddLevelShifted::contains min corner returns true and max corner returns false", "[octree::OddLevelShifted]") {
+TEST_CASE("OddLevelShifted::contains min corner returns true and max corner returns false", "[octree][OddLevelShifted]") {
     const OddLevelShifted space = OddLevelShifted::earth();
 
     CHECK(space.contains(space.bounds().min));
     CHECK_FALSE(space.contains(space.bounds().max));
 }
 
-TEST_CASE("OddLevelShifted::bounds returns the unshifted original bounds", "[octree::OddLevelShifted]") {
+TEST_CASE("OddLevelShifted::bounds returns the unshifted original bounds", "[octree][OddLevelShifted]") {
     const OddLevelShifted space = OddLevelShifted::earth();
     const Bounds standard = Space::earth().bounds();
 

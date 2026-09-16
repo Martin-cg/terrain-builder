@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-TEST_CASE("Cow: construct from owned rvalue") {
+TEST_CASE("Cow: construct from owned rvalue", "[containers][Cow]") {
     std::vector<int> v = {1, 2, 3};
     Cow<std::vector<int>> cow(std::move(v));
 
@@ -13,7 +13,7 @@ TEST_CASE("Cow: construct from owned rvalue") {
     CHECK(cow.get() == std::vector<int>{1, 2, 3});
 }
 
-TEST_CASE("Cow: construct from reference") {
+TEST_CASE("Cow: construct from reference", "[containers][Cow]") {
     std::vector<int> original = {10, 20, 30};
     Cow<std::vector<int>> cow(original);
 
@@ -27,7 +27,7 @@ TEST_CASE("Cow: construct from reference") {
     CHECK(cow.get().back() == 40);
 }
 
-TEST_CASE("Cow: from_owned factory") {
+TEST_CASE("Cow: from_owned factory", "[containers][Cow]") {
     std::string s = "hello";
     auto cow = Cow<std::string>::from_owned(std::move(s));
 
@@ -36,7 +36,7 @@ TEST_CASE("Cow: from_owned factory") {
     CHECK(cow.get() == "hello");
 }
 
-TEST_CASE("Cow: from_ref factory") {
+TEST_CASE("Cow: from_ref factory", "[containers][Cow]") {
     std::string original = "world";
     auto cow = Cow<std::string>::from_ref(std::ref(original));
 
@@ -49,7 +49,7 @@ TEST_CASE("Cow: from_ref factory") {
     CHECK(cow.get() == "world!");
 }
 
-TEST_CASE("Cow: operator* and operator->") {
+TEST_CASE("Cow: operator* and operator->", "[containers][Cow]") {
     SECTION("owned") {
         std::vector<int> v = {1, 2, 3};
         Cow<std::vector<int>> cow(std::move(v));
@@ -67,7 +67,7 @@ TEST_CASE("Cow: operator* and operator->") {
     }
 }
 
-TEST_CASE("Cow: implicit conversion to T&") {
+TEST_CASE("Cow: implicit conversion to T&", "[containers][Cow]") {
     std::vector<int> v = {7, 8, 9};
     Cow<std::vector<int>> cow(std::move(v));
 
@@ -75,7 +75,7 @@ TEST_CASE("Cow: implicit conversion to T&") {
     CHECK(ref == std::vector<int>{7, 8, 9});
 }
 
-TEST_CASE("Cow: copy owned is independent") {
+TEST_CASE("Cow: copy owned is independent", "[containers][Cow]") {
     std::vector<int> v = {1, 2, 3};
     Cow<std::vector<int>> original(std::move(v));
 
@@ -89,7 +89,7 @@ TEST_CASE("Cow: copy owned is independent") {
     CHECK(copy.get() == std::vector<int>{1, 2, 3, 4});
 }
 
-TEST_CASE("Cow: copy ref still references original") {
+TEST_CASE("Cow: copy ref still references original", "[containers][Cow]") {
     std::vector<int> source = {10, 20};
     Cow<std::vector<int>> cow(source);
 
@@ -102,7 +102,7 @@ TEST_CASE("Cow: copy ref still references original") {
     CHECK(copy.get().size() == 3);
 }
 
-TEST_CASE("Cow: move") {
+TEST_CASE("Cow: move", "[containers][Cow]") {
     std::vector<int> v = {1, 2, 3};
     Cow<std::vector<int>> original(std::move(v));
 
@@ -111,7 +111,7 @@ TEST_CASE("Cow: move") {
     CHECK(moved.get() == std::vector<int>{1, 2, 3});
 }
 
-TEST_CASE("Cow: conversion to Cow<const T> via rvalue") {
+TEST_CASE("Cow: conversion to Cow<const T> via rvalue", "[containers][Cow]") {
     SECTION("owned case moves") {
         std::vector<int> v = {1, 2, 3};
         Cow<std::vector<int>> cow(std::move(v));

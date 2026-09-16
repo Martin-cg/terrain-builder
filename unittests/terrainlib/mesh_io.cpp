@@ -25,7 +25,7 @@
 #include "mesh/io.h"
 #include "mesh/encode.h"
 
-TEST_CASE("transcode roundtrip") {
+TEST_CASE("transcode roundtrip", "[mesh][encode]") {
     mesh::Simple mesh;
 
     mesh.positions.push_back(glm::dvec3(0, 0, 0));
@@ -65,7 +65,7 @@ TEST_CASE("transcode roundtrip") {
     CHECK(mat_equals(*roundtrip_mesh.texture, *mesh.texture));
 }
 
-TEST_CASE("io roundtrip") {
+TEST_CASE("io roundtrip", "[mesh][io]") {
     for (const auto& format : {"glb", "gltf"}) {
         DYNAMIC_SECTION(format) {
             SimpleMesh mesh;
@@ -108,7 +108,7 @@ TEST_CASE("io roundtrip") {
     }
 }
 
-TEST_CASE("io roundtrip high precision") {
+TEST_CASE("io roundtrip high precision", "[mesh][io]") {
     for (const auto& format : {"terrain"}) {
         DYNAMIC_SECTION(format) {
             SimpleMesh mesh;
@@ -151,7 +151,7 @@ TEST_CASE("io roundtrip high precision") {
     }
 }
 
-TEST_CASE("io roundtrip no texture") {
+TEST_CASE("io roundtrip no texture", "[mesh][io]") {
     for (const auto &format : {"gltf", "glb", "terrain"}) {
         DYNAMIC_SECTION(format) {
             SimpleMesh mesh;
@@ -193,7 +193,7 @@ TEST_CASE("io roundtrip no texture") {
     }
 }
 
-TEST_CASE("io roundtrip no texture and uvs") {
+TEST_CASE("io roundtrip no texture and uvs", "[mesh][io]") {
     for (const auto &format : {"gltf", "glb", "terrain"}) {
         DYNAMIC_SECTION(format) {
             SimpleMesh mesh;

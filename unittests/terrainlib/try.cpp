@@ -63,19 +63,19 @@ std::optional<int> forward_counted(const std::optional<int> value) {
 
 } // namespace
 
-TEST_CASE("TRY takes the value of a succeeding expected") {
+TEST_CASE("TRY takes the value of a succeeding expected", "[try]") {
     const Expected result = forward_expected(Expected{21});
     REQUIRE(result.has_value());
     CHECK(*result == 21);
 }
 
-TEST_CASE("TRY propagates the error of a failing expected") {
+TEST_CASE("TRY propagates the error of a failing expected", "[try]") {
     const Expected result = forward_expected(tl::make_unexpected(std::string("broken")));
     REQUIRE(!result.has_value());
     CHECK(result.error() == "broken");
 }
 
-TEST_CASE("TRY propagates an error without binding a value") {
+TEST_CASE("TRY propagates an error without binding a value", "[try]") {
     CHECK(skip_expected(Expected{1}).has_value());
 
     const tl::expected<void, std::string> result = skip_expected(tl::make_unexpected(std::string("broken")));
@@ -83,26 +83,26 @@ TEST_CASE("TRY propagates an error without binding a value") {
     CHECK(result.error() == "broken");
 }
 
-TEST_CASE("TRY takes the value of an engaged optional") {
+TEST_CASE("TRY takes the value of an engaged optional", "[try]") {
     const std::optional<int> result = forward_optional(21);
     REQUIRE(result.has_value());
     CHECK(*result == 21);
 }
 
-TEST_CASE("TRY propagates an empty optional as empty") {
+TEST_CASE("TRY propagates an empty optional as empty", "[try]") {
     CHECK(!forward_optional(std::nullopt).has_value());
     CHECK(!skip_optional(std::nullopt).has_value());
     CHECK(skip_optional(1).has_value());
 }
 
-TEST_CASE("TRY moves the value out instead of copying it") {
+TEST_CASE("TRY moves the value out instead of copying it", "[try]") {
     const std::optional<Tracked> result = forward_tracked(std::optional<Tracked>{Tracked{}});
     REQUIRE(result.has_value());
     CHECK(result->copies == 0);
     CHECK(result->moves > 0);
 }
 
-TEST_CASE("TRY evaluates its expression once") {
+TEST_CASE("TRY evaluates its expression once", "[try]") {
     evaluations = 0;
     CHECK(forward_counted(7) == 7);
     CHECK(evaluations == 1);

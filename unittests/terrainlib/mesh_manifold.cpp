@@ -71,7 +71,7 @@ SimpleMesh make_two_fans_touching_at_single_vertex() {
 
 } // namespace
 
-TEST_CASE("mesh::find_non_manifold_edges") {
+TEST_CASE("mesh::find_non_manifold_edges", "[mesh][connectivity][manifold]") {
     SECTION("manifold mesh has no non-manifold edges") {
         const SimpleMesh mesh = make_quad();
         const auto actual = mesh::find_non_manifold_edges(mesh.triangles);
@@ -106,7 +106,7 @@ TEST_CASE("mesh::find_non_manifold_edges") {
     }
 }
 
-TEST_CASE("mesh::is_edge_manifold") {
+TEST_CASE("mesh::is_edge_manifold", "[mesh][connectivity][manifold]") {
     SECTION("quad is edge manifold") {
         const SimpleMesh mesh = make_quad();
 
@@ -126,7 +126,7 @@ TEST_CASE("mesh::is_edge_manifold") {
     }
 }
 
-TEST_CASE("mesh::is_vertex_manifold") {
+TEST_CASE("mesh::is_vertex_manifold", "[mesh][connectivity][manifold]") {
     SECTION("quad is vertex manifold") {
         const SimpleMesh mesh = make_quad();
 
@@ -146,7 +146,7 @@ TEST_CASE("mesh::is_vertex_manifold") {
     }
 }
 
-TEST_CASE("mesh::is_manifold") {
+TEST_CASE("mesh::is_manifold", "[mesh][connectivity][manifold]") {
     SECTION("quad is manifold") {
         const SimpleMesh mesh = make_quad();
 
@@ -172,7 +172,7 @@ TEST_CASE("mesh::is_manifold") {
     }
 }
 
-TEST_CASE("mesh::duplicate_non_manifold_edges") {
+TEST_CASE("mesh::duplicate_non_manifold_edges", "[mesh][connectivity][manifold]") {
     SECTION("manifold mesh stays unchanged") {
         SimpleMesh actual = make_quad();
         const SimpleMesh expected = actual;
@@ -217,7 +217,7 @@ TEST_CASE("mesh::duplicate_non_manifold_edges") {
     }
 }
 
-TEST_CASE("mesh::duplicate_non_manifold_vertices") {
+TEST_CASE("mesh::duplicate_non_manifold_vertices", "[mesh][connectivity][manifold]") {
     SECTION("manifold mesh stays unchanged") {
         SimpleMesh actual = make_quad();
         const SimpleMesh expected = actual;
@@ -312,7 +312,7 @@ TEST_CASE("mesh::duplicate_non_manifold_vertices") {
     }
 }
 
-TEST_CASE("mesh::make_manifold") {
+TEST_CASE("mesh::make_manifold", "[mesh][connectivity][manifold]") {
     SECTION("manifold mesh stays manifold") {
         SimpleMesh actual = make_quad();
         const auto old_positions = actual.positions;

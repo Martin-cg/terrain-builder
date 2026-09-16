@@ -45,7 +45,7 @@ const std::vector<uint32_t> both_clusters{0, 1};
 
 } // namespace
 
-TEST_CASE("inherit_shared_texture carries a texture whose uvs agree at the seam", "[dag_builder][texture_reuse]") {
+TEST_CASE("inherit_shared_texture carries a texture whose uvs agree at the seam", "[texture_reuse]") {
     const Clustering source = make_quad_clustering(0);
     Cluster merged = make_merged_cluster();
     TextureSet textures;
@@ -59,7 +59,7 @@ TEST_CASE("inherit_shared_texture carries a texture whose uvs agree at the seam"
 }
 
 // A chart seam gives one vertex two uvs, which the merged cluster has no way to represent.
-TEST_CASE("inherit_shared_texture refuses a texture whose uvs disagree at the seam", "[dag_builder][texture_reuse]") {
+TEST_CASE("inherit_shared_texture refuses a texture whose uvs disagree at the seam", "[texture_reuse]") {
     Clustering source = make_quad_clustering(0);
     source.clusters[1].uvs[0] = {0.5, 0.5};
     Cluster merged = make_merged_cluster();
@@ -71,7 +71,7 @@ TEST_CASE("inherit_shared_texture refuses a texture whose uvs disagree at the se
     CHECK(merged.uvs.empty());
 }
 
-TEST_CASE("inherit_shared_texture refuses when the sources carry different textures", "[dag_builder][texture_reuse]") {
+TEST_CASE("inherit_shared_texture refuses when the sources carry different textures", "[texture_reuse]") {
     Clustering source = make_quad_clustering(0);
     source.textures.add(cv::Mat::ones(4, 4, CV_8UC3));
     source.clusters[1].texture_id = 1;
@@ -83,7 +83,7 @@ TEST_CASE("inherit_shared_texture refuses when the sources carry different textu
     CHECK_FALSE(merged.is_textured());
 }
 
-TEST_CASE("inherit_shared_texture leaves untextured sources alone", "[dag_builder][texture_reuse]") {
+TEST_CASE("inherit_shared_texture leaves untextured sources alone", "[texture_reuse]") {
     const Clustering source = make_quad_clustering(std::nullopt);
     Cluster merged = make_merged_cluster();
     TextureSet textures;

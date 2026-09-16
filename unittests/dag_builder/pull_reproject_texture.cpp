@@ -17,7 +17,7 @@ cv::Mat make_texture(const cv::Vec3b top_left, const cv::Vec3b top_right) {
 
 } // namespace
 
-TEST_CASE("TextureReprojector copies pixels under an identity mapping", "[dag_builder][pull_reproject_texture]") {
+TEST_CASE("TextureReprojector copies pixels under an identity mapping", "[atlas][pull_reproject_texture]") {
     const cv::Mat source = make_texture(cv::Vec3b(10, 20, 30), cv::Vec3b(40, 50, 60));
 
     std::array<ReprojectionTriangle, 2> triangles;
@@ -35,7 +35,7 @@ TEST_CASE("TextureReprojector copies pixels under an identity mapping", "[dag_bu
     CHECK(output.at<cv::Vec3b>(0, 1) == cv::Vec3b(40, 50, 60));
 }
 
-TEST_CASE("TextureReprojector linearly blends between neighboring source pixels", "[dag_builder][pull_reproject_texture]") {
+TEST_CASE("TextureReprojector linearly blends between neighboring source pixels", "[atlas][pull_reproject_texture]") {
     const cv::Mat source = make_texture(cv::Vec3b(0, 0, 0), cv::Vec3b(200, 200, 200));
 
     std::array<ReprojectionTriangle, 1> triangles;
@@ -50,7 +50,7 @@ TEST_CASE("TextureReprojector linearly blends between neighboring source pixels"
     CHECK(output.at<cv::Vec3b>(0, 0) == cv::Vec3b(100, 100, 100));
 }
 
-TEST_CASE("TextureReprojector leaves the background where triangles are degenerate", "[dag_builder][pull_reproject_texture]") {
+TEST_CASE("TextureReprojector leaves the background where triangles are degenerate", "[atlas][pull_reproject_texture]") {
     const cv::Mat source = make_texture(cv::Vec3b(10, 20, 30), cv::Vec3b(40, 50, 60));
 
     std::array<ReprojectionTriangle, 1> triangles;
@@ -64,7 +64,7 @@ TEST_CASE("TextureReprojector leaves the background where triangles are degenera
     CHECK(output.at<cv::Vec3b>(0, 0) == cv::Vec3b(0, 0, 0));
 }
 
-TEST_CASE("TextureReprojector supersamples and averages partial pixel coverage", "[dag_builder][pull_reproject_texture]") {
+TEST_CASE("TextureReprojector supersamples and averages partial pixel coverage", "[atlas][pull_reproject_texture]") {
     // Triangle covering only the lower-left sample at UV (0.25, 0.25)
     cv::Mat source(1, 1, CV_8UC3, cv::Vec3b(100, 100, 100));
 
@@ -81,7 +81,7 @@ TEST_CASE("TextureReprojector supersamples and averages partial pixel coverage",
     CHECK(output.at<cv::Vec3b>(0, 0) == cv::Vec3b(100, 100, 100));
 }
 
-TEST_CASE("TextureReprojector handles non-uniform coverage with gradient source", "[dag_builder][pull_reproject_texture]") {
+TEST_CASE("TextureReprojector handles non-uniform coverage with gradient source", "[atlas][pull_reproject_texture]") {
     // 2x1 gradient source for testing coverage-aware averaging
     cv::Mat source(1, 2, CV_8UC3);
     source.at<cv::Vec3b>(0, 0) = cv::Vec3b(50, 50, 50);
@@ -101,7 +101,7 @@ TEST_CASE("TextureReprojector handles non-uniform coverage with gradient source"
     CHECK(pixel[0] < 150);
 }
 
-TEST_CASE("TextureReprojector background stays zero when no samples covered", "[dag_builder][pull_reproject_texture]") {
+TEST_CASE("TextureReprojector background stays zero when no samples covered", "[atlas][pull_reproject_texture]") {
     cv::Mat source(1, 1, CV_8UC3, cv::Vec3b(255, 255, 255));
 
     std::array<ReprojectionTriangle, 1> triangles;
@@ -116,7 +116,7 @@ TEST_CASE("TextureReprojector background stays zero when no samples covered", "[
     CHECK(output.at<cv::Vec3b>(0, 0) == cv::Vec3b(0, 0, 0));
 }
 
-TEST_CASE("TextureReprojector quad seam has no holes with supersampling", "[dag_builder][pull_reproject_texture]") {
+TEST_CASE("TextureReprojector quad seam has no holes with supersampling", "[atlas][pull_reproject_texture]") {
     // Full coverage with two triangles forming a quad and supersampling
     cv::Mat source(1, 1, CV_8UC3, cv::Vec3b(128, 128, 128));
 
@@ -139,7 +139,7 @@ TEST_CASE("TextureReprojector quad seam has no holes with supersampling", "[dag_
     }
 }
 
-TEST_CASE("TextureReprojector renders identically regardless of winding order", "[dag_builder][pull_reproject_texture]") {
+TEST_CASE("TextureReprojector renders identically regardless of winding order", "[atlas][pull_reproject_texture]") {
     cv::Mat source(1, 1, CV_8UC3, cv::Vec3b(64, 64, 64));
 
     // CCW triangle
@@ -167,7 +167,7 @@ TEST_CASE("TextureReprojector renders identically regardless of winding order", 
     }
 }
 
-TEST_CASE("TextureReprojector handles multiple source images with different colors", "[dag_builder][pull_reproject_texture]") {
+TEST_CASE("TextureReprojector handles multiple source images with different colors", "[atlas][pull_reproject_texture]") {
     // Two 1x1 sources with different colors
     cv::Mat source0(1, 1, CV_8UC3, cv::Vec3b(255, 0, 0));    // red
     cv::Mat source1(1, 1, CV_8UC3, cv::Vec3b(0, 255, 0));    // green
@@ -191,7 +191,7 @@ TEST_CASE("TextureReprojector handles multiple source images with different colo
     CHECK(output.at<cv::Vec3b>(0, 1) == cv::Vec3b(0, 255, 0));    // green
 }
 
-TEST_CASE("TextureReprojector clamps UVs and applies edge replication", "[dag_builder][pull_reproject_texture]") {
+TEST_CASE("TextureReprojector clamps UVs and applies edge replication", "[atlas][pull_reproject_texture]") {
     cv::Mat source(2, 2, CV_8UC3);
     source.at<cv::Vec3b>(0, 0) = cv::Vec3b(255, 0, 0);      // red
     source.at<cv::Vec3b>(0, 1) = cv::Vec3b(0, 255, 0);      // green
@@ -211,7 +211,7 @@ TEST_CASE("TextureReprojector clamps UVs and applies edge replication", "[dag_bu
     CHECK(output.at<cv::Vec3b>(0, 0) == cv::Vec3b(255, 255, 0));
 }
 
-TEST_CASE("TextureReprojector pins rounding behavior for linear interpolation blends", "[dag_builder][pull_reproject_texture]") {
+TEST_CASE("TextureReprojector pins rounding behavior for linear interpolation blends", "[atlas][pull_reproject_texture]") {
     // Create a 2x1 source with black and white to test 127.5 blend
     cv::Mat source(1, 2, CV_8UC3);
     source.at<cv::Vec3b>(0, 0) = cv::Vec3b(0, 0, 0);        // black
@@ -250,7 +250,7 @@ std::array<ReprojectionTriangle, 2> make_centre_quad() {
 
 } // namespace
 
-TEST_CASE("TextureReprojector extends the covered region by the requested gutter", "[dag_builder][pull_reproject_texture]") {
+TEST_CASE("TextureReprojector extends the covered region by the requested gutter", "[atlas][pull_reproject_texture]") {
     const cv::Mat source(1, 1, CV_8UC3, cv::Vec3b(10, 20, 30));
     const std::array<ReprojectionTriangle, 2> triangles = make_centre_quad();
 

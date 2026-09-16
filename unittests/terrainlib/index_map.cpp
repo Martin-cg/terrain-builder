@@ -4,7 +4,7 @@
 
 using namespace octree;
 
-TEST_CASE("IndexMap basic operations") {
+TEST_CASE("IndexMap basic operations", "[octree][IndexMap]") {
     IndexMap index;
 
     SECTION("Add root node") {

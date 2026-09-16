@@ -47,7 +47,7 @@ uint32_t global_vertex_index(
 }
 } // namespace
 
-TEST_CASE("weld_clustering closes a crack inside one clustering", "[dag_builder][weld]") {
+TEST_CASE("weld_clustering closes a crack inside one clustering", "[merge][weld]") {
     const Clustering welded = weld_clustering(make_cracked_clustering(), 1.0);
 
     REQUIRE(welded.clusters.size() == 2);
@@ -55,7 +55,7 @@ TEST_CASE("weld_clustering closes a crack inside one clustering", "[dag_builder]
     CHECK(global_vertex_index(welded, 0, 0) == global_vertex_index(welded, 1, 0));
 }
 
-TEST_CASE("weld_clustering leaves distinct vertices apart", "[dag_builder][weld]") {
+TEST_CASE("weld_clustering leaves distinct vertices apart", "[merge][weld]") {
     Clustering clustering = make_cracked_clustering();
     clustering.positions[3] = glm::dvec3(0.0, -5.0, 0.0);
 
@@ -65,7 +65,7 @@ TEST_CASE("weld_clustering leaves distinct vertices apart", "[dag_builder][weld]
     CHECK(global_vertex_index(welded, 0, 0) != global_vertex_index(welded, 1, 0));
 }
 
-TEST_CASE("weld_clustering places the welded vertex by averaging or last writer", "[dag_builder][weld]") {
+TEST_CASE("weld_clustering places the welded vertex by averaging or last writer", "[merge][weld]") {
     const bool average_positions = GENERATE(true, false);
 
     Clustering clustering = make_cracked_clustering();
@@ -79,7 +79,7 @@ TEST_CASE("weld_clustering places the welded vertex by averaging or last writer"
     CHECK(glm::distance(position, expected) <= position_tolerance);
 }
 
-TEST_CASE("weld_clustering drops triangles collapsed by welding", "[dag_builder][weld]") {
+TEST_CASE("weld_clustering drops triangles collapsed by welding", "[merge][weld]") {
     Clustering clustering;
     clustering.positions = {
         glm::dvec3(0.0, 0.0, 0.0),
@@ -97,14 +97,14 @@ TEST_CASE("weld_clustering drops triangles collapsed by welding", "[dag_builder]
     CHECK(welded.clusters[0].vertex_indices.size() == 3);
 }
 
-TEST_CASE("weld_clustering rejects a non positive epsilon", "[dag_builder][weld]") {
+TEST_CASE("weld_clustering rejects a non positive epsilon", "[merge][weld]") {
     const Clustering clustering = make_cracked_clustering();
 
     CHECK_THROWS_AS(weld_clustering(clustering, 0.0), std::invalid_argument);
     CHECK_THROWS_AS(weld_clustering(clustering, -1.0), std::invalid_argument);
 }
 
-TEST_CASE("weld_clustering returns an empty clustering unchanged", "[dag_builder][weld]") {
+TEST_CASE("weld_clustering returns an empty clustering unchanged", "[merge][weld]") {
     const Clustering welded = weld_clustering(Clustering{}, 1.0);
 
     CHECK(welded.is_empty());

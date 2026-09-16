@@ -30,7 +30,7 @@
 
 using Catch::Approx;
 
-TEST_CASE("grid") {
+TEST_CASE("grid", "[ctb][GlobalGeodetic][GlobalMercator]") {
     SECTION("epsg codes") {
         const auto geodetic = ctb::GlobalGeodetic(256);
         CHECK(geodetic.getEpsgCode() == 4326);

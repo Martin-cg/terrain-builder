@@ -10,7 +10,7 @@
 #include "mesh/igl/cut.h"
 #include "mesh/igl/cut_to_disk.h"
 
-TEST_CASE("cuts_to_edge_mask single edge") {
+TEST_CASE("cuts_to_edge_mask single edge", "[mesh][igl][cut]") {
     const std::vector<glm::uvec3> triangles = {
         {0, 1, 2},
         {2, 1, 3}
@@ -27,7 +27,7 @@ TEST_CASE("cuts_to_edge_mask single edge") {
     CHECK(edge_cut_mask[1] == glm::bvec3(true, false, false));
 }
 
-TEST_CASE("cuts_to_edge_mask multiple edges") {
+TEST_CASE("cuts_to_edge_mask multiple edges", "[mesh][igl][cut]") {
     const std::vector<glm::uvec3> triangles = {
         {0, 1, 2},
         {2, 1, 3}
@@ -44,7 +44,7 @@ TEST_CASE("cuts_to_edge_mask multiple edges") {
     CHECK(edge_cut_mask[1] == glm::bvec3(false, true, false));
 }
 
-TEST_CASE("cuts_to_edge_mask multiple single edges") {
+TEST_CASE("cuts_to_edge_mask multiple single edges", "[mesh][igl][cut]") {
     const std::vector<glm::uvec3> triangles = {
         {0, 1, 2},
         {2, 1, 3}
@@ -63,7 +63,7 @@ TEST_CASE("cuts_to_edge_mask multiple single edges") {
     CHECK(edge_cut_mask[1] == glm::bvec3(true, true, false));
 }
 
-TEST_CASE("cut shared edge in open quad") {
+TEST_CASE("cut shared edge in open quad", "[mesh][igl][cut]") {
     mesh::Simple mesh({ 
         {0, 1, 2},
         {2, 1, 3}
@@ -96,7 +96,7 @@ TEST_CASE("cut shared edge in open quad") {
     CHECK(actual_soups[1] == expected_soup2);
 }
 
-TEST_CASE("cut shared edge in double-sided triangle") {
+TEST_CASE("cut shared edge in double-sided triangle", "[mesh][igl][cut]") {
     mesh::Simple mesh({
         {0, 1, 2},
         {0, 2, 1}

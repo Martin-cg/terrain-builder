@@ -4,14 +4,14 @@
 #include <array>
 #include <vector>
 
-TEST_CASE("OffsetTable default construction") {
+TEST_CASE("OffsetTable default construction", "[containers][OffsetTable]") {
     OffsetTable table;
     CHECK(table.empty());
     CHECK(table.size() == 0);
     CHECK(table.total_size() == 0);
 }
 
-TEST_CASE("OffsetTable append_length") {
+TEST_CASE("OffsetTable append_length", "[containers][OffsetTable]") {
     OffsetTable table;
     table.append_length(3);
     table.append_length(5);
@@ -33,7 +33,7 @@ TEST_CASE("OffsetTable append_length") {
     CHECK(r2.end == 10);
 }
 
-TEST_CASE("OffsetTable append_lengths via span") {
+TEST_CASE("OffsetTable append_lengths via span", "[containers][OffsetTable]") {
     OffsetTable table;
     std::array<size_t, 3> lengths = {3, 5, 2};
     table.append_lengths(lengths);
@@ -54,7 +54,7 @@ TEST_CASE("OffsetTable append_lengths via span") {
     CHECK(r2.end == 10);
 }
 
-TEST_CASE("OffsetTable element_size") {
+TEST_CASE("OffsetTable element_size", "[containers][OffsetTable]") {
     OffsetTable table;
     table.append_length(3);
     table.append_length(5);
@@ -65,7 +65,7 @@ TEST_CASE("OffsetTable element_size") {
     CHECK(table.segment_size(2) == 2);
 }
 
-TEST_CASE("OffsetTable locate") {
+TEST_CASE("OffsetTable locate", "[containers][OffsetTable]") {
     OffsetTable table;
     table.append_length(3);
     table.append_length(5);
@@ -103,7 +103,7 @@ TEST_CASE("OffsetTable locate") {
     }
 }
 
-TEST_CASE("OffsetTable locate out of range throws") {
+TEST_CASE("OffsetTable locate out of range throws", "[containers][OffsetTable]") {
     OffsetTable table;
     table.append_length(3);
     table.append_length(5);
@@ -113,7 +113,7 @@ TEST_CASE("OffsetTable locate out of range throws") {
     CHECK_THROWS_AS(table.locate(100), std::out_of_range);
 }
 
-TEST_CASE("OffsetTable range out of range throws") {
+TEST_CASE("OffsetTable range out of range throws", "[containers][OffsetTable]") {
     OffsetTable table;
     table.append_length(3);
     table.append_length(5);
@@ -122,7 +122,7 @@ TEST_CASE("OffsetTable range out of range throws") {
     CHECK_THROWS_AS(table.segment_range(100), std::out_of_range);
 }
 
-TEST_CASE("OffsetTable set_end on last element to extend") {
+TEST_CASE("OffsetTable set_end on last element to extend", "[containers][OffsetTable]") {
     OffsetTable table;
     table.append_length(3);
     table.append_length(5);
@@ -136,7 +136,7 @@ TEST_CASE("OffsetTable set_end on last element to extend") {
     CHECK(r2.end == 15);
 }
 
-TEST_CASE("OffsetTable set_begin on non-first element") {
+TEST_CASE("OffsetTable set_begin on non-first element", "[containers][OffsetTable]") {
     OffsetTable table;
     table.append_length(3);
     table.append_length(5);
@@ -153,7 +153,7 @@ TEST_CASE("OffsetTable set_begin on non-first element") {
     CHECK(r1.end == 8);
 }
 
-TEST_CASE("OffsetTable set_begin on element 0 throws") {
+TEST_CASE("OffsetTable set_begin on element 0 throws", "[containers][OffsetTable]") {
     OffsetTable table;
     table.append_length(3);
     table.append_length(5);
@@ -161,7 +161,7 @@ TEST_CASE("OffsetTable set_begin on element 0 throws") {
     CHECK_THROWS_AS(table.set_begin(0, 1), std::out_of_range);
 }
 
-TEST_CASE("OffsetTable clear then re-add elements") {
+TEST_CASE("OffsetTable clear then re-add elements", "[containers][OffsetTable]") {
     OffsetTable table;
     table.append_length(3);
     table.append_length(5);

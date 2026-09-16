@@ -24,7 +24,7 @@
 #include "mesh/merge.h"
 #include "mesh/normalize.h"
 
-TEST_CASE("mesh::merge") {
+TEST_CASE("mesh::merge", "[mesh][merge]") {
     SECTION("two tris with shared edge") {
         SimpleMesh mesh1;
         mesh1.positions.push_back(glm::dvec3(0, 0, 0));

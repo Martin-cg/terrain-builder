@@ -12,7 +12,7 @@
 #include "mesh/connectivity/triangle_compare.h"
 
 
-TEST_CASE("triangulate handles minimal input") {
+TEST_CASE("triangulate handles minimal input", "[polygon][triangulate]") {
     SimpleMesh3d mesh;
 
     SECTION("Empty indices") {
@@ -38,7 +38,7 @@ TEST_CASE("triangulate handles minimal input") {
     }
 }
 
-TEST_CASE("triangulate handles a simple triangle") {
+TEST_CASE("triangulate handles a simple triangle", "[polygon][triangulate]") {
     SimpleMesh3d mesh;
     mesh.positions.push_back({0, 0, 0});
     mesh.positions.push_back({1, 0, 0});
@@ -65,7 +65,7 @@ void check_every_vertex_used_at_least_once(const SimpleMesh3d &mesh) {
     }
 }
 
-TEST_CASE("triangulate handles a square") {
+TEST_CASE("triangulate handles a square", "[polygon][triangulate]") {
     SimpleMesh3d mesh;
     mesh.positions.push_back({0, 0, 0});
     mesh.positions.push_back({1, 0, 0});
@@ -80,7 +80,7 @@ TEST_CASE("triangulate handles a square") {
     mesh::validate(mesh);
 }
 
-TEST_CASE("triangulate works with UVs") {
+TEST_CASE("triangulate works with UVs", "[polygon][triangulate]") {
     SimpleMesh3d mesh;
     mesh.positions.push_back({0, 0, 0});
     mesh.positions.push_back({1, 0, 0});
@@ -122,7 +122,7 @@ std::optional<glm::dvec2> intersection(
     return std::nullopt; // No intersection
 }
 
-TEST_CASE("triangulate handles U-shaped polygon") {
+TEST_CASE("triangulate handles U-shaped polygon", "[polygon][triangulate]") {
     SimpleMesh3d mesh;
 
     // Define U-shape polygon
