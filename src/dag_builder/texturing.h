@@ -14,6 +14,8 @@
 #include "atlas/BakeSource.h"
 #include "atlas/bake_cluster_texture.h"
 #include "cluster.h"
+#include "cluster_adjacency.h"
+#include "containers/StampSet.h"
 #include "compact.h"
 #include "enumerate.h"
 #include "log.h"
@@ -277,6 +279,35 @@ inline void rescale_inherited_textures(Clustering &merged, const std::span<const
     }
 }
 
+// The clusters a plan bakes from: the ones that merged into it, and the ones bordering those.
+[[nodiscard]]
+inline std::vector<uint32_t> collect_source_clusters(
+    const std::span<const uint32_t> plan_clusters,
+    const PartitionToClusters &partition_to_clusters,
+    const ClusterAdjacency &adjacency,
+    StampSet &visited) {
+    visited.reset(adjacency.segment_count());
+
+    std::vector<uint32_t> source_clusters;
+    const auto visit = [&](const uint32_t cluster) {
+        if (visited.insert(cluster)) {
+            source_clusters.push_back(cluster);
+        }
+    };
+
+    for (const uint32_t index : plan_clusters) {
+        for (const uint32_t cluster : partition_to_clusters.segment(index)) {
+            visit(cluster);
+            // Output triangles on a cluster border can lean onto surface that merged into a different one.
+            for (const uint32_t neighbour : adjacency.segment(cluster)) {
+                visit(neighbour);
+            }
+        }
+    }
+
+    return source_clusters;
+}
+
 // Run every planned bake, at the size the node budget left it.
 inline void bake_node_textures(
     Clustering &merged,
@@ -284,16 +315,16 @@ inline void bake_node_textures(
     const PartitionToClusters &partition_to_clusters,
     const std::span<const BakePlan> plans,
     const BakeTextureOptions &options) {
+    const ClusterAdjacency adjacency = compute_cluster_adjacency(source);
+    StampSet visited(source.cluster_count());
+
     for (const BakePlan &plan : plans) {
         if (plan.inherited_id.has_value()) {
             continue;
         }
 
-        std::vector<uint32_t> source_clusters;
-        for (const uint32_t index : plan.clusters) {
-            const std::span<const uint32_t> segment = partition_to_clusters.segment(index);
-            source_clusters.insert(source_clusters.end(), segment.begin(), segment.end());
-        }
+        const std::vector<uint32_t> source_clusters =
+            collect_source_clusters(plan.clusters, partition_to_clusters, adjacency, visited);
 
         const BakeSource bake_source = collect_bake_source(source, source_clusters);
         const cv::Mat baked = bake_clusters_texture(merged, plan.clusters, bake_source, plan.size, options);
