@@ -16,12 +16,16 @@ struct Entry {
     morton::Code morton;
     bvh::NodeHeader header;
     bvh::Reference ref;
+
+    bool operator==(const Entry &) const = default;
 };
 
 // Admitted and held are recomputed per round from the limit, never stored.
 struct Batch {
     std::vector<Entry> entries;
     // TODO: do we need any statistics here for admission acceleration or similar.
+
+    bool operator==(const Batch &) const = default;
 };
 
 }

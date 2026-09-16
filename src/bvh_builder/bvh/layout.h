@@ -33,6 +33,8 @@ struct NodeHeader {
     double max_parent_error;
     uint64_t triangle_count;
     Bounds bounds;
+
+    bool operator==(const NodeHeader &) const = default;
 };
 
 struct Node {
@@ -41,6 +43,8 @@ struct Node {
     NodeHeader header;
     NodeIndex child_start;
     NodeIndex child_count; // if 0 -> leaf & child_start indexes Batch::leaves
+
+    bool operator==(const Node &) const = default;
 
     bool is_leaf() const noexcept {
         return this->child_count == 0;
@@ -101,6 +105,8 @@ public:
     static Batch make_unbound() {
         return Batch(unbound_index);
     }
+
+    bool operator==(const Batch &) const = default;
 
     BatchIndex index() const {
         return this->_index;

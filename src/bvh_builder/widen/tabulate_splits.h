@@ -34,6 +34,8 @@ class Split {
 public:
     explicit Split() : value(0) {}
 
+    bool operator==(const Split &) const = default;
+
     // How many slots go to its left child.
     uint8_t left_slots() const {
         return this->value & (keep_bit - 1);
