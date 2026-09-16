@@ -102,6 +102,7 @@ if(TARGET dagbuilderlib)
         dag_builder/bake_cluster_texture.cpp
         dag_builder/bake_flat_quad.cpp
         dag_builder/bake_tent.cpp
+        dag_builder/cluster_adjacency.cpp
         dag_builder/interpolate_uncovered.cpp
         dag_builder/correspondence.cpp
         dag_builder/query.cpp
