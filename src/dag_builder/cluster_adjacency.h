@@ -44,16 +44,16 @@ inline ClusterAdjacency compute_cluster_adjacency(const Clustering &clustering) 
     const SegmentedBuffer<uint32_t, uint32_t> clusters_of_vertex = detail::invert_cluster_vertices(clustering);
 
     ClusterAdjacency adjacency;
-    StampSet taken(clustering.cluster_count());
+    StampSet visited(clustering.cluster_count());
 
     for (const auto [cluster_index, cluster] : enumerate<uint32_t>(clustering.clusters)) {
         adjacency.start_new_segment();
-        taken.reset(clustering.cluster_count());
-        taken.insert(cluster_index);
+        visited.reset(clustering.cluster_count());
+        visited.insert(cluster_index);
 
         for (const uint32_t vertex : cluster.vertex_indices) {
             for (const uint32_t neighbour : clusters_of_vertex.segment(vertex)) {
-                if (taken.insert(neighbour)) {
+                if (visited.insert(neighbour)) {
                     adjacency.push_to_last_segment(neighbour);
                 }
             }
