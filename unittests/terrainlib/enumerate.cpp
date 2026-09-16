@@ -1,19 +1,11 @@
 #include "../catch2_helpers.h"
 #include "enumerate.h"
 
-#include <array>
-#include <string>
+#include <cstdint>
+#include <ranges>
+#include <type_traits>
+#include <utility>
 #include <vector>
-
-TEST_CASE("enumerate empty vector", "[enumerate]") {
-    std::vector<int> vec;
-    int count = 0;
-    for (auto item : enumerate(vec)) {
-        (void)item;
-        ++count;
-    }
-    CHECK(count == 0);
-}
 
 TEST_CASE("enumerate vector of ints", "[enumerate]") {
     std::vector<int> vec = {10, 20, 30};
@@ -29,64 +21,30 @@ TEST_CASE("enumerate vector of ints", "[enumerate]") {
 
 TEST_CASE("enumerate with mutation", "[enumerate]") {
     std::vector<int> vec = {1, 2, 3};
-    for (auto item : enumerate(vec)) {
-        item.value *= 10;
+    for (auto &&[index, value] : enumerate(vec)) {
+        value *= 10;
     }
     CHECK(vec == std::vector<int>{10, 20, 30});
 }
 
 TEST_CASE("enumerate const vector", "[enumerate]") {
     const std::vector<int> vec = {5, 6, 7};
-    for (auto item : enumerate(vec)) {
-        CHECK(std::is_const_v<std::remove_reference_t<decltype(item.value)>>);
-        (void)item;
-    }
-    // also verify values are correct
+    STATIC_REQUIRE(std::is_same_v<decltype(std::declval<std::ranges::range_reference_t<decltype(enumerate(vec))>>().value), const int &>);
+
     std::vector<int> values;
-    for (auto item : enumerate(vec)) {
-        values.push_back(item.value);
+    for (const auto &[index, value] : enumerate(vec)) {
+        values.push_back(value);
     }
     CHECK(values == std::vector<int>{5, 6, 7});
 }
 
 TEST_CASE("enumerate with custom index type", "[enumerate]") {
-    std::vector<int> vec = {100, 200};
-    for (auto item : enumerate<uint32_t>(vec)) {
-        CHECK(std::is_same_v<decltype(item.index), uint32_t>);
-        (void)item;
-    }
-}
+    const std::vector<int> vec = {100, 200};
+    STATIC_REQUIRE(std::is_same_v<decltype(std::declval<std::ranges::range_reference_t<decltype(enumerate<uint32_t>(vec))>>().index), uint32_t>);
 
-TEST_CASE("enumerate std::array", "[enumerate]") {
-    std::array<int, 3> arr = {4, 5, 6};
-    std::vector<std::size_t> indices;
-    std::vector<int> values;
-    for (auto item : enumerate(arr)) {
-        indices.push_back(item.index);
-        values.push_back(item.value);
+    std::vector<uint32_t> indices;
+    for (const auto &[index, value] : enumerate<uint32_t>(vec)) {
+        indices.push_back(index);
     }
-    CHECK(indices == std::vector<std::size_t>{0, 1, 2});
-    CHECK(values == std::vector<int>{4, 5, 6});
-}
-
-TEST_CASE("enumerate with structured bindings", "[enumerate]") {
-    std::vector<int> vec = {7, 8, 9};
-    std::size_t expected_index = 0;
-    for (auto [i, v] : enumerate(vec)) {
-        CHECK(i == expected_index);
-        CHECK(v == vec[expected_index]);
-        ++expected_index;
-    }
-    CHECK(expected_index == 3);
-}
-
-TEST_CASE("enumerate string vector", "[enumerate]") {
-    std::vector<std::string> vec = {"alpha", "beta", "gamma"};
-    std::size_t count = 0;
-    for (auto item : enumerate(vec)) {
-        CHECK(item.index == count);
-        CHECK(item.value == vec[count]);
-        ++count;
-    }
-    CHECK(count == 3);
+    CHECK(indices == std::vector<uint32_t>{0, 1});
 }

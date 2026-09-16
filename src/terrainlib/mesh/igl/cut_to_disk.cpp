@@ -78,7 +78,7 @@ void remove_boundary_from_cuts(const std::span<const glm::uvec3> &triangles, std
     std::vector<uint32_t> cuts_to_remove;
     std::vector<std::vector<uint32_t>> cuts_to_add;
 
-    for (auto& [i, cut] : enumerate(cuts)) {
+    for (auto&& [i, cut] : enumerate(cuts)) {
         // Remove empty cuts
         if (cut.size() < 2) {
             cuts_to_remove.push_back(i);
