@@ -90,6 +90,7 @@ public:
     bool holds(const E &code) const {
         return this->_code == CodeStorage<Es...>(code);
     }
+
     // The frames, innermost first.
     [[nodiscard]]
     std::span<const Frame> frames() const {
