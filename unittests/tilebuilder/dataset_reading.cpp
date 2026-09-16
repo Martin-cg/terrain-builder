@@ -47,7 +47,7 @@ void require_projection_available(const Dataset& dataset, const OGRSpatialRefere
 }
 }
 
-TEST_CASE("reading")
+TEST_CASE("reading", "[DatasetReader]")
 {
     const std::vector at100m = {
         "/austria/at_100m_mgi.tif",

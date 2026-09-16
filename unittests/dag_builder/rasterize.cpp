@@ -40,7 +40,7 @@ constexpr glm::uvec2 grid(4, 4);
 
 } // namespace
 
-TEST_CASE("scan_triangle visits the cells whose centre lies in the triangle", "[dag_builder][rasterize]") {
+TEST_CASE("scan_triangle visits the cells whose centre lies in the triangle", "[rasterize]") {
     // Half the grid, cut by the hypotenuse through (4,0) and (0,4).
     const raster::FixedTriangle triangle = raster::make_triangle({0, 0}, {4, 0}, {0, 4});
 
@@ -52,14 +52,14 @@ TEST_CASE("scan_triangle visits the cells whose centre lies in the triangle", "[
     CHECK(scan(triangle, grid) == expected);
 }
 
-TEST_CASE("scan_triangle visits the same cells for either winding", "[dag_builder][rasterize]") {
+TEST_CASE("scan_triangle visits the same cells for either winding", "[rasterize]") {
     const raster::FixedTriangle triangle = raster::make_triangle({0.5, 0.25}, {3.5, 1.0}, {1.0, 3.5});
 
     CHECK(scan(triangle, grid) == scan(swap_orientation(triangle), grid));
     CHECK_FALSE(scan(triangle, grid).empty());
 }
 
-TEST_CASE("scan_triangle covers nothing for a degenerate triangle", "[dag_builder][rasterize]") {
+TEST_CASE("scan_triangle covers nothing for a degenerate triangle", "[rasterize]") {
     SECTION("collinear corners") {
         CHECK(scan(raster::make_triangle({0, 0}, {2, 2}, {4, 4}), grid).empty());
     }
@@ -68,7 +68,7 @@ TEST_CASE("scan_triangle covers nothing for a degenerate triangle", "[dag_builde
     }
 }
 
-TEST_CASE("scan_triangle clamps to the grid", "[dag_builder][rasterize]") {
+TEST_CASE("scan_triangle clamps to the grid", "[rasterize]") {
     // Far larger than the grid and hanging off both ends of it.
     const raster::FixedTriangle triangle = raster::make_triangle({-10, -10}, {20, -10}, {-10, 20});
 
@@ -79,7 +79,7 @@ TEST_CASE("scan_triangle clamps to the grid", "[dag_builder][rasterize]") {
     CHECK(scan(triangle, grid) == expected);
 }
 
-TEST_CASE("scan_triangle visits a centre on a shared edge from both sides", "[dag_builder][rasterize]") {
+TEST_CASE("scan_triangle visits a centre on a shared edge from both sides", "[rasterize]") {
     // The unit quad split along the diagonal through (0,0) and (4,4).
     const std::vector<glm::uvec2> lower = scan(raster::make_triangle({0, 0}, {4, 0}, {4, 4}), grid);
     const std::vector<glm::uvec2> upper = scan(raster::make_triangle({0, 0}, {4, 4}, {0, 4}), grid);

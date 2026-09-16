@@ -2,7 +2,7 @@
 #include "mesh/combine.h"
 #include "mesh/TriangleSoup.h"
 
-TEST_CASE("mesh::combine_inplace") {
+TEST_CASE("mesh::combine_inplace", "[mesh][combine]") {
     SECTION("triangle indices are offset by the original vertex count") {
         SimpleMesh mesh1;
         mesh1.positions.push_back(glm::dvec3(0, 0, 0));

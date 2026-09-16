@@ -21,7 +21,7 @@ void require_direction(const glm::dvec3 &normal, const glm::dvec3 &expected) {
 
 } // namespace
 
-TEST_CASE("compute_vertex_normals gives a flat surface one normal everywhere", "[terrainlib][mesh_geometry]") {
+TEST_CASE("compute_vertex_normals gives a flat surface one normal everywhere", "[mesh][geometry]") {
     const std::vector<glm::dvec3> normals = mesh::compute_vertex_normals(flat_triangles, flat_positions);
 
     REQUIRE(normals.size() == flat_positions.size());
@@ -30,7 +30,7 @@ TEST_CASE("compute_vertex_normals gives a flat surface one normal everywhere", "
     }
 }
 
-TEST_CASE("compute_vertex_normals leaves a vertex no triangle touches at zero", "[terrainlib][mesh_geometry]") {
+TEST_CASE("compute_vertex_normals leaves a vertex no triangle touches at zero", "[mesh][geometry]") {
     std::vector<glm::dvec3> positions = flat_positions;
     positions.push_back({5, 5, 5});
 
@@ -40,7 +40,7 @@ TEST_CASE("compute_vertex_normals leaves a vertex no triangle touches at zero", 
     REQUIRE(normals.back() == glm::dvec3(0));
 }
 
-TEST_CASE("compute_vertex_normals averages the faces meeting at a vertex", "[terrainlib][mesh_geometry]") {
+TEST_CASE("compute_vertex_normals averages the faces meeting at a vertex", "[mesh][geometry]") {
     // A right angle folded along the x axis: one face in z = 0, one in y = 0, both turning
     // through 90 degrees at the shared origin.
     const std::vector<glm::uvec3> triangles = {{0, 1, 2}, {0, 3, 1}};
@@ -52,7 +52,7 @@ TEST_CASE("compute_vertex_normals averages the faces meeting at a vertex", "[ter
     require_direction(normals[0], {0, 1, 1});
 }
 
-TEST_CASE("compute_vertex_normals weights each face by the angle it turns through", "[terrainlib][mesh_geometry]") {
+TEST_CASE("compute_vertex_normals weights each face by the angle it turns through", "[mesh][geometry]") {
     // The same fold, but the second face meets the origin at 45 degrees rather than 90. Both faces
     // still have equal area, so an area weighted average could not tell this apart from the bisector.
     const std::vector<glm::uvec3> triangles = {{0, 1, 2}, {0, 3, 1}};

@@ -24,7 +24,7 @@
 
 using Catch::Approx;
 
-TEST_CASE("image")
+TEST_CASE("image", "[Image]")
 {
     SECTION("iteration")
     {

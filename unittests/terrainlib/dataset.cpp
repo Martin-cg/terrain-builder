@@ -43,7 +43,7 @@ void checkBounds(const radix::tile::SrsBounds &a, const radix::tile::SrsBounds &
     CHECK(widthErrorIn < 0.001);
 }
 
-TEST_CASE("datasets are as expected") {
+TEST_CASE("datasets are as expected", "[Dataset]") {
     auto d_mgi = Dataset(ALP_TEST_DATA_DIR "/austria/at_mgi.tif");
     auto d_wgs84 = Dataset(ALP_TEST_DATA_DIR "/austria/at_wgs84.tif");
 
@@ -106,7 +106,7 @@ TEST_CASE("datasets are as expected") {
     }
 }
 
-TEST_CASE("bbox width pixels") {
+TEST_CASE("bbox width pixels", "[Dataset]") {
     auto d_mgi = Dataset(ALP_TEST_DATA_DIR "/austria/at_mgi.tif");
     auto d_wgs84 = Dataset(ALP_TEST_DATA_DIR "/austria/at_wgs84.tif");
 

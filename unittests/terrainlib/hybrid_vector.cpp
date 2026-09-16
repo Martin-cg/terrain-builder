@@ -2,7 +2,7 @@
 #include "containers/HybridVector.h"
 #include <memory>
 
-TEST_CASE("HybridVector basic stack behavior") {
+TEST_CASE("HybridVector basic stack behavior", "[containers][HybridVector]") {
     HybridVector<int, 3> vec;
 
     CHECK(vec.empty());
@@ -26,7 +26,7 @@ TEST_CASE("HybridVector basic stack behavior") {
     CHECK(vec[2] == 20);
 }
 
-TEST_CASE("HybridVector switches to heap when exceeding N") {
+TEST_CASE("HybridVector switches to heap when exceeding N", "[containers][HybridVector]") {
     HybridVector<int, 3> vec;
 
     vec.push_back(1);
@@ -45,7 +45,7 @@ TEST_CASE("HybridVector switches to heap when exceeding N") {
     CHECK(vec.size() == 6);
 }
 
-TEST_CASE("HybridVector reserve works correctly") {
+TEST_CASE("HybridVector reserve works correctly", "[containers][HybridVector]") {
     HybridVector<int, 3> vec;
     vec.reserve(10);
     CHECK(vec.size() == 0);
@@ -63,7 +63,7 @@ TEST_CASE("HybridVector reserve works correctly") {
     CHECK(vec.size() == 5);
 }
 
-TEST_CASE("HybridVector accessors and at()") {
+TEST_CASE("HybridVector accessors and at()", "[containers][HybridVector]") {
     HybridVector<int, 2> vec;
     vec.push_back(1);
     vec.push_back(2);
@@ -75,7 +75,7 @@ TEST_CASE("HybridVector accessors and at()") {
     REQUIRE_THROWS_AS(vec.at(2), std::out_of_range);
 }
 
-TEST_CASE("HybridVector iterators and span") {
+TEST_CASE("HybridVector iterators and span", "[containers][HybridVector]") {
     HybridVector<int, 3> vec;
     vec.push_back(1);
     vec.push_back(2);
@@ -99,7 +99,7 @@ TEST_CASE("HybridVector iterators and span") {
     CHECK(cs[2] == 3);
 }
 
-TEST_CASE("HybridVector works with move-only types") {
+TEST_CASE("HybridVector works with move-only types", "[containers][HybridVector]") {
     HybridVector<std::unique_ptr<int>, 2> vec;
     vec.emplace_back(std::make_unique<int>(42));
     vec.emplace_back(std::make_unique<int>(99));

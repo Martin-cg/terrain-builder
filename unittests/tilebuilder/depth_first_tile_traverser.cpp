@@ -29,7 +29,7 @@
 
 using namespace radix;
 
-TEST_CASE("depth_first_tile_traverser interface")
+TEST_CASE("depth_first_tile_traverser interface", "[depth_first_tile_traverser]")
 {
     struct ReadType { };
     const auto read_function = [&](radix::tile::Descriptor) { return ReadType {}; };
@@ -44,7 +44,7 @@ TEST_CASE("depth_first_tile_traverser interface")
     traverse_depth_first_and_aggregate(tiler, read_function, aggregate_function, root_id, max_zoom_level);
 }
 
-TEST_CASE("depth_first_tile_traverser basics")
+TEST_CASE("depth_first_tile_traverser basics", "[depth_first_tile_traverser]")
 {
     struct ReadType {
         glm::uvec2 d;
@@ -113,7 +113,7 @@ TEST_CASE("depth_first_tile_traverser basics")
 }
 
 
-TEST_CASE("depth_first_tile_traverser austrian heights")
+TEST_CASE("depth_first_tile_traverser austrian heights", "[depth_first_tile_traverser]")
 {
     const auto grid = ctb::GlobalMercator();
     const auto dataset = Dataset::open_shared_raster(ALP_TEST_DATA_DIR "/austria/at_100m_mgi.tif").value();
@@ -175,7 +175,7 @@ TEST_CASE("depth_first_tile_traverser austrian heights")
         CHECK(result.second <= 4000);
     }
 }
-TEST_CASE("depth_first_tile_traverser aggregate is not called with an empty vector")
+TEST_CASE("depth_first_tile_traverser aggregate is not called with an empty vector", "[depth_first_tile_traverser]")
 {
     SECTION("web mercator")
     {

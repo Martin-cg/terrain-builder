@@ -9,7 +9,7 @@
 #include "mesh/igl/cut_to_disk.h"
 #include "mesh/validate.h"
 
-TEST_CASE("cut_to_disk works on double-sided triangle") {
+TEST_CASE("cut_to_disk works on double-sided triangle", "[mesh][igl][cut_to_disk]") {
     mesh::Simple mesh({
         {0, 1, 2},
         {0, 2, 1}
@@ -30,7 +30,7 @@ TEST_CASE("cut_to_disk works on double-sided triangle") {
     CHECK(new_topology.is_disk(false));
 }
 
-TEST_CASE("cut_to_disk works on tetrahedron") {
+TEST_CASE("cut_to_disk works on tetrahedron", "[mesh][igl][cut_to_disk]") {
     mesh::Simple mesh({
         {0, 1, 2},
         {2, 3, 0},
@@ -54,7 +54,7 @@ TEST_CASE("cut_to_disk works on tetrahedron") {
     CHECK(new_topology.is_disk(false));
 }
 
-TEST_CASE("cut_to_disk works on tetrahedron triangles only") {
+TEST_CASE("cut_to_disk works on tetrahedron triangles only", "[mesh][igl][cut_to_disk]") {
     std::vector<glm::uvec3> triangles = {
         {0, 1, 2},
         {2, 3, 0},
@@ -72,7 +72,7 @@ TEST_CASE("cut_to_disk works on tetrahedron triangles only") {
     CHECK(new_topology.is_disk(false));
 }
 
-TEST_CASE("cut_to_disk works on multiple tetrahedrons") {
+TEST_CASE("cut_to_disk works on multiple tetrahedrons", "[mesh][igl][cut_to_disk]") {
     mesh::Simple mesh({
         {0, 1, 2},
         {2, 3, 0},

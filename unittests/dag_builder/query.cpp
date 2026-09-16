@@ -18,7 +18,7 @@ using bake::detail::SourcePoint;
 // Its corners are a = (0, 0, 0), b = (5, 0, 1) and c = (1, 4, 3), and the point at weights (0.2, 0.3, 0.5) is 0.3 * b + 0.5 * c = (2, 2, 1.8).
 // Every line runs along (2, -1, 2) / 3, which is a unit direction whose triples are exact, so travelling three units moves a point by (2, -1, 2).
 
-TEST_CASE("find_line_hit reports where the line crosses the candidate", "[dag_builder][bake]") {
+TEST_CASE("find_line_hit reports where the line crosses the candidate", "[bake][query]") {
     const std::vector<Candidate> candidates = {
         // A decoy the line runs well past, so the reported index has to be found rather than assumed.
         {.triangle = {glm::dvec3(10, 10, 10), glm::dvec3(12, 10, 10), glm::dvec3(10, 12, 10)}, .normal_dot = 1.0},
@@ -37,7 +37,7 @@ TEST_CASE("find_line_hit reports where the line crosses the candidate", "[dag_bu
     CHECK(found->distance_squared == Catch::Approx(9.0));
 }
 
-TEST_CASE("find_line_hit crosses a candidate behind the point the line passes through", "[dag_builder][bake]") {
+TEST_CASE("find_line_hit crosses a candidate behind the point the line passes through", "[bake][query]") {
     const std::vector<Candidate> candidates = {
         {.triangle = {glm::dvec3(0, 0, 0), glm::dvec3(5, 0, 1), glm::dvec3(1, 4, 3)}, .normal_dot = 1.0}};
 
@@ -53,7 +53,7 @@ TEST_CASE("find_line_hit crosses a candidate behind the point the line passes th
     CHECK(found->distance_squared == Catch::Approx(9.0));
 }
 
-TEST_CASE("find_line_hit takes the nearest crossing on either side", "[dag_builder][bake]") {
+TEST_CASE("find_line_hit takes the nearest crossing on either side", "[bake][query]") {
     const std::vector<Candidate> candidates = {
         // The same triangle carried nine units along the line, so it is crossed six units ahead of the point.
         {.triangle = {glm::dvec3(6, -3, 6), glm::dvec3(11, -3, 7), glm::dvec3(7, 1, 9)}, .normal_dot = 1.0},
@@ -69,7 +69,7 @@ TEST_CASE("find_line_hit takes the nearest crossing on either side", "[dag_build
     CHECK(found->distance_squared == Catch::Approx(9.0));
 }
 
-TEST_CASE("find_line_hit finds a crossing on an edge two candidates share", "[dag_builder][bake]") {
+TEST_CASE("find_line_hit finds a crossing on an edge two candidates share", "[bake][query]") {
     // The triangle and its mirror across edge b-c, which together make a parallelogram closed by b + c - a = (6, 4, 4).
     const geometry::Triangle3d near_side = {glm::dvec3(0, 0, 0), glm::dvec3(5, 0, 1), glm::dvec3(1, 4, 3)};
     const geometry::Triangle3d far_side = {glm::dvec3(5, 0, 1), glm::dvec3(1, 4, 3), glm::dvec3(6, 4, 4)};
@@ -100,7 +100,7 @@ TEST_CASE("find_line_hit finds a crossing on an edge two candidates share", "[da
     }
 }
 
-TEST_CASE("find_line_hit finds nothing where the line passes outside the candidate", "[dag_builder][bake]") {
+TEST_CASE("find_line_hit finds nothing where the line passes outside the candidate", "[bake][query]") {
     const std::vector<Candidate> candidates = {
         {.triangle = {glm::dvec3(0, 0, 0), glm::dvec3(5, 0, 1), glm::dvec3(1, 4, 3)}, .normal_dot = 1.0}};
 
@@ -110,7 +110,7 @@ TEST_CASE("find_line_hit finds nothing where the line passes outside the candida
     CHECK_FALSE(find_line_hit(candidates, line, 100));
 }
 
-TEST_CASE("find_line_hit ignores a candidate turned away from the target", "[dag_builder][bake]") {
+TEST_CASE("find_line_hit ignores a candidate turned away from the target", "[bake][query]") {
     const std::vector<Candidate> candidates = {
         {.triangle = {glm::dvec3(0, 0, 0), glm::dvec3(5, 0, 1), glm::dvec3(1, 4, 3)}, .normal_dot = -1.0},
         // The same triangle carried three units along the line, so it is crossed three units beyond the nearer one.
@@ -125,7 +125,7 @@ TEST_CASE("find_line_hit ignores a candidate turned away from the target", "[dag
     CHECK(found->distance_squared == Catch::Approx(36.0));
 }
 
-TEST_CASE("find_line_hit finds nothing beyond max_distance", "[dag_builder][bake]") {
+TEST_CASE("find_line_hit finds nothing beyond max_distance", "[bake][query]") {
     const std::vector<Candidate> candidates = {
         {.triangle = {glm::dvec3(0, 0, 0), glm::dvec3(5, 0, 1), glm::dvec3(1, 4, 3)}, .normal_dot = 1.0}};
 
@@ -139,7 +139,7 @@ TEST_CASE("find_line_hit finds nothing beyond max_distance", "[dag_builder][bake
 // The closest point queries below stand on a triangle whose normal is that same (2, -1, 2) / 3, its corners a = (0, 0, 0), b = (1, 2, 0) and c = (0, 2, 1).
 // The point at weights (0.2, 0.3, 0.5) is 0.3 * b + 0.5 * c = (0.3, 1.6, 0.5), so lifting it three units off the surface reaches (0.3, 1.6, 0.5) + (2, -1, 2) = (2.3, 0.6, 2.5).
 
-TEST_CASE("find_closest_point reports the nearest point on the candidate", "[dag_builder][bake]") {
+TEST_CASE("find_closest_point reports the nearest point on the candidate", "[bake][query]") {
     const std::vector<Candidate> candidates = {
         {.triangle = {glm::dvec3(0, 0, 0), glm::dvec3(1, 2, 0), glm::dvec3(0, 2, 1)}, .normal_dot = 1.0}};
 
@@ -153,7 +153,7 @@ TEST_CASE("find_closest_point reports the nearest point on the candidate", "[dag
     CHECK(found->distance_squared == Catch::Approx(9.0));
 }
 
-TEST_CASE("find_closest_point clamps to the boundary when the perpendicular falls outside", "[dag_builder][bake]") {
+TEST_CASE("find_closest_point clamps to the boundary when the perpendicular falls outside", "[bake][query]") {
     const std::vector<Candidate> candidates = {
         {.triangle = {glm::dvec3(0, 0, 0), glm::dvec3(1, 2, 0), glm::dvec3(0, 2, 1)}, .normal_dot = 1.0}};
 
@@ -168,7 +168,7 @@ TEST_CASE("find_closest_point clamps to the boundary when the perpendicular fall
     CHECK(found->distance_squared == Catch::Approx(18.0));
 }
 
-TEST_CASE("find_closest_point prefers a facing candidate to a nearer one turned away", "[dag_builder][bake]") {
+TEST_CASE("find_closest_point prefers a facing candidate to a nearer one turned away", "[bake][query]") {
     const std::vector<Candidate> candidates = {
         {.triangle = {glm::dvec3(0, 0, 0), glm::dvec3(1, 2, 0), glm::dvec3(0, 2, 1)}, .normal_dot = -1.0},
         // The same triangle carried three units down its normal, so it lies six units under the query rather than three.
@@ -182,7 +182,7 @@ TEST_CASE("find_closest_point prefers a facing candidate to a nearer one turned 
     CHECK(found->distance_squared == Catch::Approx(36.0));
 }
 
-TEST_CASE("find_closest_point falls back to a candidate turned away unless facing is required", "[dag_builder][bake]") {
+TEST_CASE("find_closest_point falls back to a candidate turned away unless facing is required", "[bake][query]") {
     const std::vector<Candidate> candidates = {
         {.triangle = {glm::dvec3(0, 0, 0), glm::dvec3(1, 2, 0), glm::dvec3(0, 2, 1)}, .normal_dot = -1.0}};
     const glm::dvec3 query(2.3, 0.6, 2.5);
@@ -196,7 +196,7 @@ TEST_CASE("find_closest_point falls back to a candidate turned away unless facin
     CHECK_FALSE(find_closest_point(candidates, query, std::nullopt, true));
 }
 
-TEST_CASE("find_closest_point finds nothing beyond max_distance", "[dag_builder][bake]") {
+TEST_CASE("find_closest_point finds nothing beyond max_distance", "[bake][query]") {
     const std::vector<Candidate> candidates = {
         {.triangle = {glm::dvec3(0, 0, 0), glm::dvec3(1, 2, 0), glm::dvec3(0, 2, 1)}, .normal_dot = 1.0}};
     const glm::dvec3 query(2.3, 0.6, 2.5);
@@ -207,7 +207,7 @@ TEST_CASE("find_closest_point finds nothing beyond max_distance", "[dag_builder]
     CHECK(find_closest_point(candidates, query, std::nullopt, false));
 }
 
-TEST_CASE("neither query finds anything among no candidates", "[dag_builder][bake]") {
+TEST_CASE("neither query finds anything among no candidates", "[bake][query]") {
     const std::span<const Candidate> none;
     const geometry::Line3d line{glm::dvec3(0, 3, -0.2), glm::normalize(glm::dvec3(2, -1, 2))};
 

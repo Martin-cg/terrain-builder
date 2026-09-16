@@ -5,7 +5,7 @@
 
 #include "containers/FixedArray.h"
 
-TEST_CASE("FixedArray value-initialises its elements", "[terrainlib][fixed_array]") {
+TEST_CASE("FixedArray value-initialises its elements", "[containers][FixedArray]") {
     const FixedArray<uint32_t> array(4);
 
     REQUIRE(array.size() == 4);
@@ -14,7 +14,7 @@ TEST_CASE("FixedArray value-initialises its elements", "[terrainlib][fixed_array
     }
 }
 
-TEST_CASE("FixedArray fills every element with the given value", "[terrainlib][fixed_array]") {
+TEST_CASE("FixedArray fills every element with the given value", "[containers][FixedArray]") {
     const FixedArray<uint32_t> array(3, 7u);
 
     REQUIRE(array.size() == 3);
@@ -23,7 +23,7 @@ TEST_CASE("FixedArray fills every element with the given value", "[terrainlib][f
     }
 }
 
-TEST_CASE("FixedArray of size zero owns no storage", "[terrainlib][fixed_array]") {
+TEST_CASE("FixedArray of size zero owns no storage", "[containers][FixedArray]") {
     const FixedArray<uint32_t> array(0);
 
     CHECK(array.empty());
@@ -31,7 +31,7 @@ TEST_CASE("FixedArray of size zero owns no storage", "[terrainlib][fixed_array]"
     CHECK(array.begin() == array.end());
 }
 
-TEST_CASE("FixedArray copies are deep", "[terrainlib][fixed_array]") {
+TEST_CASE("FixedArray copies are deep", "[containers][FixedArray]") {
     FixedArray<uint32_t> source(3, 5u);
 
     SECTION("construction") {
@@ -52,7 +52,7 @@ TEST_CASE("FixedArray copies are deep", "[terrainlib][fixed_array]") {
     }
 }
 
-TEST_CASE("FixedArray moves hand over the storage and leave the source empty", "[terrainlib][fixed_array]") {
+TEST_CASE("FixedArray moves hand over the storage and leave the source empty", "[containers][FixedArray]") {
     FixedArray<uint32_t> source(3, 5u);
     const uint32_t *storage = source.data();
 
@@ -74,7 +74,7 @@ TEST_CASE("FixedArray moves hand over the storage and leave the source empty", "
     CHECK(source.begin() == source.end());
 }
 
-TEST_CASE("FixedArray survives assignment to itself", "[terrainlib][fixed_array]") {
+TEST_CASE("FixedArray survives assignment to itself", "[containers][FixedArray]") {
     FixedArray<uint32_t> array(3, 5u);
     FixedArray<uint32_t> &alias = array;
 
@@ -90,7 +90,7 @@ TEST_CASE("FixedArray survives assignment to itself", "[terrainlib][fixed_array]
     CHECK(array[2] == 5);
 }
 
-TEST_CASE("FixedArray of bool stores one plain bool per element", "[terrainlib][fixed_array]") {
+TEST_CASE("FixedArray of bool stores one plain bool per element", "[containers][FixedArray]") {
     FixedArray<bool> flags(3);
     flags[1] = true;
 

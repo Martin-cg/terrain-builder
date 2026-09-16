@@ -17,7 +17,7 @@ void check_closest(const radix::geometry::Triangle<3, double> &triangle, const g
 
 } // namespace
 
-TEST_CASE("distance_to_segment clamps to the segment's ends", "[terrainlib][geometry]") {
+TEST_CASE("distance_to_segment clamps to the segment's ends", "[geometry]") {
     const radix::geometry::Edge<2, double> segment = {glm::dvec2(0.0, 0.0), glm::dvec2(4.0, 0.0)};
 
     CHECK(geometry::distance_to_segment(glm::dvec2(2.0, 3.0), segment) == Catch::Approx(3.0));
@@ -29,7 +29,7 @@ TEST_CASE("distance_to_segment clamps to the segment's ends", "[terrainlib][geom
     CHECK(geometry::distance_to_segment(glm::dvec2(1.0, 4.0), degenerate) == Catch::Approx(3.0));
 }
 
-TEST_CASE("distance_to_triangle is zero inside and grows outside", "[terrainlib][geometry]") {
+TEST_CASE("distance_to_triangle is zero inside and grows outside", "[geometry]") {
     const radix::geometry::Triangle<2, double> triangle = {
         glm::dvec2(0.0, 0.0),
         glm::dvec2(4.0, 0.0),
@@ -43,7 +43,7 @@ TEST_CASE("distance_to_triangle is zero inside and grows outside", "[terrainlib]
     CHECK(geometry::distance_to_triangle(glm::dvec2(-2.0, 2.0), triangle) == Catch::Approx(2.0));
 }
 
-TEST_CASE("distance_to_triangle accepts either winding", "[terrainlib][geometry]") {
+TEST_CASE("distance_to_triangle accepts either winding", "[geometry]") {
     const radix::geometry::Triangle<2, double> counter_clockwise = {
         glm::dvec2(0.0, 0.0),
         glm::dvec2(4.0, 0.0),
@@ -59,7 +59,7 @@ TEST_CASE("distance_to_triangle accepts either winding", "[terrainlib][geometry]
     CHECK(geometry::distance_to_triangle(glm::dvec2(0.0, -3.0), clockwise) == Catch::Approx(3.0));
 }
 
-TEST_CASE("triangles_overlap counts touching as overlapping", "[terrainlib][geometry]") {
+TEST_CASE("triangles_overlap counts touching as overlapping", "[geometry]") {
     const radix::geometry::Triangle<2, double> triangle = {
         glm::dvec2(0.0, 0.0),
         glm::dvec2(4.0, 0.0),
@@ -92,7 +92,7 @@ TEST_CASE("triangles_overlap counts touching as overlapping", "[terrainlib][geom
     CHECK(geometry::triangles_overlap(triangle, inner));
 }
 
-TEST_CASE("compute_closest_along_segment clamps the fraction to the segment", "[terrainlib][geometry]") {
+TEST_CASE("compute_closest_along_segment clamps the fraction to the segment", "[geometry]") {
     const radix::geometry::Edge<2, double> segment = {glm::dvec2(0.0, 0.0), glm::dvec2(4.0, 0.0)};
 
     CHECK(geometry::compute_closest_along_segment(glm::dvec2(1.0, 3.0), segment) == 0.25);
@@ -100,13 +100,13 @@ TEST_CASE("compute_closest_along_segment clamps the fraction to the segment", "[
     CHECK(geometry::compute_closest_along_segment(glm::dvec2(9.0, -1.0), segment) == 1.0);
 }
 
-TEST_CASE("compute_closest_along_segment takes the start of an empty segment", "[terrainlib][geometry]") {
+TEST_CASE("compute_closest_along_segment takes the start of an empty segment", "[geometry]") {
     const radix::geometry::Edge<2, double> degenerate = {glm::dvec2(1.0, 1.0), glm::dvec2(1.0, 1.0)};
 
     CHECK(geometry::compute_closest_along_segment(glm::dvec2(1.0, 4.0), degenerate) == 0.0);
 }
 
-TEST_CASE("compute_closest_barycentric projects a point above the face", "[terrainlib][geometry]") {
+TEST_CASE("compute_closest_barycentric projects a point above the face", "[geometry]") {
     const radix::geometry::Triangle<3, double> triangle = {
         glm::dvec3(0.0, 0.0, 0.0),
         glm::dvec3(1.0, 0.0, 0.0),
@@ -117,7 +117,7 @@ TEST_CASE("compute_closest_barycentric projects a point above the face", "[terra
     CHECK_THAT(glm::distance(weights, glm::dvec3(0.5, 0.25, 0.25)), Catch::Matchers::WithinAbs(0.0, geometry::epsilon<double>()));
 }
 
-TEST_CASE("compute_closest_barycentric clamps to the nearest corner", "[terrainlib][geometry]") {
+TEST_CASE("compute_closest_barycentric clamps to the nearest corner", "[geometry]") {
     const radix::geometry::Triangle<3, double> triangle = {
         glm::dvec3(0.0, 0.0, 0.0),
         glm::dvec3(1.0, 0.0, 0.0),
@@ -129,7 +129,7 @@ TEST_CASE("compute_closest_barycentric clamps to the nearest corner", "[terrainl
     check_closest(triangle, glm::dvec3(-1.0, 2.0, 0.0), glm::dvec3(0.0, 0.0, 1.0));
 }
 
-TEST_CASE("compute_closest_barycentric clamps to the nearest edge", "[terrainlib][geometry]") {
+TEST_CASE("compute_closest_barycentric clamps to the nearest edge", "[geometry]") {
     const radix::geometry::Triangle<3, double> triangle = {
         glm::dvec3(0.0, 0.0, 0.0),
         glm::dvec3(1.0, 0.0, 0.0),
@@ -141,7 +141,7 @@ TEST_CASE("compute_closest_barycentric clamps to the nearest edge", "[terrainlib
     check_closest(triangle, glm::dvec3(1.0, 1.0, 0.0), glm::dvec3(0.0, 0.5, 0.5));
 }
 
-TEST_CASE("compute_closest_barycentric names the point it weights", "[terrainlib][geometry]") {
+TEST_CASE("compute_closest_barycentric names the point it weights", "[geometry]") {
     const radix::geometry::Triangle<3, double> triangle = {
         glm::dvec3(0.0, 0.0, 0.0),
         glm::dvec3(1.0, 0.0, 0.0),
@@ -152,7 +152,7 @@ TEST_CASE("compute_closest_barycentric names the point it weights", "[terrainlib
     CHECK_THAT(glm::distance(geometry::interpolate(triangle, weights), glm::dvec3(0.5, 0.5, 0.0)), Catch::Matchers::WithinAbs(0.0, geometry::epsilon<double>()));
 }
 
-TEST_CASE("compute_closest_barycentric falls to the edges of an empty triangle", "[terrainlib][geometry]") {
+TEST_CASE("compute_closest_barycentric falls to the edges of an empty triangle", "[geometry]") {
     const radix::geometry::Triangle<3, double> collinear = {
         glm::dvec3(0.0, 0.0, 0.0),
         glm::dvec3(1.0, 0.0, 0.0),
@@ -163,7 +163,7 @@ TEST_CASE("compute_closest_barycentric falls to the edges of an empty triangle",
     CHECK_THAT(glm::distance(geometry::interpolate(collinear, weights), glm::dvec3(0.5, 0.0, 0.0)), Catch::Matchers::WithinAbs(0.0, geometry::epsilon<double>()));
 }
 
-TEST_CASE("compute_closest_barycentric works in two dimensions", "[terrainlib][geometry]") {
+TEST_CASE("compute_closest_barycentric works in two dimensions", "[geometry]") {
     const radix::geometry::Triangle<2, double> triangle = {
         glm::dvec2(0.0, 0.0),
         glm::dvec2(4.0, 0.0),
@@ -176,13 +176,13 @@ TEST_CASE("compute_closest_barycentric works in two dimensions", "[terrainlib][g
     CHECK_THAT(glm::distance(weights, glm::dvec3(0.5, 0.0, 0.5)), Catch::Matchers::WithinAbs(0.0, geometry::epsilon<double>()));
 }
 
-TEST_CASE("compute_longest_edge picks the longest of the three edges", "[terrainlib][geometry]") {
+TEST_CASE("compute_longest_edge picks the longest of the three edges", "[geometry]") {
     const geometry::Triangle3d triangle = {glm::dvec3(0, 0, 0), glm::dvec3(3, 0, 0), glm::dvec3(0, 4, 0)};
 
     CHECK(geometry::compute_longest_edge(triangle) == 5.0);
 }
 
-TEST_CASE("compute_triangle_thickness is the smallest altitude", "[terrainlib][geometry]") {
+TEST_CASE("compute_triangle_thickness is the smallest altitude", "[geometry]") {
     SECTION("equilateral") {
         const geometry::Triangle3d triangle = {glm::dvec3(0, 0, 0), glm::dvec3(2, 0, 0), glm::dvec3(1, std::sqrt(3.0), 0)};
         CHECK_THAT(geometry::compute_triangle_thickness(triangle), Catch::Matchers::WithinRel(std::sqrt(3.0)));
@@ -198,7 +198,7 @@ TEST_CASE("compute_triangle_thickness is the smallest altitude", "[terrainlib][g
     }
 }
 
-TEST_CASE("compute_triangle_thickness is zero for degenerate triangles", "[terrainlib][geometry]") {
+TEST_CASE("compute_triangle_thickness is zero for degenerate triangles", "[geometry]") {
     const auto [name, triangle] = GENERATE(
         std::pair{"collinear corners", geometry::Triangle3d{glm::dvec3(0, 0, 0), glm::dvec3(1, 0, 0), glm::dvec3(3, 0, 0)}},
         std::pair{"repeated corner", geometry::Triangle3d{glm::dvec3(0, 0, 0), glm::dvec3(0, 0, 0), glm::dvec3(1, 0, 0)}},
@@ -208,7 +208,7 @@ TEST_CASE("compute_triangle_thickness is zero for degenerate triangles", "[terra
     CHECK(geometry::compute_triangle_thickness(triangle) == 0.0);
 }
 
-TEST_CASE("compute_triangle_angles measures the angle at each corner", "[terrainlib][geometry]") {
+TEST_CASE("compute_triangle_angles measures the angle at each corner", "[geometry]") {
     const geometry::Triangle3d triangle = {glm::dvec3(0, 0, 0), glm::dvec3(1, 0, 0), glm::dvec3(0, 1, 0)};
 
     const glm::dvec3 angles = geometry::compute_triangle_angles(triangle);
@@ -218,7 +218,7 @@ TEST_CASE("compute_triangle_angles measures the angle at each corner", "[terrain
     CHECK_THAT(angles[2], Catch::Matchers::WithinRel(std::numbers::pi / 4));
 }
 
-TEST_CASE("compute_triangle_angles is zero for a triangle with a repeated corner", "[terrainlib][geometry]") {
+TEST_CASE("compute_triangle_angles is zero for a triangle with a repeated corner", "[geometry]") {
     const geometry::Triangle3d triangle = {glm::dvec3(0, 0, 0), glm::dvec3(0, 0, 0), glm::dvec3(1, 0, 0)};
 
     CHECK(geometry::compute_triangle_angles(triangle) == glm::dvec3(0.0));

@@ -7,7 +7,7 @@
 #include "mesh/SimpleMesh.h"
 #include "mesh/connectivity/connected_components.h"
 
-TEST_CASE("find_connected_components on empty mesh") {
+TEST_CASE("find_connected_components on empty mesh", "[mesh][connectivity][connected_components]") {
     SimpleMesh mesh;
     auto result = mesh::find_connected_components(mesh);
 
@@ -15,7 +15,7 @@ TEST_CASE("find_connected_components on empty mesh") {
     CHECK(result.component_count == 0);
 }
 
-TEST_CASE("find_connected_components on single triangle") {
+TEST_CASE("find_connected_components on single triangle", "[mesh][connectivity][connected_components]") {
     SimpleMesh mesh;
     mesh.positions = {
         {0.0, 0.0, 0.0},
@@ -32,7 +32,7 @@ TEST_CASE("find_connected_components on single triangle") {
     }
 }
 
-TEST_CASE("find_connected_components on two disjoint triangles") {
+TEST_CASE("find_connected_components on two disjoint triangles", "[mesh][connectivity][connected_components]") {
     SimpleMesh mesh;
     mesh.positions = {
         {0.0, 0.0, 0.0},
@@ -62,7 +62,7 @@ TEST_CASE("find_connected_components on two disjoint triangles") {
     CHECK(result.vertex_to_component[0] != result.vertex_to_component[3]);
 }
 
-TEST_CASE("split_into_connected_components keeps triangles grouped") {
+TEST_CASE("split_into_connected_components keeps triangles grouped", "[mesh][connectivity][connected_components]") {
     SimpleMesh mesh;
     mesh.positions = {
         {0.0, 0.0, 0.0},
@@ -88,7 +88,7 @@ TEST_CASE("split_into_connected_components keeps triangles grouped") {
     CHECK(components[1].positions.size() == 3);
 }
 
-TEST_CASE("split_into_connected_components with shared vertex triangles") {
+TEST_CASE("split_into_connected_components with shared vertex triangles", "[mesh][connectivity][connected_components]") {
     SimpleMesh mesh;
     mesh.positions = {
         {0.0, 0.0, 0.0},  // 0

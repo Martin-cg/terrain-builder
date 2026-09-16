@@ -91,7 +91,7 @@ constexpr uint32_t overhang_bump_tip = 4;
 
 } // namespace
 
-TEST_CASE("find_source_triangles assigns every source triangle to a covering output triangle", "[dag_builder][correspondence]") {
+TEST_CASE("find_source_triangles assigns every source triangle to a covering output triangle", "[correspondence]") {
     const Coarsening grid = make_grid();
     const Correspondence correspondence = run(grid);
 
@@ -102,7 +102,7 @@ TEST_CASE("find_source_triangles assigns every source triangle to a covering out
     }
 }
 
-TEST_CASE("find_source_triangles keeps source triangles out of output triangles they do not cover", "[dag_builder][correspondence]") {
+TEST_CASE("find_source_triangles keeps source triangles out of output triangles they do not cover", "[correspondence]") {
     const Correspondence correspondence = run(make_grid());
 
     // The corner cell nearest the origin lies strictly inside the first output triangle.
@@ -118,28 +118,28 @@ TEST_CASE("find_source_triangles keeps source triangles out of output triangles 
     CHECK_FALSE(contains_source(correspondence, 0, 31));
 }
 
-TEST_CASE("find_source_triangles reaches geometry that leaves and re-enters the footprint", "[dag_builder][correspondence]") {
+TEST_CASE("find_source_triangles reaches geometry that leaves and re-enters the footprint", "[correspondence]") {
     const Correspondence correspondence = run(make_overhang());
 
     CHECK(contains_source(correspondence, 0, overhang_bump_root));
     CHECK(contains_source(correspondence, 0, overhang_bump_tip));
 }
 
-TEST_CASE("find_source_triangles stops at the slack bound", "[dag_builder][correspondence]") {
+TEST_CASE("find_source_triangles stops at the slack bound", "[correspondence]") {
     const Correspondence correspondence = run(make_overhang(), CorrespondenceOptions{.slack_ratio = 0.0});
 
     CHECK_FALSE(contains_source(correspondence, 0, overhang_bump_root));
     CHECK_FALSE(contains_source(correspondence, 0, overhang_bump_tip));
 }
 
-TEST_CASE("find_source_triangles stops at the outside step bound", "[dag_builder][correspondence]") {
+TEST_CASE("find_source_triangles stops at the outside step bound", "[correspondence]") {
     const Correspondence correspondence = run(make_overhang(), CorrespondenceOptions{.max_steps_outside = 0});
 
     CHECK_FALSE(contains_source(correspondence, 0, overhang_bump_root));
     CHECK_FALSE(contains_source(correspondence, 0, overhang_bump_tip));
 }
 
-TEST_CASE("find_source_triangles reaches the far side of a thin shell unless facing is required", "[dag_builder][correspondence]") {
+TEST_CASE("find_source_triangles reaches the far side of a thin shell unless facing is required", "[correspondence]") {
     // A closed shell whose inset underside sits directly below the output triangle.
     Coarsening shell;
     shell.positions = {
@@ -180,7 +180,7 @@ TEST_CASE("find_source_triangles reaches the far side of a thin shell unless fac
     }
 }
 
-TEST_CASE("find_source_triangles ignores components with no surviving vertex", "[dag_builder][correspondence]") {
+TEST_CASE("find_source_triangles ignores components with no surviving vertex", "[correspondence]") {
     Coarsening grid = make_grid();
     const uint32_t detached_first = grid.positions.size();
     grid.positions.push_back(glm::dvec3(1.0, 1.0, 0.25));

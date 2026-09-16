@@ -9,7 +9,7 @@
 #include "spatial_lookup/Hashmap.h"
 
 // 3D string test
-TEMPLATE_TEST_CASE("SpatialLookup insert and find_near", "[SpatialLookup]",
+TEMPLATE_TEST_CASE("SpatialLookup insert and find_near", "[spatial_lookup][Grid][Hashmap]",
                    (spatial_lookup::Hashmap<3, float, std::string>),
                    (spatial_lookup::Grid<3, float, std::string>)) {
     std::optional<TestType> map_opt = std::nullopt;
@@ -56,7 +56,7 @@ TEMPLATE_TEST_CASE("SpatialLookup insert and find_near", "[SpatialLookup]",
 }
 
 // 2D int test
-TEMPLATE_TEST_CASE("SpatialLookup 2D and int keys", "[SpatialLookup]",
+TEMPLATE_TEST_CASE("SpatialLookup 2D and int keys", "[spatial_lookup][Grid][Hashmap]",
                    (spatial_lookup::Hashmap<2, int, int>),
                    (spatial_lookup::Grid<2, int, int>)) {
     std::optional<TestType> map_opt = std::nullopt;
@@ -97,7 +97,7 @@ TEMPLATE_TEST_CASE("SpatialLookup 2D and int keys", "[SpatialLookup]",
 }
 
 // 3D int duplicate points test
-TEMPLATE_TEST_CASE("SpatialLookup with duplicate points", "[SpatialLookup]",
+TEMPLATE_TEST_CASE("SpatialLookup with duplicate points", "[spatial_lookup][Grid][Hashmap]",
                    (spatial_lookup::Hashmap<3, float, int>),
                    (spatial_lookup::Grid<3, float, int>)) {
     std::optional<TestType> map_opt = std::nullopt;
@@ -126,7 +126,7 @@ constexpr glm::dvec3 earth_centered_position(4085801.6236, 1199335.1025, 4732875
 // A cell is identified by its quantized corner, which the hash quantizes a second time.
 // At earth-centered magnitudes that round trip can land a whole cell lower, so the lookup
 // scans the neighbouring cell and never sees the point it started from.
-TEST_CASE("SpatialLookup finds a point at earth-centered magnitudes", "[SpatialLookup]") {
+TEST_CASE("SpatialLookup finds a point at earth-centered magnitudes", "[spatial_lookup][Hashmap]") {
     spatial_lookup::Hashmap3d<int> map(earth_centered_epsilon * 5);
     map.insert(earth_centered_position, 42);
 
@@ -137,7 +137,7 @@ TEST_CASE("SpatialLookup finds a point at earth-centered magnitudes", "[SpatialL
     CHECK_THAT(found, Catch::Matchers::UnorderedEquals<int>({42}));
 }
 
-TEST_CASE("SpatialLookup finds every stored point at earth-centered magnitudes", "[SpatialLookup]") {
+TEST_CASE("SpatialLookup finds every stored point at earth-centered magnitudes", "[spatial_lookup][Hashmap]") {
     constexpr uint32_t point_count = 1000;
 
     spatial_lookup::Hashmap3d<uint32_t> map(earth_centered_epsilon * 5);
@@ -161,7 +161,7 @@ TEST_CASE("SpatialLookup finds every stored point at earth-centered magnitudes",
 }
 
 // Two points at the exact same spot must always end up in the same cell.
-TEST_CASE("SpatialLookup finds coincident points at earth-centered magnitudes", "[SpatialLookup]") {
+TEST_CASE("SpatialLookup finds coincident points at earth-centered magnitudes", "[spatial_lookup][Hashmap]") {
     spatial_lookup::Hashmap3d<int> map(earth_centered_epsilon * 5);
     map.insert(earth_centered_position, 42);
     map.insert(earth_centered_position, 43);

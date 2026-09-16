@@ -1,20 +1,20 @@
 #include "../catch2_helpers.h"
 #include "containers/SegmentedBuffer.h"
 
-TEST_CASE("SegmentedBuffer default construction") {
+TEST_CASE("SegmentedBuffer default construction", "[containers][SegmentedBuffer]") {
     SegmentedBuffer<int> buf;
 
     CHECK(buf.segment_count() == 0);
     CHECK(buf.total_size() == 0);
 }
 
-TEST_CASE("SegmentedBuffer has no last segment while empty") {
+TEST_CASE("SegmentedBuffer has no last segment while empty", "[containers][SegmentedBuffer]") {
     SegmentedBuffer<int> buf;
 
     CHECK(buf.last_segment().empty());
 }
 
-TEST_CASE("SegmentedBuffer opens a segment for the first push") {
+TEST_CASE("SegmentedBuffer opens a segment for the first push", "[containers][SegmentedBuffer]") {
     SegmentedBuffer<int> buf;
 
     buf.push_to_last_segment(1);
@@ -23,7 +23,7 @@ TEST_CASE("SegmentedBuffer opens a segment for the first push") {
     CHECK(buf.segment_size(0) == 1);
 }
 
-TEST_CASE("SegmentedBuffer construct from vector") {
+TEST_CASE("SegmentedBuffer construct from vector", "[containers][SegmentedBuffer]") {
     std::vector<int> data = {10, 20, 30};
     SegmentedBuffer<int> buf(data);
 
@@ -35,7 +35,7 @@ TEST_CASE("SegmentedBuffer construct from vector") {
     CHECK(buf(0, 2) == 30);
 }
 
-TEST_CASE("SegmentedBuffer push_to_last_segment") {
+TEST_CASE("SegmentedBuffer push_to_last_segment", "[containers][SegmentedBuffer]") {
     SegmentedBuffer<int> buf;
 
     buf.push_to_last_segment(1);
@@ -49,7 +49,7 @@ TEST_CASE("SegmentedBuffer push_to_last_segment") {
     CHECK(buf(0, 2) == 3);
 }
 
-TEST_CASE("SegmentedBuffer start_new_segment then push_to_last_segment") {
+TEST_CASE("SegmentedBuffer start_new_segment then push_to_last_segment", "[containers][SegmentedBuffer]") {
     SegmentedBuffer<int> buf;
 
     buf.push_to_last_segment(10);
@@ -72,7 +72,7 @@ TEST_CASE("SegmentedBuffer start_new_segment then push_to_last_segment") {
     CHECK(buf(1, 2) == 50);
 }
 
-TEST_CASE("SegmentedBuffer push_new_segment with size") {
+TEST_CASE("SegmentedBuffer push_new_segment with size", "[containers][SegmentedBuffer]") {
     SegmentedBuffer<int> buf;
 
     buf.push_new_segment(4, 99);
@@ -86,7 +86,7 @@ TEST_CASE("SegmentedBuffer push_new_segment with size") {
     CHECK(buf(0, 3) == 99);
 }
 
-TEST_CASE("SegmentedBuffer resize_last_segment after start_new_segment") {
+TEST_CASE("SegmentedBuffer resize_last_segment after start_new_segment", "[containers][SegmentedBuffer]") {
     SegmentedBuffer<int> buf;
 
     buf.push_new_segment(2, 1);
@@ -103,7 +103,7 @@ TEST_CASE("SegmentedBuffer resize_last_segment after start_new_segment") {
     CHECK(buf(1, 2) == 2);
 }
 
-TEST_CASE("SegmentedBuffer push_new_segment from range") {
+TEST_CASE("SegmentedBuffer push_new_segment from range", "[containers][SegmentedBuffer]") {
     SegmentedBuffer<int> buf;
 
     buf.push_to_last_segment(1);
@@ -121,7 +121,7 @@ TEST_CASE("SegmentedBuffer push_new_segment from range") {
     CHECK(buf(1, 2) == 300);
 }
 
-TEST_CASE("SegmentedBuffer init with segment sizes") {
+TEST_CASE("SegmentedBuffer init with segment sizes", "[containers][SegmentedBuffer]") {
     SegmentedBuffer<int> buf;
 
     std::vector<size_t> sizes = {2, 3, 1};
@@ -137,7 +137,7 @@ TEST_CASE("SegmentedBuffer init with segment sizes") {
     CHECK(buf(2, 0) == 42);
 }
 
-TEST_CASE("SegmentedBuffer operator() access across segments") {
+TEST_CASE("SegmentedBuffer operator() access across segments", "[containers][SegmentedBuffer]") {
     SegmentedBuffer<int> buf;
 
     std::vector<size_t> sizes = {2, 3};
@@ -156,7 +156,7 @@ TEST_CASE("SegmentedBuffer operator() access across segments") {
     CHECK(buf(1, 2) == 50);
 }
 
-TEST_CASE("SegmentedBuffer segment() span view") {
+TEST_CASE("SegmentedBuffer segment() span view", "[containers][SegmentedBuffer]") {
     SegmentedBuffer<int> buf;
 
     buf.push_to_last_segment(5);
@@ -177,7 +177,7 @@ TEST_CASE("SegmentedBuffer segment() span view") {
     CHECK(seg1[0] == 7);
 }
 
-TEST_CASE("SegmentedBuffer flat() view") {
+TEST_CASE("SegmentedBuffer flat() view", "[containers][SegmentedBuffer]") {
     SegmentedBuffer<int> buf;
 
     buf.push_to_last_segment(1);
@@ -199,7 +199,7 @@ TEST_CASE("SegmentedBuffer flat() view") {
     CHECK(flat[4] == 5);
 }
 
-TEST_CASE("SegmentedBuffer reset") {
+TEST_CASE("SegmentedBuffer reset", "[containers][SegmentedBuffer]") {
     SegmentedBuffer<int> buf;
 
     buf.push_to_last_segment(1);
@@ -216,7 +216,7 @@ TEST_CASE("SegmentedBuffer reset") {
     REQUIRE(buf.total_size() == 0);
 }
 
-TEST_CASE("SegmentedBuffer multiple segments with different sizes and last_segment") {
+TEST_CASE("SegmentedBuffer multiple segments with different sizes and last_segment", "[containers][SegmentedBuffer]") {
     SegmentedBuffer<int> buf;
 
     buf.push_to_last_segment(10);
@@ -245,7 +245,7 @@ TEST_CASE("SegmentedBuffer multiple segments with different sizes and last_segme
 
 // A caller starting a segment per item must get one segment per item, even where an item
 // contributes nothing. The leading placeholder segment used to swallow the second start.
-TEST_CASE("SegmentedBuffer keeps empty segments") {
+TEST_CASE("SegmentedBuffer keeps empty segments", "[containers][SegmentedBuffer]") {
     SegmentedBuffer<int> buf;
 
     buf.start_new_segment(); // first item, contributes nothing
@@ -263,7 +263,7 @@ TEST_CASE("SegmentedBuffer keeps empty segments") {
     CHECK(buf.total_size() == 2);
 }
 
-TEST_CASE("SegmentedBuffer keeps empty segments after reset") {
+TEST_CASE("SegmentedBuffer keeps empty segments after reset", "[containers][SegmentedBuffer]") {
     SegmentedBuffer<int> buf;
     buf.start_new_segment();
     buf.push_to_last_segment(1);
@@ -279,7 +279,7 @@ TEST_CASE("SegmentedBuffer keeps empty segments after reset") {
 
 // init and the vector constructor install real segments, so a later start_new_segment
 // must append rather than adopt one of them.
-TEST_CASE("SegmentedBuffer start_new_segment after init appends") {
+TEST_CASE("SegmentedBuffer start_new_segment after init appends", "[containers][SegmentedBuffer]") {
     SegmentedBuffer<int> buf;
     const std::vector<size_t> sizes{2, 3};
     buf.init(sizes);
@@ -291,7 +291,7 @@ TEST_CASE("SegmentedBuffer start_new_segment after init appends") {
     CHECK(buf.segment_size(2) == 1);
 }
 
-TEST_CASE("SegmentedBuffer start_new_segment after the vector constructor appends") {
+TEST_CASE("SegmentedBuffer start_new_segment after the vector constructor appends", "[containers][SegmentedBuffer]") {
     SegmentedBuffer<int> buf(std::vector<int>{1, 2, 3});
 
     buf.start_new_segment();

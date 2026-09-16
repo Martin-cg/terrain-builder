@@ -30,7 +30,7 @@ Clustering make_clustering(const uint32_t vertex_count, const uint32_t texture_c
 
 } // namespace
 
-TEST_CASE("slice_clusters keeps only the requested clusters and compacts vertices", "[dag_builder][slice]") {
+TEST_CASE("slice_clusters keeps only the requested clusters and compacts vertices", "[slice]") {
     Clustering clustering = make_clustering(4, 1);
     for (uint32_t i = 0; i < 4; i++) {
         Cluster cluster;
@@ -49,7 +49,7 @@ TEST_CASE("slice_clusters keeps only the requested clusters and compacts vertice
     CHECK(sliced.positions[1] == clustering.positions[3]);
 }
 
-TEST_CASE("slice_clusters remaps texture ids", "[dag_builder][slice]") {
+TEST_CASE("slice_clusters remaps texture ids", "[slice]") {
     Clustering clustering = make_clustering(4, 4);
     for (uint32_t i = 0; i < 4; i++) {
         Cluster cluster;
@@ -69,7 +69,7 @@ TEST_CASE("slice_clusters remaps texture ids", "[dag_builder][slice]") {
     CHECK(sliced.textures[new_texture_id].data == clustering.textures[3].data);
 }
 
-TEST_CASE("slice_clusters preserves per-cluster fields", "[dag_builder][slice]") {
+TEST_CASE("slice_clusters preserves per-cluster fields", "[slice]") {
     Clustering clustering = make_clustering(3, 1);
 
     Cluster cluster;
@@ -91,7 +91,7 @@ TEST_CASE("slice_clusters preserves per-cluster fields", "[dag_builder][slice]")
     CHECK(result.absolute_error == cluster.absolute_error);
 }
 
-TEST_CASE("slice_clusters returns the input unchanged when all clusters are selected", "[dag_builder][slice]") {
+TEST_CASE("slice_clusters returns the input unchanged when all clusters are selected", "[slice]") {
     Clustering clustering = make_clustering(2, 1);
     for (uint32_t i = 0; i < 2; i++) {
         Cluster cluster;

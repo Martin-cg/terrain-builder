@@ -63,7 +63,7 @@ Clustering make_quad_grid() {
 
 } // namespace
 
-TEST_CASE("compute_cluster_adjacency reports clusters sharing an edge", "[dag_builder][cluster_adjacency]") {
+TEST_CASE("compute_cluster_adjacency reports clusters sharing an edge", "[cluster_adjacency]") {
     const ClusterAdjacency adjacency = compute_cluster_adjacency(make_quad_grid());
 
     // 0 and 1 share the edge 1-4, 0 and 2 share the edge 3-4.
@@ -71,7 +71,7 @@ TEST_CASE("compute_cluster_adjacency reports clusters sharing an edge", "[dag_bu
     CHECK(are_neighbours(adjacency, 0, 2));
 }
 
-TEST_CASE("compute_cluster_adjacency reports clusters sharing only a vertex", "[dag_builder][cluster_adjacency]") {
+TEST_CASE("compute_cluster_adjacency reports clusters sharing only a vertex", "[cluster_adjacency]") {
     const ClusterAdjacency adjacency = compute_cluster_adjacency(make_quad_grid());
 
     // 0 and 3 meet at the centre vertex 4 alone, as do 1 and 2.
@@ -79,7 +79,7 @@ TEST_CASE("compute_cluster_adjacency reports clusters sharing only a vertex", "[
     CHECK(are_neighbours(adjacency, 1, 2));
 }
 
-TEST_CASE("compute_cluster_adjacency leaves clusters sharing nothing apart", "[dag_builder][cluster_adjacency]") {
+TEST_CASE("compute_cluster_adjacency leaves clusters sharing nothing apart", "[cluster_adjacency]") {
     Clustering clustering = make_quad_grid();
     clustering.positions.insert(clustering.positions.end(), {{10.0, 0.0, 0.0}, {11.0, 0.0, 0.0}, {10.0, 1.0, 0.0}});
 
@@ -93,7 +93,7 @@ TEST_CASE("compute_cluster_adjacency leaves clusters sharing nothing apart", "[d
     }
 }
 
-TEST_CASE("compute_cluster_adjacency excludes the cluster itself", "[dag_builder][cluster_adjacency]") {
+TEST_CASE("compute_cluster_adjacency excludes the cluster itself", "[cluster_adjacency]") {
     const ClusterAdjacency adjacency = compute_cluster_adjacency(make_quad_grid());
 
     for (const uint32_t cluster : range<uint32_t>(4)) {
@@ -101,7 +101,7 @@ TEST_CASE("compute_cluster_adjacency excludes the cluster itself", "[dag_builder
     }
 }
 
-TEST_CASE("compute_cluster_adjacency lists every cluster a vertex is shared with", "[dag_builder][cluster_adjacency]") {
+TEST_CASE("compute_cluster_adjacency lists every cluster a vertex is shared with", "[cluster_adjacency]") {
     const ClusterAdjacency adjacency = compute_cluster_adjacency(make_quad_grid());
 
     // All four quads meet at the centre vertex, so each borders the other three.
@@ -110,7 +110,7 @@ TEST_CASE("compute_cluster_adjacency lists every cluster a vertex is shared with
     }
 }
 
-TEST_CASE("compute_cluster_adjacency names each neighbour once", "[dag_builder][cluster_adjacency]") {
+TEST_CASE("compute_cluster_adjacency names each neighbour once", "[cluster_adjacency]") {
     // 0 and 1 share two vertices, so a naive gather would list the neighbour twice.
     const Clustering clustering = make_clustering(
         {{0.0, 0.0, 0.0}, {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {1.0, 1.0, 0.0}},
@@ -121,7 +121,7 @@ TEST_CASE("compute_cluster_adjacency names each neighbour once", "[dag_builder][
     CHECK(adjacency.segment(1).size() == 1);
 }
 
-TEST_CASE("compute_cluster_adjacency is symmetric", "[dag_builder][cluster_adjacency]") {
+TEST_CASE("compute_cluster_adjacency is symmetric", "[cluster_adjacency]") {
     const ClusterAdjacency adjacency = compute_cluster_adjacency(make_quad_grid());
 
     for (const uint32_t cluster : range<uint32_t>(4)) {
@@ -131,7 +131,7 @@ TEST_CASE("compute_cluster_adjacency is symmetric", "[dag_builder][cluster_adjac
     }
 }
 
-TEST_CASE("compute_cluster_adjacency handles an empty clustering", "[dag_builder][cluster_adjacency]") {
+TEST_CASE("compute_cluster_adjacency handles an empty clustering", "[cluster_adjacency]") {
     const ClusterAdjacency adjacency = compute_cluster_adjacency(Clustering{});
 
     CHECK(adjacency.segment_count() == 0);

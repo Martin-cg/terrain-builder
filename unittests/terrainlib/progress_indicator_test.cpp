@@ -26,7 +26,7 @@
 using namespace std::literals;
 
 
-TEST_CASE("progress indicator")
+TEST_CASE("progress indicator", "[ProgressIndicator]")
 {
     SECTION("throws on overflow")
     {

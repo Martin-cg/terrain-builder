@@ -5,7 +5,7 @@
 #include "fixed.h"
 #include "fixed_point.h"
 
-TEST_CASE("round_div rounds half away from zero", "[dag_builder][fixed_point]") {
+TEST_CASE("round_div rounds half away from zero", "[fixed]") {
     using Q = fixed::Q<16>;
 
     // Positive half rounds up
@@ -29,7 +29,7 @@ TEST_CASE("round_div rounds half away from zero", "[dag_builder][fixed_point]") 
     CHECK(Q::round_div(-7, -4) == Q::round_div(7, 4));
 }
 
-TEST_CASE("fixed::Q mul performs fixed-point multiplication with rounding", "[dag_builder][fixed_point]") {
+TEST_CASE("fixed::Q mul performs fixed-point multiplication with rounding", "[fixed]") {
     using Q = fixed::Q<16>;
 
     // Small integer multiplication preserves scale
@@ -54,7 +54,7 @@ TEST_CASE("fixed::Q mul performs fixed-point multiplication with rounding", "[da
     CHECK(divided == b);
 }
 
-TEST_CASE("fixed::Q div performs fixed-point division with rounding", "[dag_builder][fixed_point]") {
+TEST_CASE("fixed::Q div performs fixed-point division with rounding", "[fixed]") {
     using Q = fixed::Q<16>;
 
     // Division is inverse of multiplication for exactly representable values
@@ -73,7 +73,7 @@ TEST_CASE("fixed::Q div performs fixed-point division with rounding", "[dag_buil
     CHECK(half == Q::from_real(0.5).value);
 }
 
-TEST_CASE("fp::orient detects triangle winding and collinearity", "[dag_builder][fixed_point]") {
+TEST_CASE("fp::orient detects triangle winding and collinearity", "[fixed_point]") {
     using Q = fixed::Q<16>;
     using FixedPoint = fp::Vec2<Q>;
     using FixedScalar = fp::Scalar<Q>;

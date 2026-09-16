@@ -22,7 +22,7 @@
 
 using namespace radix;
 
-TEST_CASE("TileHeightsGenerator")
+TEST_CASE("TileHeightsGenerator", "[TileHeightsGenerator]")
 {
     const auto base_path = std::filesystem::path("./unittest_tile_heights");
     std::filesystem::remove_all(base_path);
