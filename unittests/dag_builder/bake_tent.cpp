@@ -98,3 +98,47 @@ TEST_CASE("project along normal reads the source along the target's face normal"
     // The face normal is constant at 3-4-5 across each face, reaching x = 4.25, 3.417, 1.25, 0.417.
     check_texels(rendered, {{60, 120, 127}, {60, 120, 102}, {60, 120, 37}, {60, 120, 12}});
 }
+
+TEST_CASE("closest point reads the nearest point on the source", "[dag_builder][bake]") {
+    const Tent tent = make_tent(2.5);
+
+    const cv::Mat rendered = bake::render_texture(
+        tent.faces, tent.bulged, target_size, options, bake::ClosestPoint{});
+
+    // The perpendicular onto the nearest facing candidate reaches x = 4.125, 3.375, 1.125, 0.375.
+    // The source's far half dives under the crease and passes nearer to the third texel at x = 3.225, on a face turned away from it.
+    // The near half's two segments are exactly equidistant there, so candidate order settles x = 1.125 against x = 2.625.
+    check_texels(rendered, {{60, 120, 123}, {60, 120, 101}, {60, 120, 33}, {60, 120, 11}});
+}
+
+TEST_CASE("closest point ignores a source beyond max_distance", "[dag_builder][bake]") {
+    const Tent tent = make_tent(2.5);
+
+    const cv::Mat rendered = bake::render_texture(
+        tent.faces, tent.bulged, target_size, options, bake::ClosestPoint{.max_distance = 1.1});
+
+    // A reach of 1.1 falls between the far half's 1.028 and the near half's 1.186, leaving the third texel only the source that faces away from it.
+    // The first texel is 1.186 from either half, so nothing at all stays within its reach.
+    check_texels(rendered, {uncovered, {60, 120, 101}, {60, 120, 96}, {60, 120, 11}});
+}
+
+TEST_CASE("closest point refuses a source facing away when require_facing is set", "[dag_builder][bake]") {
+    const Tent tent = make_tent(2.5);
+
+    const cv::Mat rendered = bake::render_texture(
+        tent.faces, tent.bulged, target_size, options,
+        bake::ClosestPoint{.max_distance = 1.1, .require_facing = true});
+
+    // The same reach as above, refusing the source across the crease rather than falling back to it.
+    check_texels(rendered, {uncovered, {60, 120, 101}, uncovered, {60, 120, 11}});
+}
+
+TEST_CASE("a bake reads nothing where the source has no triangles", "[dag_builder][bake]") {
+    Tent tent = make_tent(2.5);
+    tent.bulged.clusters.clear();
+
+    const cv::Mat rendered = bake::render_texture(
+        tent.faces, tent.bulged, target_size, options, bake::ClosestPoint{});
+
+    check_texels(rendered, {uncovered, uncovered, uncovered, uncovered});
+}

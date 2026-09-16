@@ -103,6 +103,7 @@ if(TARGET dagbuilderlib)
         dag_builder/bake_tent.cpp
         dag_builder/interpolate_uncovered.cpp
         dag_builder/correspondence.cpp
+        dag_builder/query.cpp
         dag_builder/reprojection.cpp
         dag_builder/merge_clusterings.cpp
         dag_builder/weld.cpp

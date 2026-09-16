@@ -88,6 +88,10 @@ glm::vec<3, T> compute_barycentric(const glm::vec<n_dims, T> &point, const radix
 template <typename V, typename T>
 V interpolate(const std::array<V, 3> &values, const glm::vec<3, T> &weights);
 
+// The point on the segment nearest the given one, as a fraction along it.
+template <glm::length_t n_dims, typename T>
+T compute_closest_along_segment(const glm::vec<n_dims, T> &point, const radix::geometry::Edge<n_dims, T> &segment);
+
 template <glm::length_t n_dims, typename T>
 T distance_to_segment(const glm::vec<n_dims, T> &point, const radix::geometry::Edge<n_dims, T> &segment);
 
@@ -168,6 +172,10 @@ template <glm::length_t n_dims, typename T>
 bool is_empty_triangle(const glm::uvec3 &triangle, const std::span<const glm::vec<n_dims, T>> positions, const T min_area = 2 * epsilon<T>());
 template <glm::length_t n_dims, typename T>
 bool is_empty_triangle(const glm::uvec3 &triangle, const std::vector<glm::vec<n_dims, T>> &positions, const T min_area = 2 * epsilon<T>());
+
+// Barycentric weights of the point on the triangle nearest the given one.
+template <glm::length_t n_dims, typename T>
+glm::vec<3, T> compute_closest_barycentric(const glm::vec<n_dims, T> &point, const std::array<glm::vec<n_dims, T>, 3> &triangle);
 
 } // namespace geometry
 

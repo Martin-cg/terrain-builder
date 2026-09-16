@@ -139,16 +139,21 @@ V interpolate(const std::array<V, 3> &values, const glm::vec<3, T> &weights) {
 }
 
 template <glm::length_t n_dims, typename T>
-T distance_to_segment(const glm::vec<n_dims, T> &point, const radix::geometry::Edge<n_dims, T> &segment) {
+T compute_closest_along_segment(const glm::vec<n_dims, T> &point, const radix::geometry::Edge<n_dims, T> &segment) {
     constexpr T epsilon_squared = radix::geometry::epsilon<T> * radix::geometry::epsilon<T>;
 
     const glm::vec<n_dims, T> along = segment[1] - segment[0];
     const T length_squared = glm::dot(along, along);
     if (length_squared <= epsilon_squared) {
-        return glm::distance(point, segment[0]);
+        return T(0);
     }
-    const T t = std::clamp(glm::dot(point - segment[0], along) / length_squared, T(0), T(1));
-    return glm::distance(point, segment[0] + t * along);
+    return std::clamp(glm::dot(point - segment[0], along) / length_squared, T(0), T(1));
+}
+
+template <glm::length_t n_dims, typename T>
+T distance_to_segment(const glm::vec<n_dims, T> &point, const radix::geometry::Edge<n_dims, T> &segment) {
+    const T fraction = compute_closest_along_segment(point, segment);
+    return glm::distance(point, segment[0] + fraction * (segment[1] - segment[0]));
 }
 
 template <typename T>
@@ -209,6 +214,37 @@ bool separates(const radix::geometry::Triangle<2, T> &triangle, const radix::geo
 template <typename T>
 bool triangles_overlap(const radix::geometry::Triangle<2, T> &a, const radix::geometry::Triangle<2, T> &b) {
     return !detail::separates(a, b) && !detail::separates(b, a);
+}
+
+template <glm::length_t n_dims, typename T>
+glm::vec<3, T> compute_closest_barycentric(const glm::vec<n_dims, T> &point, const std::array<glm::vec<n_dims, T>, 3> &triangle) {
+    using Barycentric = glm::vec<3, T>;
+
+    if (!is_empty_triangle(triangle)) {
+        const Barycentric projected = compute_barycentric(point, triangle);
+        if (glm::all(glm::greaterThanEqual(projected, Barycentric(0)))) {
+            return projected;
+        }
+    }
+
+    Barycentric nearest(0);
+    T nearest_distance = std::numeric_limits<T>::max();
+    for (uint8_t corner = 0; corner < 3; corner++) {
+        const uint8_t next = (corner + 1) % 3;
+        const T fraction = compute_closest_along_segment(
+            point, radix::geometry::Edge<n_dims, T>{triangle[corner], triangle[next]});
+
+        Barycentric barycentric(0);
+        barycentric[corner] = T(1) - fraction;
+        barycentric[next] = fraction;
+
+        const T distance = glm::distance(point, interpolate(triangle, barycentric));
+        if (distance < nearest_distance) {
+            nearest_distance = distance;
+            nearest = barycentric;
+        }
+    }
+    return nearest;
 }
 
 template <typename T>

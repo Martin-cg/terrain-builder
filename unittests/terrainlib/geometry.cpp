@@ -7,6 +7,15 @@
 
 #include "geometry/geometry.h"
 
+namespace {
+
+void check_closest(const radix::geometry::Triangle<3, double> &triangle, const glm::dvec3 &point, const glm::dvec3 &expected) {
+    const glm::dvec3 weights = geometry::compute_closest_barycentric(point, triangle);
+    CHECK_THAT(glm::distance(weights, expected), Catch::Matchers::WithinAbs(0.0, geometry::epsilon<double>()));
+}
+
+} // namespace
+
 TEST_CASE("distance_to_segment clamps to the segment's ends", "[terrainlib][geometry]") {
     const radix::geometry::Edge<2, double> segment = {glm::dvec2(0.0, 0.0), glm::dvec2(4.0, 0.0)};
 
@@ -80,6 +89,90 @@ TEST_CASE("triangles_overlap counts touching as overlapping", "[terrainlib][geom
         glm::dvec2(0.5, 1.5),
     };
     CHECK(geometry::triangles_overlap(triangle, inner));
+}
+
+TEST_CASE("compute_closest_along_segment clamps the fraction to the segment", "[terrainlib][geometry]") {
+    const radix::geometry::Edge<2, double> segment = {glm::dvec2(0.0, 0.0), glm::dvec2(4.0, 0.0)};
+
+    CHECK(geometry::compute_closest_along_segment(glm::dvec2(1.0, 3.0), segment) == 0.25);
+    CHECK(geometry::compute_closest_along_segment(glm::dvec2(-3.0, 1.0), segment) == 0.0);
+    CHECK(geometry::compute_closest_along_segment(glm::dvec2(9.0, -1.0), segment) == 1.0);
+}
+
+TEST_CASE("compute_closest_along_segment takes the start of an empty segment", "[terrainlib][geometry]") {
+    const radix::geometry::Edge<2, double> degenerate = {glm::dvec2(1.0, 1.0), glm::dvec2(1.0, 1.0)};
+
+    CHECK(geometry::compute_closest_along_segment(glm::dvec2(1.0, 4.0), degenerate) == 0.0);
+}
+
+TEST_CASE("compute_closest_barycentric projects a point above the face", "[terrainlib][geometry]") {
+    const radix::geometry::Triangle<3, double> triangle = {
+        glm::dvec3(0.0, 0.0, 0.0),
+        glm::dvec3(1.0, 0.0, 0.0),
+        glm::dvec3(0.0, 1.0, 0.0),
+    };
+    const glm::dvec3 weights = geometry::compute_closest_barycentric(glm::dvec3(0.25, 0.25, 5.0), triangle);
+
+    CHECK_THAT(glm::distance(weights, glm::dvec3(0.5, 0.25, 0.25)), Catch::Matchers::WithinAbs(0.0, geometry::epsilon<double>()));
+}
+
+TEST_CASE("compute_closest_barycentric clamps to the nearest corner", "[terrainlib][geometry]") {
+    const radix::geometry::Triangle<3, double> triangle = {
+        glm::dvec3(0.0, 0.0, 0.0),
+        glm::dvec3(1.0, 0.0, 0.0),
+        glm::dvec3(0.0, 1.0, 0.0),
+    };
+
+    check_closest(triangle, glm::dvec3(-1.0, -1.0, 0.0), glm::dvec3(1.0, 0.0, 0.0));
+    check_closest(triangle, glm::dvec3(2.0, -1.0, 0.0), glm::dvec3(0.0, 1.0, 0.0));
+    check_closest(triangle, glm::dvec3(-1.0, 2.0, 0.0), glm::dvec3(0.0, 0.0, 1.0));
+}
+
+TEST_CASE("compute_closest_barycentric clamps to the nearest edge", "[terrainlib][geometry]") {
+    const radix::geometry::Triangle<3, double> triangle = {
+        glm::dvec3(0.0, 0.0, 0.0),
+        glm::dvec3(1.0, 0.0, 0.0),
+        glm::dvec3(0.0, 1.0, 0.0),
+    };
+
+    check_closest(triangle, glm::dvec3(0.5, -1.0, 0.0), glm::dvec3(0.5, 0.5, 0.0));
+    check_closest(triangle, glm::dvec3(-1.0, 0.5, 0.0), glm::dvec3(0.5, 0.0, 0.5));
+    check_closest(triangle, glm::dvec3(1.0, 1.0, 0.0), glm::dvec3(0.0, 0.5, 0.5));
+}
+
+TEST_CASE("compute_closest_barycentric names the point it weights", "[terrainlib][geometry]") {
+    const radix::geometry::Triangle<3, double> triangle = {
+        glm::dvec3(0.0, 0.0, 0.0),
+        glm::dvec3(1.0, 0.0, 0.0),
+        glm::dvec3(0.0, 1.0, 0.0),
+    };
+    const glm::dvec3 weights = geometry::compute_closest_barycentric(glm::dvec3(0.75, 0.75, 3.0), triangle);
+
+    CHECK_THAT(glm::distance(geometry::interpolate(triangle, weights), glm::dvec3(0.5, 0.5, 0.0)), Catch::Matchers::WithinAbs(0.0, geometry::epsilon<double>()));
+}
+
+TEST_CASE("compute_closest_barycentric falls to the edges of an empty triangle", "[terrainlib][geometry]") {
+    const radix::geometry::Triangle<3, double> collinear = {
+        glm::dvec3(0.0, 0.0, 0.0),
+        glm::dvec3(1.0, 0.0, 0.0),
+        glm::dvec3(2.0, 0.0, 0.0),
+    };
+    const glm::dvec3 weights = geometry::compute_closest_barycentric(glm::dvec3(0.5, 3.0, 0.0), collinear);
+
+    CHECK_THAT(glm::distance(geometry::interpolate(collinear, weights), glm::dvec3(0.5, 0.0, 0.0)), Catch::Matchers::WithinAbs(0.0, geometry::epsilon<double>()));
+}
+
+TEST_CASE("compute_closest_barycentric works in two dimensions", "[terrainlib][geometry]") {
+    const radix::geometry::Triangle<2, double> triangle = {
+        glm::dvec2(0.0, 0.0),
+        glm::dvec2(4.0, 0.0),
+        glm::dvec2(0.0, 4.0),
+    };
+
+    // The nearest point to (-2, 2) is (0, 2), halfway along the edge between the first and last corner.
+    const glm::dvec3 weights = geometry::compute_closest_barycentric(glm::dvec2(-2.0, 2.0), triangle);
+
+    CHECK_THAT(glm::distance(weights, glm::dvec3(0.5, 0.0, 0.5)), Catch::Matchers::WithinAbs(0.0, geometry::epsilon<double>()));
 }
 
 TEST_CASE("compute_longest_edge picks the longest of the three edges", "[terrainlib][geometry]") {

@@ -12,6 +12,7 @@
 #include <opencv2/imgproc.hpp>
 
 #include "bake/UvGeometry.h"
+#include "bake/closest_point.h"
 #include "bake/interpolate_uncovered.h"
 #include "bake/project_along_normal.h"
 #include "cluster.h"
@@ -34,7 +35,7 @@ struct Options {
 };
 
 // How a bake reads each texel from the source.
-using Mode = std::variant<ProjectAlongNormal>;
+using Mode = std::variant<ClosestPoint, ProjectAlongNormal>;
 
 namespace detail {
 
