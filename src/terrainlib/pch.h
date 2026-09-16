@@ -39,6 +39,7 @@
 
 // Internal headers
 #include "log.h"
+#include "error/prelude.h"
 #include "hash_utils.h"
 #include "mesh/SimpleMesh.h"
 #include "octree/Id.h"
