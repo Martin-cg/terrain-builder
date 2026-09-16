@@ -26,6 +26,13 @@ public:
         return std::get<0>(this->_code);
     }
 
+    // The held code if it is an E, otherwise null.
+    template <OneOf<Es...> E>
+    [[nodiscard]]
+    const E *get_if() const {
+        return std::get_if<E>(&this->_code);
+    }
+
     [[nodiscard]]
     std::string message() const {
         return this->visit([](const auto &code) { return detail::format_code(code); });
@@ -36,6 +43,8 @@ public:
     decltype(auto) visit(F &&f) const {
         return std::visit(std::forward<F>(f), this->_code);
     }
+
+    bool operator==(const CodeStorage &) const = default;
 
 private:
     std::variant<Es...> _code;

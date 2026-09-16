@@ -102,6 +102,20 @@ public:
         return this->_code.get();
     }
 
+    // The held code if it is an E, otherwise null.
+    template <OneOf<Es...> E>
+    [[nodiscard]]
+    const E *get_if() const {
+        return this->_code.template get_if<E>();
+    }
+
+    // Whether this error holds `code`.
+    template <OneOf<Es...> E>
+    [[nodiscard]]
+    bool holds(const E &code) const {
+        return this->_code == CodeStorage<Es...>(code);
+    }
+
     // The frames, innermost first.
     [[nodiscard]]
     std::span<const Frame> frames() const {

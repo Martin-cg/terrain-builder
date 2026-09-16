@@ -14,13 +14,14 @@ namespace alp {
 template <typename... Es>
 class BasicError;
 
-// An enum or a class other than a string or an error, formattable with fmt; the formatted text is the code's message.
+// An enum or a class other than a string or an error, comparable for equality and formattable with fmt; the formatted text is the code's message.
 template <typename E>
 concept ErrorCode = std::same_as<E, std::remove_cvref_t<E>>
     && (std::is_enum_v<E> || std::is_class_v<E>)
     && !is_specialization_of_v<E, std::basic_string>
     && !is_specialization_of_v<E, std::basic_string_view>
     && !is_specialization_of_v<E, BasicError>
+    && std::equality_comparable<E>
     && fmt::is_formattable<E>::value;
 
 // A code, or a set of codes that is not erased.

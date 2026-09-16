@@ -44,6 +44,8 @@ std::string_view format_as(const ParseError) {
 // A code that carries data.
 struct OffsetError {
     uint32_t offset;
+
+    bool operator==(const OffsetError &) const = default;
 };
 
 std::string format_as(const OffsetError error) {
@@ -57,6 +59,8 @@ struct NamedError {
     operator std::string_view() const {
         return this->name;
     }
+
+    bool operator==(const NamedError &) const = default;
 };
 
 std::string_view format_as(const NamedError error) {
@@ -66,6 +70,13 @@ std::string_view format_as(const NamedError error) {
 enum class Unformatted {
     Broken,
 };
+
+// A formattable class without equality.
+struct Incomparable {};
+
+std::string_view format_as(const Incomparable) {
+    return "incomparable";
+}
 
 // Whether `frame` was recorded on the line after `before`, in the same file.
 bool is_recorded_after(const alp::Frame &frame, const std::source_location before) {
@@ -89,6 +100,7 @@ TEST_CASE("Error codes are unqualified formattable enums and classes other than 
     STATIC_REQUIRE(alp::ErrorCode<OffsetError>);
     STATIC_REQUIRE(alp::ErrorCode<NamedError>);
     STATIC_REQUIRE(!alp::ErrorCode<Unformatted>);
+    STATIC_REQUIRE(!alp::ErrorCode<Incomparable>);
     STATIC_REQUIRE(!alp::ErrorCode<int>);
     STATIC_REQUIRE(!alp::ErrorCode<const char *>);
     STATIC_REQUIRE(!alp::ErrorCode<std::string>);
@@ -530,6 +542,31 @@ TEST_CASE("narrow to a set hands the error back when it holds a code outside the
     REQUIRE(!result.has_value());
     CHECK(result.error().frames().size() == 2);
     CHECK(fmt::format("{}", result.error()) == "reading the body: bad byte at 7");
+}
+
+TEST_CASE("holds is true for the held code and false for a different value or another code type") {
+    const alp::Error<FileError, OffsetError> error(OffsetError{.offset = 7});
+
+    CHECK(error.holds(OffsetError{.offset = 7}));
+    CHECK(!error.holds(OffsetError{.offset = 8}));
+    CHECK(!error.holds(FileError::NotFound));
+}
+
+TEST_CASE("Typed code storage compares by the code it holds, and erased storage does not compare") {
+    const alp::CodeStorage<FileError, ParseError> storage(FileError::NotFound);
+
+    CHECK(storage == alp::CodeStorage<FileError, ParseError>(FileError::NotFound));
+    CHECK(storage != alp::CodeStorage<FileError, ParseError>(ParseError::BadDigit));
+    STATIC_REQUIRE(!std::equality_comparable<alp::CodeStorage<>>);
+}
+
+TEST_CASE("get_if points at the held code if it has that type, and is null otherwise") {
+    const alp::Error<FileError, OffsetError> error(OffsetError{.offset = 7});
+
+    const OffsetError *offset_error = error.get_if<OffsetError>();
+    REQUIRE(offset_error != nullptr);
+    CHECK(offset_error->offset == 7);
+    CHECK(error.get_if<FileError>() == nullptr);
 }
 
 TEST_CASE("An error of a nested set widens into the flattened set, keeping its frames") {
