@@ -67,7 +67,7 @@ std::vector<std::vector<widen::Split>> tabulate(const TempDirectory &directory, 
 
 }
 
-TEST_CASE("every inner node gets one row, the root's last", "[tabulate_splits]") {
+TEST_CASE("every inner node gets one row, the root's last", "[widen][tabulate_splits]") {
     const TempDirectory directory("tabulate_splits");
 
     const std::vector<std::vector<widen::Split>> rows = tabulate(directory, 4);
@@ -79,7 +79,7 @@ TEST_CASE("every inner node gets one row, the root's last", "[tabulate_splits]")
     CHECK(rows[2].size() > 1);
 }
 
-TEST_CASE("a node over two leaves keeps itself and gives each leaf a slot", "[tabulate_splits]") {
+TEST_CASE("a node over two leaves keeps itself and gives each leaf a slot", "[widen][tabulate_splits]") {
     const TempDirectory directory("tabulate_splits");
 
     const std::vector<std::vector<widen::Split>> rows = tabulate(directory, 4);
@@ -90,7 +90,7 @@ TEST_CASE("a node over two leaves keeps itself and gives each leaf a slot", "[ta
     CHECK(rows[1] == std::vector{widen::Split::keep(1)});
 }
 
-TEST_CASE("a node offered a single slot has to keep itself", "[tabulate_splits]") {
+TEST_CASE("a node offered a single slot has to keep itself", "[widen][tabulate_splits]") {
     const TempDirectory directory("tabulate_splits");
 
     for (const std::vector<widen::Split> &row : tabulate(directory, 4)) {
@@ -99,7 +99,7 @@ TEST_CASE("a node offered a single slot has to keep itself", "[tabulate_splits]"
     }
 }
 
-TEST_CASE("the root dissolves once its children can use the slots more cheaply than it can", "[tabulate_splits]") {
+TEST_CASE("the root dissolves once its children can use the slots more cheaply than it can", "[widen][tabulate_splits]") {
     const TempDirectory directory("tabulate_splits");
 
     const std::vector<std::vector<widen::Split>> rows = tabulate(directory, 4);

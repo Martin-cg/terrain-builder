@@ -86,7 +86,7 @@ std::vector<bvh::Bounds> make_row(const uint32_t count) {
 
 }
 
-TEST_CASE("a single leaf is the whole tree", "[ploc]") {
+TEST_CASE("a single leaf is the whole tree", "[build][ploc]") {
     const std::vector<bvh::Bounds> leaves{{glm::dvec3{0.0}, glm::dvec3{1.0}}};
 
     const TempDirectory directory("ploc");
@@ -99,7 +99,7 @@ TEST_CASE("a single leaf is the whole tree", "[ploc]") {
     CHECK(read_shape(nodes, *root) == std::vector<std::optional<uint32_t>>{0});
 }
 
-TEST_CASE("neighbours are paired before distant nodes are joined", "[ploc]") {
+TEST_CASE("neighbours are paired before distant nodes are joined", "[build][ploc]") {
     // Two pairs of touching boxes, the pairs far apart from each other.
     const std::vector<bvh::Bounds> leaves{
         {glm::dvec3{0.0}, glm::dvec3{1.0}},
@@ -119,7 +119,7 @@ TEST_CASE("neighbours are paired before distant nodes are joined", "[ploc]") {
     CHECK(read_shape(nodes, *root) == expected);
 }
 
-TEST_CASE("the tree holds every leaf exactly once", "[ploc]") {
+TEST_CASE("the tree holds every leaf exactly once", "[build][ploc]") {
     const uint32_t count = GENERATE(2u, 3u, 8u, 17u);
 
     const TempDirectory directory("ploc");
@@ -143,7 +143,7 @@ TEST_CASE("the tree holds every leaf exactly once", "[ploc]") {
     CHECK(clusters == to_vector(range(count)));
 }
 
-TEST_CASE("splitting the frontier into chunks does not change the tree", "[ploc]") {
+TEST_CASE("splitting the frontier into chunks does not change the tree", "[build][ploc]") {
     const std::vector<bvh::Bounds> leaves = make_row(24);
 
     const TempDirectory single_directory("ploc");
@@ -161,7 +161,7 @@ TEST_CASE("splitting the frontier into chunks does not change the tree", "[ploc]
     CHECK(read_shape(split_nodes, *split_root) == read_shape(single_nodes, *single_root));
 }
 
-TEST_CASE("a frontier that cannot be read fails the build", "[ploc]") {
+TEST_CASE("a frontier that cannot be read fails the build", "[build][ploc]") {
     const TempDirectory directory("ploc");
     bvh::Storage nodes(directory.path() / "nodes");
     frontier::Storage frontier = write_frontier(directory.path() / "frontier", nodes, make_row(4));

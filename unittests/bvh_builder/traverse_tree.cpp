@@ -58,7 +58,7 @@ BalancedTree write_balanced_tree(bvh::BatchWriter &writer) {
 
 }
 
-TEST_CASE("the walk visits every node once, each parent before its children and children in stored order", "[traverse_tree]") {
+TEST_CASE("the walk visits every node once, each parent before its children and children in stored order", "[bvh][traverse_tree]") {
     // Spread over one batch per node as well, with room for a single one in memory, so the order cannot come from the batches.
     const size_t max_batch_bytes = GENERATE(default_max_batch_bytes, size_t{1});
 
@@ -78,7 +78,7 @@ TEST_CASE("the walk visits every node once, each parent before its children and 
     CHECK(visited == std::vector{tree.root, tree.left, tree.leaves[0], tree.leaves[1], tree.right, tree.leaves[2], tree.leaves[3]});
 }
 
-TEST_CASE("a leaf root is visited alone, with its header and cluster", "[traverse_tree]") {
+TEST_CASE("a leaf root is visited alone, with its header and cluster", "[bvh][traverse_tree]") {
     const bvh::NodeHeader leaf_header{.min_child_error = 3.0, .max_parent_error = 4.0, .bounds = {glm::dvec3{5.0}, glm::dvec3{6.0}}};
 
     const TempDirectory directory("traverse_tree");
@@ -105,7 +105,7 @@ TEST_CASE("a leaf root is visited alone, with its header and cluster", "[travers
     CHECK(cluster == dag::Id{octree::Id::root(), 5});
 }
 
-TEST_CASE("an inner node's view carries its header and children", "[traverse_tree]") {
+TEST_CASE("an inner node's view carries its header and children", "[bvh][traverse_tree]") {
     const TempDirectory directory("traverse_tree");
     bvh::Storage nodes(directory.path());
     bvh::BatchWriter writer(nodes);
@@ -126,7 +126,7 @@ TEST_CASE("an inner node's view carries its header and children", "[traverse_tre
     CHECK(children == std::vector{tree.left, tree.right});
 }
 
-TEST_CASE("a view stays valid while the visitor reads through the same cache", "[traverse_tree]") {
+TEST_CASE("a view stays valid while the visitor reads through the same cache", "[bvh][traverse_tree]") {
     const TempDirectory directory("traverse_tree");
     bvh::Storage nodes(directory.path());
     // One node per batch and room for one batch in memory, so every read below evicts the root's batch.
@@ -151,7 +151,7 @@ TEST_CASE("a view stays valid while the visitor reads through the same cache", "
     CHECK(children == std::vector{tree.left, tree.right});
 }
 
-TEST_CASE("a visitor returning false stops the walk", "[traverse_tree]") {
+TEST_CASE("a visitor returning false stops the walk", "[bvh][traverse_tree]") {
     const TempDirectory directory("traverse_tree");
     bvh::Storage nodes(directory.path());
     bvh::BatchWriter writer(nodes);
@@ -170,7 +170,7 @@ TEST_CASE("a visitor returning false stops the walk", "[traverse_tree]") {
     CHECK(visits == 3);
 }
 
-TEST_CASE("a child whose batch cannot be read fails the walk", "[traverse_tree]") {
+TEST_CASE("a child whose batch cannot be read fails the walk", "[bvh][traverse_tree]") {
     const TempDirectory directory("traverse_tree");
     bvh::Storage nodes(directory.path());
 

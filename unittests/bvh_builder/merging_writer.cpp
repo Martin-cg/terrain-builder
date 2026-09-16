@@ -23,7 +23,7 @@ auto collect_into(std::vector<T> &out, Compare compare = {}) {
 
 } // namespace
 
-TEST_CASE("a lone source streams straight through", "[merging_writer]") {
+TEST_CASE("a lone source streams straight through", "[build][MergingWriter]") {
     std::vector<int> out;
     auto writer = collect_into<1>(out);
 
@@ -35,7 +35,7 @@ TEST_CASE("a lone source streams straight through", "[merging_writer]") {
     CHECK(out == std::vector<int>{1, 2});
 }
 
-TEST_CASE("nothing is emitted while a source is still silent", "[merging_writer]") {
+TEST_CASE("nothing is emitted while a source is still silent", "[build][MergingWriter]") {
     std::vector<int> out;
     auto writer = collect_into<2>(out);
 
@@ -44,7 +44,7 @@ TEST_CASE("nothing is emitted while a source is still silent", "[merging_writer]
     CHECK(out.empty());
 }
 
-TEST_CASE("completing a silent source releases what the others queued", "[merging_writer]") {
+TEST_CASE("completing a silent source releases what the others queued", "[build][MergingWriter]") {
     std::vector<int> out;
     auto writer = collect_into<2>(out);
 
@@ -57,7 +57,7 @@ TEST_CASE("completing a silent source releases what the others queued", "[mergin
     CHECK(out == std::vector<int>{1, 2});
 }
 
-TEST_CASE("two sources interleave in sorted order", "[merging_writer]") {
+TEST_CASE("two sources interleave in sorted order", "[build][MergingWriter]") {
     std::vector<int> out;
     auto writer = collect_into<2>(out);
 
@@ -78,7 +78,7 @@ TEST_CASE("two sources interleave in sorted order", "[merging_writer]") {
     CHECK(out == std::vector<int>{1, 2, 3, 4});
 }
 
-TEST_CASE("a value is held until no source can still beat it", "[merging_writer]") {
+TEST_CASE("a value is held until no source can still beat it", "[build][MergingWriter]") {
     std::vector<int> out;
     auto writer = collect_into<2>(out);
 
@@ -93,7 +93,7 @@ TEST_CASE("a value is held until no source can still beat it", "[merging_writer]
     CHECK(out == std::vector<int>{1, 10});
 }
 
-TEST_CASE("the comparator decides the merge order", "[merging_writer]") {
+TEST_CASE("the comparator decides the merge order", "[build][MergingWriter]") {
     std::vector<int> out;
     auto writer = collect_into<2>(out, std::greater<>{});
 
@@ -111,7 +111,7 @@ TEST_CASE("the comparator decides the merge order", "[merging_writer]") {
     CHECK(out == std::vector<int>{9, 7, 5});
 }
 
-TEST_CASE("completing every source without a value emits nothing", "[merging_writer]") {
+TEST_CASE("completing every source without a value emits nothing", "[build][MergingWriter]") {
     std::vector<int> out;
     auto writer = collect_into<3>(out);
 
@@ -122,7 +122,7 @@ TEST_CASE("completing every source without a value emits nothing", "[merging_wri
     CHECK(out.empty());
 }
 
-TEST_CASE("move only values survive the merge", "[merging_writer]") {
+TEST_CASE("move only values survive the merge", "[build][MergingWriter]") {
     using Value = std::unique_ptr<int>;
 
     std::vector<Value> out;
@@ -140,7 +140,7 @@ TEST_CASE("move only values survive the merge", "[merging_writer]") {
     CHECK(*out[1] == 2);
 }
 
-TEST_CASE("end to end, four sorted streams merge into one sorted stream", "[merging_writer]") {
+TEST_CASE("end to end, four sorted streams merge into one sorted stream", "[build][MergingWriter]") {
     constexpr size_t source_count = 4;
     constexpr size_t per_source = 200;
 

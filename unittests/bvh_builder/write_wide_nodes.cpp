@@ -57,7 +57,7 @@ void write_splits(
 
 }
 
-TEST_CASE("a kept root collects every leaf its dissolved children held", "[write_wide_nodes]") {
+TEST_CASE("a kept root collects every leaf its dissolved children held", "[widen][write_wide_nodes]") {
     const TempDirectory directory("write_wide_nodes");
     bvh::Storage nodes(directory.path() / "input");
     const bvh::Reference root = write_balanced_tree(nodes);
@@ -89,7 +89,7 @@ TEST_CASE("a kept root collects every leaf its dissolved children held", "[write
     });
 }
 
-TEST_CASE("a kept node keeps the header it had", "[write_wide_nodes]") {
+TEST_CASE("a kept node keeps the header it had", "[widen][write_wide_nodes]") {
     const TempDirectory directory("write_wide_nodes");
     bvh::Storage nodes(directory.path() / "input");
     const bvh::Reference root = write_balanced_tree(nodes);
@@ -109,7 +109,7 @@ TEST_CASE("a kept node keeps the header it had", "[write_wide_nodes]") {
     CHECK(root_batch->node(wide_root->node).header == root_header);
 }
 
-TEST_CASE("children that keep their slot stay nodes of their own", "[write_wide_nodes]") {
+TEST_CASE("children that keep their slot stay nodes of their own", "[widen][write_wide_nodes]") {
     const TempDirectory directory("write_wide_nodes");
     bvh::Storage nodes(directory.path() / "input");
     const bvh::Reference root = write_balanced_tree(nodes);

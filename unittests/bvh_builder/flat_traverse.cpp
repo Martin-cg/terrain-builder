@@ -30,7 +30,7 @@ std::vector<StoredNode> write_nodes(bvh::Storage &nodes, const std::vector<uint3
 
 }
 
-TEST_CASE("flat_traverse visits every node in order, with the reference naming it", "[flat_traverse]") {
+TEST_CASE("flat_traverse visits every node in order, with the reference naming it", "[bvh][flat_traverse]") {
     const TempDirectory directory("flat_traverse");
     bvh::Storage nodes(directory.path());
     const std::vector<StoredNode> written = write_nodes(nodes, {3, 1, 4});
@@ -44,7 +44,7 @@ TEST_CASE("flat_traverse visits every node in order, with the reference naming i
     CHECK(visited == written);
 }
 
-TEST_CASE("flat_traverse handles an empty store and empty batches", "[flat_traverse]") {
+TEST_CASE("flat_traverse handles an empty store and empty batches", "[bvh][flat_traverse]") {
     const TempDirectory directory("flat_traverse");
     bvh::Storage nodes(directory.path());
 
@@ -59,7 +59,7 @@ TEST_CASE("flat_traverse handles an empty store and empty batches", "[flat_trave
     CHECK(visits == 2);
 }
 
-TEST_CASE("flat_traverse reports a missing batch", "[flat_traverse]") {
+TEST_CASE("flat_traverse reports a missing batch", "[bvh][flat_traverse]") {
     const TempDirectory directory("flat_traverse");
     bvh::Storage nodes(directory.path());
     write_nodes(nodes, {2});
@@ -71,7 +71,7 @@ TEST_CASE("flat_traverse reports a missing batch", "[flat_traverse]") {
     CHECK_FALSE(result.has_value());
 }
 
-TEST_CASE("a visitor returning false stops the flat walk", "[flat_traverse]") {
+TEST_CASE("a visitor returning false stops the flat walk", "[bvh][flat_traverse]") {
     const TempDirectory directory("flat_traverse");
     bvh::Storage nodes(directory.path());
     write_nodes(nodes, {3, 2});

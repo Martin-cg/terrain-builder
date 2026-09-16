@@ -36,7 +36,7 @@ std::vector<frontier::Entry> read_run(const frontier::Storage &run) {
 
 }
 
-TEST_CASE("every stored node enters the frontier carrying its header and reference", "[build_frontier]") {
+TEST_CASE("every stored node enters the frontier carrying its header and reference", "[frontier][build]") {
     const TempDirectory directory("build_frontier");
     std::filesystem::create_directories(directory.path() / "nodes");
     bvh::Storage nodes(directory.path() / "nodes");
@@ -57,7 +57,7 @@ TEST_CASE("every stored node enters the frontier carrying its header and referen
     CHECK(entries[0].morton < entries[1].morton);
 }
 
-TEST_CASE("the entry's morton code comes from the bounds centre", "[build_frontier]") {
+TEST_CASE("the entry's morton code comes from the bounds centre", "[frontier][build]") {
     const TempDirectory directory("build_frontier");
     std::filesystem::create_directories(directory.path() / "nodes");
     bvh::Storage nodes(directory.path() / "nodes");
@@ -80,7 +80,7 @@ TEST_CASE("the entry's morton code comes from the bounds centre", "[build_fronti
     CHECK(entries[0].morton != entries[2].morton);
 }
 
-TEST_CASE("the byte budget splits the frontier into batches", "[build_frontier]") {
+TEST_CASE("the byte budget splits the frontier into batches", "[frontier][build]") {
     const TempDirectory directory("build_frontier");
     std::filesystem::create_directories(directory.path() / "nodes");
     bvh::Storage nodes(directory.path() / "nodes");
@@ -101,7 +101,7 @@ TEST_CASE("the byte budget splits the frontier into batches", "[build_frontier]"
     CHECK(read_run(run).size() == 5);
 }
 
-TEST_CASE("an empty store yields an empty frontier", "[build_frontier]") {
+TEST_CASE("an empty store yields an empty frontier", "[frontier][build]") {
     const TempDirectory directory("build_frontier");
     std::filesystem::create_directories(directory.path() / "nodes");
     const bvh::Storage nodes(directory.path() / "nodes");

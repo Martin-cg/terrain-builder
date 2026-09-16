@@ -44,7 +44,7 @@ std::vector<uint32_t> collect_mortons(
 
 }
 
-TEST_CASE("traverse visits every entry in order", "[frontier_traverse]") {
+TEST_CASE("traverse visits every entry in order", "[frontier][traverse]") {
     const TempDirectory directory("frontier_traverse");
     frontier::Storage run(directory.path());
     const std::vector<uint32_t> written = write_run(run, {3, 1, 4});
@@ -52,7 +52,7 @@ TEST_CASE("traverse visits every entry in order", "[frontier_traverse]") {
     CHECK(collect_mortons(run) == written);
 }
 
-TEST_CASE("traverse over a batch range visits only those batches", "[frontier_traverse]") {
+TEST_CASE("traverse over a batch range visits only those batches", "[frontier][traverse]") {
     const TempDirectory directory("frontier_traverse");
     frontier::Storage run(directory.path());
     write_run(run, {3, 1, 4});
@@ -62,7 +62,7 @@ TEST_CASE("traverse over a batch range visits only those batches", "[frontier_tr
     CHECK(collect_mortons(run, Range<uint32_t>{1, 1}).empty());
 }
 
-TEST_CASE("traverse handles an empty run and empty batches", "[frontier_traverse]") {
+TEST_CASE("traverse handles an empty run and empty batches", "[frontier][traverse]") {
     const TempDirectory directory("frontier_traverse");
     frontier::Storage run(directory.path());
 

@@ -35,7 +35,7 @@ std::vector<int> drain(auto &merging) {
 
 } // namespace
 
-TEST_CASE("a lone source streams straight through", "[merging_receiver]") {
+TEST_CASE("a lone source streams straight through", "[build][MergingReceiver]") {
     auto [senders, merging] = make_merging_channels<int, 1>(16);
 
     REQUIRE(senders[0].push_batch(std::array<int, 3>{1, 2, 3}));
@@ -44,7 +44,7 @@ TEST_CASE("a lone source streams straight through", "[merging_receiver]") {
     CHECK(drain(merging) == std::vector<int>{1, 2, 3});
 }
 
-TEST_CASE("two sources interleave in sorted order", "[merging_receiver]") {
+TEST_CASE("two sources interleave in sorted order", "[build][MergingReceiver]") {
     auto [senders, merging] = make_merging_channels<int, 2>(16);
 
     REQUIRE(senders[0].push_batch(std::array<int, 3>{1, 3, 5}));
@@ -54,7 +54,7 @@ TEST_CASE("two sources interleave in sorted order", "[merging_receiver]") {
     CHECK(drain(merging) == std::vector<int>{1, 2, 3, 4, 5, 6});
 }
 
-TEST_CASE("the comparator decides the merge order", "[merging_receiver]") {
+TEST_CASE("the comparator decides the merge order", "[build][MergingReceiver]") {
     auto [senders, merging] = make_merging_channels<int, 2>(16, std::greater<>{});
 
     REQUIRE(senders[0].push_batch(std::array<int, 3>{5, 3, 1}));
@@ -64,7 +64,7 @@ TEST_CASE("the comparator decides the merge order", "[merging_receiver]") {
     CHECK(drain(merging) == std::vector<int>{6, 5, 4, 3, 2, 1});
 }
 
-TEST_CASE("a source that ends without a value holds nothing back", "[merging_receiver]") {
+TEST_CASE("a source that ends without a value holds nothing back", "[build][MergingReceiver]") {
     auto [senders, merging] = make_merging_channels<int, 3>(16);
 
     REQUIRE(senders[1].push_batch(std::array<int, 2>{7, 8}));
@@ -73,7 +73,7 @@ TEST_CASE("a source that ends without a value holds nothing back", "[merging_rec
     CHECK(drain(merging) == std::vector<int>{7, 8});
 }
 
-TEST_CASE("sources that all end without a value merge to nothing", "[merging_receiver]") {
+TEST_CASE("sources that all end without a value merge to nothing", "[build][MergingReceiver]") {
     auto [senders, merging] = make_merging_channels<int, 3>(16);
 
     close_all(senders);
@@ -81,7 +81,7 @@ TEST_CASE("sources that all end without a value merge to nothing", "[merging_rec
     CHECK(drain(merging).empty());
 }
 
-TEST_CASE("a source longer than the prefetch is drained in order", "[merging_receiver]") {
+TEST_CASE("a source longer than the prefetch is drained in order", "[build][MergingReceiver]") {
     constexpr size_t count = 500;
 
     auto [senders, merging] = make_merging_channels<int, 1>(1024);
@@ -94,7 +94,7 @@ TEST_CASE("a source longer than the prefetch is drained in order", "[merging_rec
     CHECK(drain(merging) == stream);
 }
 
-TEST_CASE("end to end, four sorted streams merge into one", "[merging_receiver]") {
+TEST_CASE("end to end, four sorted streams merge into one", "[build][MergingReceiver]") {
     constexpr size_t source_count = 4;
     constexpr size_t per_source = 500;
 

@@ -73,7 +73,7 @@ morton::PrefixMap<uint64_t> make_histogram(const std::vector<uint64_t> &counts) 
 
 }
 
-TEST_CASE("a prefix map indexes by the leading bits of the code", "[sort_frontier]") {
+TEST_CASE("a prefix map indexes by the leading bits of the code", "[morton][PrefixMap]") {
     morton::PrefixMap<uint32_t> map(prefix_bits, 0);
 
     REQUIRE(map.cells().size() == cell_count);
@@ -85,7 +85,7 @@ TEST_CASE("a prefix map indexes by the leading bits of the code", "[sort_frontie
     CHECK(map.cells()[5] == 42);
 }
 
-TEST_CASE("sort_entries orders by morton", "[sort_frontier]") {
+TEST_CASE("sort_entries orders by morton", "[frontier][sort]") {
     std::vector<frontier::Entry> entries = {
         make_entry(make_code_in_cell(6)),
         make_entry(make_code_in_cell(1)),
@@ -99,7 +99,7 @@ TEST_CASE("sort_entries orders by morton", "[sort_frontier]") {
     CHECK(entries[2].morton == make_code_in_cell(6));
 }
 
-TEST_CASE("sort_batches_independently leaves every entry in its own batch", "[sort_frontier]") {
+TEST_CASE("sort_batches_independently leaves every entry in its own batch", "[frontier][sort]") {
     const TempDirectory directory("sort_frontier");
     frontier::Storage run(directory.path());
     write_run(run, {make_code_in_cell(4), make_code_in_cell(1), make_code_in_cell(7), make_code_in_cell(2)}, {2, 2});
@@ -109,7 +109,7 @@ TEST_CASE("sort_batches_independently leaves every entry in its own batch", "[so
     CHECK(read_codes(run) == std::vector<morton::Code>{make_code_in_cell(1), make_code_in_cell(4), make_code_in_cell(2), make_code_in_cell(7)});
 }
 
-TEST_CASE("build_histogram counts the entries of every cell", "[sort_frontier]") {
+TEST_CASE("build_histogram counts the entries of every cell", "[frontier][sort]") {
     const TempDirectory directory("sort_frontier");
     frontier::Storage input(directory.path());
     write_run(input, make_codes_per_cell({2, 0, 0, 1, 0, 3, 0, 0}), {3, 3});
@@ -121,7 +121,7 @@ TEST_CASE("build_histogram counts the entries of every cell", "[sort_frontier]")
     CHECK(std::ranges::equal(histogram.value().cells(), std::vector<uint64_t>{2, 0, 0, 1, 0, 3, 0, 0}));
 }
 
-TEST_CASE("assign_buckets fills buckets up to the limit", "[sort_frontier]") {
+TEST_CASE("assign_buckets fills buckets up to the limit", "[frontier][sort]") {
     const frontier::Buckets buckets = frontier::assign_buckets(make_histogram({1, 1, 1, 1, 1, 1, 1, 1}), 3);
 
     // Three cells fill a bucket, so the seventh cell opens the third one.
@@ -130,7 +130,7 @@ TEST_CASE("assign_buckets fills buckets up to the limit", "[sort_frontier]") {
     CHECK(buckets.assignment.prefix_bits() == prefix_bits);
 }
 
-TEST_CASE("assign_buckets does not spend a bucket on empty cells", "[sort_frontier]") {
+TEST_CASE("assign_buckets does not spend a bucket on empty cells", "[frontier][sort]") {
     const frontier::Buckets buckets = frontier::assign_buckets(make_histogram({2, 0, 0, 0, 0, 0, 0, 2}), 2);
 
     // The empty run between the two populated cells must not become a bucket of its own.
@@ -140,7 +140,7 @@ TEST_CASE("assign_buckets does not spend a bucket on empty cells", "[sort_fronti
     CHECK(std::ranges::is_sorted(buckets.assignment.cells()));
 }
 
-TEST_CASE("assign_buckets keeps an oversized cell in one bucket", "[sort_frontier]") {
+TEST_CASE("assign_buckets keeps an oversized cell in one bucket", "[frontier][sort]") {
     const frontier::Buckets buckets = frontier::assign_buckets(make_histogram({0, 0, 10, 0, 0, 0, 0, 0}), 2);
 
     // Nothing splits a cell, so an oversized one still maps to a single bucket.
@@ -148,7 +148,7 @@ TEST_CASE("assign_buckets keeps an oversized cell in one bucket", "[sort_frontie
     CHECK(buckets.assignment.at(make_code_in_cell(2)) == buckets.assignment.at(make_code_in_cell(2, 99)));
 }
 
-TEST_CASE("scatter writes one batch per bucket in morton order", "[sort_frontier]") {
+TEST_CASE("scatter writes one batch per bucket in morton order", "[frontier][sort]") {
     const TempDirectory directory("sort_frontier");
     std::filesystem::create_directories(directory.path() / "in");
     std::filesystem::create_directories(directory.path() / "out");
@@ -174,7 +174,7 @@ TEST_CASE("scatter writes one batch per bucket in morton order", "[sort_frontier
     }
 }
 
-TEST_CASE("scatter over more buckets than it may hold open takes several passes", "[sort_frontier]") {
+TEST_CASE("scatter over more buckets than it may hold open takes several passes", "[frontier][sort]") {
     const TempDirectory directory("sort_frontier");
     std::filesystem::create_directories(directory.path() / "in");
     std::filesystem::create_directories(directory.path() / "wide");
@@ -197,7 +197,7 @@ TEST_CASE("scatter over more buckets than it may hold open takes several passes"
     CHECK(read_codes(wide) == read_codes(narrow));
 }
 
-TEST_CASE("sort_by_morton orders the whole run", "[sort_frontier]") {
+TEST_CASE("sort_by_morton orders the whole run", "[frontier][sort]") {
     const TempDirectory directory("sort_frontier");
     std::filesystem::create_directories(directory.path() / "in");
     std::filesystem::create_directories(directory.path() / "out");
@@ -223,7 +223,7 @@ TEST_CASE("sort_by_morton orders the whole run", "[sort_frontier]") {
     CHECK(read_codes(output) == expected);
 }
 
-TEST_CASE("sort_by_morton handles an empty run", "[sort_frontier]") {
+TEST_CASE("sort_by_morton handles an empty run", "[frontier][sort]") {
     const TempDirectory directory("sort_frontier");
     std::filesystem::create_directories(directory.path() / "in");
     std::filesystem::create_directories(directory.path() / "out");

@@ -44,7 +44,7 @@ std::vector<bvh::Reference> read_children(const bvh::Storage &nodes, const bvh::
 
 }
 
-TEST_CASE("the common prefix of two codes counts the leading bits they share", "[lbvh]") {
+TEST_CASE("the common prefix of two codes counts the leading bits they share", "[build][lbvh]") {
     const morton::Code zero{0};
 
     CHECK(lbvh::detail::count_common_prefix_bits(zero, zero) == morton::code_bits);
@@ -57,7 +57,7 @@ TEST_CASE("the common prefix of two codes counts the leading bits they share", "
     }
 }
 
-TEST_CASE("a prefix keeps the leading bits of a code and clears the rest", "[lbvh]") {
+TEST_CASE("a prefix keeps the leading bits of a code and clears the rest", "[build][lbvh]") {
     const morton::Code all_ones = std::numeric_limits<morton::Code>::max();
 
     CHECK(lbvh::detail::extract_prefix(all_ones, 0) == morton::Code{0});
@@ -71,7 +71,7 @@ TEST_CASE("a prefix keeps the leading bits of a code and clears the rest", "[lbv
     }
 }
 
-TEST_CASE("a run splits at the highest bit its codes disagree on", "[lbvh]") {
+TEST_CASE("a run splits at the highest bit its codes disagree on", "[build][lbvh]") {
     const std::vector<frontier::Entry> low = transform_vector(std::array{morton::Code{0}, morton::Code{1}}, make_entry);
     CHECK(lbvh::detail::find_split(low) == 1);
 
@@ -79,12 +79,12 @@ TEST_CASE("a run splits at the highest bit its codes disagree on", "[lbvh]") {
     CHECK(lbvh::detail::find_split(high) == 2);
 }
 
-TEST_CASE("a run of equal codes splits in half", "[lbvh]") {
+TEST_CASE("a run of equal codes splits in half", "[build][lbvh]") {
     CHECK(lbvh::detail::find_split(std::vector<frontier::Entry>(4, make_entry(morton::Code{7}))) == 2);
     CHECK(lbvh::detail::find_split(std::vector<frontier::Entry>(5, make_entry(morton::Code{7}))) == 2);
 }
 
-TEST_CASE("a split never leaves either side empty", "[lbvh]") {
+TEST_CASE("a split never leaves either side empty", "[build][lbvh]") {
     const std::vector<std::vector<morton::Code>> runs{
         std::vector<morton::Code>(2, morton::Code{0}),
         std::vector<morton::Code>(9, morton::Code{3}),
@@ -105,7 +105,7 @@ TEST_CASE("a split never leaves either side empty", "[lbvh]") {
     }
 }
 
-TEST_CASE("a single entry is its own root and writes nothing", "[lbvh]") {
+TEST_CASE("a single entry is its own root and writes nothing", "[build][lbvh]") {
     const frontier::Entry entry{.morton = morton::Code{0b1}, .header = {}, .ref = {.batch = 100, .node = 0}};
 
     const TempDirectory directory("lbvh");
@@ -119,7 +119,7 @@ TEST_CASE("a single entry is its own root and writes nothing", "[lbvh]") {
     CHECK(nodes.size() == 0);
 }
 
-TEST_CASE("two entries are joined under a parent carrying both their headers", "[lbvh]") {
+TEST_CASE("two entries are joined under a parent carrying both their headers", "[build][lbvh]") {
     // The references name leaves stored elsewhere; the builder never reads them.
     const frontier::Entry left{
         .morton = morton::Code{0b01},
@@ -144,7 +144,7 @@ TEST_CASE("two entries are joined under a parent carrying both their headers", "
     CHECK(read_children(nodes, root->ref) == std::vector{left.ref, right.ref});
 }
 
-TEST_CASE("entries whose codes differ in the top bit end up in separate subtrees", "[lbvh]") {
+TEST_CASE("entries whose codes differ in the top bit end up in separate subtrees", "[build][lbvh]") {
     const std::array entries{
         frontier::Entry{.morton = morton::Code{0}, .header = {}, .ref = {.batch = 100, .node = 0}},
         frontier::Entry{.morton = morton::Code{1}, .header = {}, .ref = {.batch = 100, .node = 1}},
@@ -165,7 +165,7 @@ TEST_CASE("entries whose codes differ in the top bit end up in separate subtrees
     CHECK(read_children(nodes, children[1]) == std::vector{entries[2].ref, entries[3].ref});
 }
 
-TEST_CASE("entries with equal codes are still all joined, halving the run", "[lbvh]") {
+TEST_CASE("entries with equal codes are still all joined, halving the run", "[build][lbvh]") {
     const std::array entries{
         frontier::Entry{.morton = morton::Code{7}, .header = {}, .ref = {.batch = 100, .node = 0}},
         frontier::Entry{.morton = morton::Code{7}, .header = {}, .ref = {.batch = 100, .node = 1}},
@@ -185,7 +185,7 @@ TEST_CASE("entries with equal codes are still all joined, halving the run", "[lb
     CHECK(read_children(nodes, children[1]) == std::vector{entries[1].ref, entries[2].ref});
 }
 
-TEST_CASE("each batch of a run gets a subtree of its own before their roots are joined", "[lbvh]") {
+TEST_CASE("each batch of a run gets a subtree of its own before their roots are joined", "[build][lbvh]") {
     const std::array entries{
         frontier::Entry{.morton = morton::Code{0}, .header = {}, .ref = {.batch = 100, .node = 0}},
         frontier::Entry{.morton = top_bit, .header = {}, .ref = {.batch = 100, .node = 1}},
@@ -211,7 +211,7 @@ TEST_CASE("each batch of a run gets a subtree of its own before their roots are 
     CHECK(children[1] == entries[2].ref);
 }
 
-TEST_CASE("building into a storage saves its index", "[lbvh]") {
+TEST_CASE("building into a storage saves its index", "[build][lbvh]") {
     const TempDirectory directory("lbvh");
     frontier::Storage run(directory.path() / "run");
     REQUIRE(run.write(frontier::Batch{.entries = {
@@ -227,7 +227,7 @@ TEST_CASE("building into a storage saves its index", "[lbvh]") {
     CHECK(reopened.size() == 1);
 }
 
-TEST_CASE("a batch limit below one node writes every inner node into a batch of its own", "[lbvh]") {
+TEST_CASE("a batch limit below one node writes every inner node into a batch of its own", "[build][lbvh]") {
     const TempDirectory directory("lbvh");
     frontier::Storage run(directory.path() / "run");
     REQUIRE(run.write(frontier::Batch{.entries = {
@@ -245,7 +245,7 @@ TEST_CASE("a batch limit below one node writes every inner node into a batch of 
     CHECK(nodes.size() == 3);
 }
 
-TEST_CASE("a run whose batches cannot be read fails the build", "[lbvh]") {
+TEST_CASE("a run whose batches cannot be read fails the build", "[build][lbvh]") {
     const TempDirectory directory("lbvh");
     frontier::Storage run(directory.path() / "run");
     REQUIRE(run.write(frontier::Batch{.entries = {make_entry(morton::Code{0})}}).has_value());

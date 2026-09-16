@@ -26,7 +26,7 @@ std::vector<bvh::Batch> write_batches(bvh::Storage &nodes, const uint32_t count)
 
 }
 
-TEST_CASE("a batch read back is the one that was written", "[batch_cache]") {
+TEST_CASE("a batch read back is the one that was written", "[storage][BatchCache]") {
     const TempDirectory directory("batch_cache");
     bvh::Storage nodes(directory.path());
     const std::vector<bvh::Batch> written = write_batches(nodes, 3);
@@ -38,7 +38,7 @@ TEST_CASE("a batch read back is the one that was written", "[batch_cache]") {
     CHECK(result->get() == written[2]);
 }
 
-TEST_CASE("a batch takes up the budget by its size, so a larger one displaces several smaller ones", "[batch_cache]") {
+TEST_CASE("a batch takes up the budget by its size, so a larger one displaces several smaller ones", "[storage][BatchCache]") {
     const TempDirectory directory("batch_cache");
     bvh::Storage nodes(directory.path());
     const std::vector<bvh::Batch> written = write_batches(nodes, 2);

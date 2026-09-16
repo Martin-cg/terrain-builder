@@ -24,7 +24,7 @@ auto make_read(const uint32_t value, const size_t cost) {
 
 }
 
-TEST_CASE("a resident value is returned without being read again", "[bounded_cache]") {
+TEST_CASE("a resident value is returned without being read again", "[storage][BoundedCache]") {
     Cache cache(10);
     uint32_t reads = 0;
     const auto read = [&reads]() -> tl::expected<Cache::Entry, ReadFailed> {
@@ -41,7 +41,7 @@ TEST_CASE("a resident value is returned without being read again", "[bounded_cac
     CHECK(cache.count_misses() == 1);
 }
 
-TEST_CASE("a resident value is handed out without being copied", "[bounded_cache]") {
+TEST_CASE("a resident value is handed out without being copied", "[storage][BoundedCache]") {
     Cache cache(10);
 
     const auto first_result = cache.get_or_try_insert_with(0, make_read(7, 1));
@@ -52,7 +52,7 @@ TEST_CASE("a resident value is handed out without being copied", "[bounded_cache
     CHECK(&first_result->get() == &second_result->get());
 }
 
-TEST_CASE("the least recently used value is evicted once the costs exceed the budget", "[bounded_cache]") {
+TEST_CASE("the least recently used value is evicted once the costs exceed the budget", "[storage][BoundedCache]") {
     Cache cache(10);
 
     REQUIRE(cache.get_or_try_insert_with(0, make_read(0, 4)).has_value());
@@ -70,7 +70,7 @@ TEST_CASE("the least recently used value is evicted once the costs exceed the bu
     CHECK(cache.count_misses() == 4);
 }
 
-TEST_CASE("a value over budget on its own is still admitted, evicting everything else", "[bounded_cache]") {
+TEST_CASE("a value over budget on its own is still admitted, evicting everything else", "[storage][BoundedCache]") {
     Cache cache(10);
 
     REQUIRE(cache.get_or_try_insert_with(0, make_read(0, 4)).has_value());
@@ -82,7 +82,7 @@ TEST_CASE("a value over budget on its own is still admitted, evicting everything
     CHECK(cache.count_resident() == 1);
 }
 
-TEST_CASE("a failed read caches nothing and returns the error", "[bounded_cache]") {
+TEST_CASE("a failed read caches nothing and returns the error", "[storage][BoundedCache]") {
     Cache cache(10);
     const auto fail = []() -> tl::expected<Cache::Entry, ReadFailed> {
         return tl::make_unexpected(ReadFailed{});

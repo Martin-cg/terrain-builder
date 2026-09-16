@@ -34,7 +34,7 @@ std::vector<bvh::Batch> write_leaves(bvh::Storage &nodes, const std::vector<uint
 
 }
 
-TEST_CASE("a node comes back from the batch it was written to", "[node_cache]") {
+TEST_CASE("a node comes back from the batch it was written to", "[bvh][NodeCache]") {
     const TempDirectory directory("node_cache");
     bvh::Storage nodes(directory.path());
     const std::vector<bvh::Batch> written = write_leaves(nodes, {2, 3});
@@ -46,7 +46,7 @@ TEST_CASE("a node comes back from the batch it was written to", "[node_cache]") 
     CHECK(*node == written[1].node(2));
 }
 
-TEST_CASE("nodes in the same batch are read once", "[node_cache]") {
+TEST_CASE("nodes in the same batch are read once", "[bvh][NodeCache]") {
     const TempDirectory directory("node_cache");
     bvh::Storage nodes(directory.path());
     write_leaves(nodes, {2, 3});
@@ -60,7 +60,7 @@ TEST_CASE("nodes in the same batch are read once", "[node_cache]") {
     CHECK(cache.count_misses() == 1);
 }
 
-TEST_CASE("a node outlives the read that follows it", "[node_cache]") {
+TEST_CASE("a node outlives the read that follows it", "[bvh][NodeCache]") {
     const TempDirectory directory("node_cache");
     bvh::Storage nodes(directory.path());
     const std::vector<bvh::Batch> written = write_leaves(nodes, {1, 1, 1});
@@ -74,7 +74,7 @@ TEST_CASE("a node outlives the read that follows it", "[node_cache]") {
     CHECK(*first == written[0].node(0));
 }
 
-TEST_CASE("the batch behind a node is reachable through the cache", "[node_cache]") {
+TEST_CASE("the batch behind a node is reachable through the cache", "[bvh][NodeCache]") {
     const TempDirectory directory("node_cache");
     bvh::Storage nodes(directory.path());
     const std::vector<bvh::Batch> written = write_leaves(nodes, {2, 3});
