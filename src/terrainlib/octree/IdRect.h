@@ -73,21 +73,21 @@ public:
             }
 
             if (this->_current.z < this->_end.z) {
-                ++this->_current.z;
+                this->_current.z++;
                 return;
             }
 
             this->_current.z = this->_begin.z;
 
             if (this->_current.y < this->_end.y) {
-                ++this->_current.y;
+                this->_current.y++;
                 return;
             }
 
             this->_current.y = this->_begin.y;
 
             if (this->_current.x < this->_end.x) {
-                ++this->_current.x;
+                this->_current.x++;
                 return;
             }
 

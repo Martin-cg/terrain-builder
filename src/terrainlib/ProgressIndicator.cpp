@@ -35,7 +35,7 @@ ProgressIndicator::ProgressIndicator(size_t n_steps)
 }
 
 void ProgressIndicator::task_finished() {
-    ++m_step;
+    m_step++;
     if (m_step > m_n_steps) {
         throw std::runtime_error("Too many steps reported.");
     }

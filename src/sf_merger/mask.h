@@ -368,7 +368,7 @@ namespace {
 
         glm::dvec3 closest, farthest;
 
-        for (uint32_t i = 0; i < 3; ++i) {
+        for (uint32_t i = 0; i < 3; i++) {
             if (dist_min[i] < dist_max[i]) {
                 closest[i] = bounds.min[i];
                 farthest[i] = bounds.max[i];

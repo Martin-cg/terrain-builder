@@ -35,8 +35,8 @@ void triangle_scanline(const tntn::Raster<T>& raster, const glm::uvec2& a, const
 
     const auto min = glm::min(glm::min(a, b), c);
     const auto max = glm::max(glm::max(a, b), c);
-    for (auto y = min.y; y <= max.y; ++y) {
-        for (auto x = min.x; x <= max.x; ++x) {
+    for (auto y = min.y; y <= max.y; y++) {
+        for (auto x = min.x; x <= max.x; x++) {
             const auto coord = glm::uvec2(x, y);
             if (primitives::inside(coord, a, b, c))
                 fun(coord, raster.value(coord.y, coord.x)); // raster is row / column
@@ -47,7 +47,7 @@ void triangle_scanline(const tntn::Raster<T>& raster, const glm::uvec2& a, const
         const auto walk_bottom = [&](const glm::uvec2& a, const glm::uvec2& b) {
             if ((b - a).y == 0 && a.y == 0) {
                 const auto end_x = std::max(a.x, b.x);
-                for (auto x = std::min(a.x, b.x); x < end_x; ++x) {
+                for (auto x = std::min(a.x, b.x); x < end_x; x++) {
                     const auto coord = glm::uvec2(x, 0);
                     fun(coord, raster.value(coord.y, coord.x)); // raster is row / column
                 }
@@ -63,7 +63,7 @@ void triangle_scanline(const tntn::Raster<T>& raster, const glm::uvec2& a, const
         const auto walk_right = [&](const glm::uvec2& a, const glm::uvec2& b) {
             if ((b - a).x == 0 && a.x == last_x) {
                 const auto end_y = std::max(a.y, b.y);
-                for (auto y = std::min(a.y, b.y); y < end_y; ++y) {
+                for (auto y = std::min(a.y, b.y); y < end_y; y++) {
                     const auto coord = glm::uvec2(last_x, y);
                     fun(coord, raster.value(coord.y, coord.x)); // raster is row / column
                 }

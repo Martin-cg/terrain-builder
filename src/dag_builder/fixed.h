@@ -55,7 +55,7 @@ struct Q {
         const repr_t remainder = n % denominator;
 
         if (remainder * 2 >= denominator) {
-            ++quotient;
+            quotient++;
         }
 
         return negative ? -quotient : quotient;

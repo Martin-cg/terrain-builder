@@ -45,8 +45,8 @@ std::vector<radix::tile::Descriptor> ParallelTiler::generateTiles(unsigned zoom_
 
     std::vector<radix::tile::Descriptor> tiles;
     tiles.reserve((ne.y - sw.y + 1) * (ne.x - sw.x + 1));
-    for (auto ty = sw.y; ty <= ne.y; ++ty) {
-        for (auto tx = sw.x; tx <= ne.x; ++tx) {
+    for (auto ty = sw.y; ty <= ne.y; ty++) {
+        for (auto tx = sw.x; tx <= ne.x; tx++) {
             const auto tile_id = radix::tile::Id { zoom_level, { tx, ty }, radix::tile::Scheme::Tms }.to(scheme());
             tiles.emplace_back(tile_for(tile_id));
             if (tiles.size() >= 1'000'000'000)
@@ -65,7 +65,7 @@ std::vector<radix::tile::Descriptor> ParallelTiler::generateTiles(const std::pai
 {
     std::vector<radix::tile::Descriptor> tiles;
     assert(zoom_range.first <= zoom_range.second);
-    for (ctb::i_zoom i = zoom_range.first; i <= zoom_range.second; ++i) {
+    for (ctb::i_zoom i = zoom_range.first; i <= zoom_range.second; i++) {
         auto zoom_level_tiles = generateTiles(i);
         tiles.reserve(tiles.size() + zoom_level_tiles.size());
         std::move(zoom_level_tiles.begin(), zoom_level_tiles.end(), std::back_inserter(tiles));
