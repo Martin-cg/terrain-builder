@@ -2,7 +2,7 @@
 #include "containers/FixedVector.h"
 
 TEST_CASE("FixedVector default construction", "[containers][FixedVector]") {
-    FixedVector<int, 5> vec;
+    const FixedVector<int, 5> vec;
     CHECK(vec.size() == 0);
     CHECK(vec.capacity() == 5);
     CHECK(vec.empty());
