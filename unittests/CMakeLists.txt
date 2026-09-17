@@ -22,6 +22,13 @@ add_executable(unittests_terrainlib
     terrainlib/dataset.cpp
     terrainlib/enumerate.cpp
     terrainlib/error.cpp
+    terrainlib/error_code_storage.cpp
+    terrainlib/error_error_code.cpp
+    terrainlib/error_format.cpp
+    terrainlib/error_result.cpp
+    terrainlib/error_trace.cpp
+    terrainlib/error_try.cpp
+    terrainlib/error_utils.cpp
     terrainlib/file_error.cpp
     terrainlib/fixed_vector.cpp
     terrainlib/geometry_frames.cpp
