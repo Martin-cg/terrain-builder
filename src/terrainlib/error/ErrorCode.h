@@ -27,13 +27,4 @@ concept ErrorCode = std::same_as<E, std::remove_cvref_t<E>>
 template <typename T>
 concept ErrorCodes = ErrorCode<T> || (is_specialization_of_v<T, BasicError> && !T::is_erased);
 
-namespace detail {
-
-template <ErrorCode E>
-std::string format_code(const E &code) {
-    return fmt::format("{}", code);
-}
-
-} // namespace detail
-
 } // namespace alp

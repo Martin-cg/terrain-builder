@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <source_location>
 #include <string>
@@ -11,6 +12,7 @@
 #include <fmt/format.h>
 #include <tl/expected.hpp>
 
+#include "../tracked.h"
 #include "error/Error.h"
 #include "error/format.h"
 #include "error/utils.h"
@@ -51,6 +53,24 @@ struct Incomparable {};
 
 std::string_view format_as(const Incomparable) {
     return "incomparable";
+}
+
+// A code that can only be moved.
+struct MoveOnlyError {
+    std::unique_ptr<int> value;
+};
+
+std::string_view format_as(const MoveOnlyError &) {
+    return "move only";
+}
+
+// A code that counts how often it was copied and moved.
+struct TrackedError {
+    Tracked tracked;
+};
+
+std::string_view format_as(const TrackedError &) {
+    return "tracked";
 }
 
 } // namespace
@@ -172,17 +192,38 @@ TEST_CASE("A const error widens into a set and stays as it was", "[error]") {
     CHECK(error.frames().size() == 1);
 }
 
-TEST_CASE("Erasure keeps the frames and the message of the code the error holds", "[error]") {
+TEST_CASE("Erasure keeps the code the error holds and its frames", "[error]") {
     const alp::Error<> erased = alp::Error<FileError, ParseError>(ParseError::BadDigit).context("parsing the header");
 
+    CHECK(erased.holds(ParseError::BadDigit));
     REQUIRE(erased.frames().size() == 1);
     CHECK(erased.frames()[0].message == "parsing the header");
-    CHECK(fmt::to_string(erased).contains("bad digit"));
+}
+
+TEST_CASE("Erasing an error moves its code instead of copying it", "[error]") {
+    const alp::Error<> erased = alp::Error<TrackedError>(TrackedError{});
+
+    const TrackedError *code = erased.get_if<TrackedError>();
+    REQUIRE(code != nullptr);
+    CHECK(code->tracked.copies == 0);
+}
+
+TEST_CASE("An error with a move-only code does not erase", "[error]") {
+    STATIC_REQUIRE(!std::is_constructible_v<alp::Error<>, alp::Error<MoveOnlyError>>);
+}
+
+TEST_CASE("An error with a move-only code widens into a set", "[error]") {
+    const alp::Error<MoveOnlyError, FileError> widened = alp::make_error(MoveOnlyError{.value = std::make_unique<int>(5)});
+
+    const MoveOnlyError *code = widened.get_if<MoveOnlyError>();
+    REQUIRE(code != nullptr);
+    CHECK(*code->value == 5);
 }
 
 TEST_CASE("narrow returns the narrowed error or the error it was called on", "[error]") {
     STATIC_REQUIRE(std::is_same_v<decltype(std::declval<alp::Error<FileError, ParseError>>().narrow<FileError>()), tl::expected<alp::Error<FileError>, alp::Error<FileError, ParseError>>>);
     STATIC_REQUIRE(std::is_same_v<decltype(std::declval<alp::Error<FileError, ParseError, OffsetError>>().narrow<alp::Error<FileError, ParseError>>()), tl::expected<alp::Error<FileError, ParseError>, alp::Error<FileError, ParseError, OffsetError>>>);
+    STATIC_REQUIRE(std::is_same_v<decltype(std::declval<alp::Error<>>().narrow<FileError>()), tl::expected<alp::Error<FileError>, alp::Error<>>>);
 }
 
 TEST_CASE("narrow gives the error with only the code it holds, keeping its frames", "[error]") {
@@ -242,6 +283,30 @@ TEST_CASE("narrow to a set hands the error back when it holds a code outside the
     CHECK(result.error().frames().size() == 1);
 }
 
+TEST_CASE("narrow on an erased error gives the error with the code it was erased from, keeping its frames", "[error]") {
+    const auto result = alp::Error<>(alp::make_error(FileError::NotFound).context("opening app.cfg")).narrow<FileError>();
+
+    REQUIRE(result.has_value());
+    CHECK(result->code() == FileError::NotFound);
+    REQUIRE(result->frames().size() == 1);
+    CHECK(result->frames()[0].message == "opening app.cfg");
+}
+
+TEST_CASE("narrow on an erased error hands it back when it holds another code", "[error]") {
+    const auto result = alp::Error<>(alp::make_error(ParseError::BadDigit).context("parsing the header")).narrow<FileError>();
+
+    REQUIRE(!result.has_value());
+    CHECK(result.error().holds(ParseError::BadDigit));
+    CHECK(result.error().frames().size() == 1);
+}
+
+TEST_CASE("An error with a move-only code narrows to its code", "[error]") {
+    const auto result = alp::Error<MoveOnlyError, FileError>(MoveOnlyError{.value = std::make_unique<int>(5)}).narrow<MoveOnlyError>();
+
+    REQUIRE(result.has_value());
+    CHECK(*result->code().value == 5);
+}
+
 TEST_CASE("holds is true for the held code and false for a different value or another code type", "[error]") {
     const alp::Error<FileError, OffsetError> error(OffsetError{.offset = 7});
 
@@ -265,6 +330,15 @@ TEST_CASE("get_if points at the held code if it has that type, and is null other
     REQUIRE(offset_error != nullptr);
     CHECK(offset_error->offset == 7);
     CHECK(error.get_if<FileError>() == nullptr);
+}
+
+TEST_CASE("get_if on an erased error points at the code it was erased from, and is null for another type", "[error]") {
+    const alp::Error<> erased = alp::make_error(OffsetError{.offset = 7});
+
+    const OffsetError *offset_error = erased.get_if<OffsetError>();
+    REQUIRE(offset_error != nullptr);
+    CHECK(offset_error->offset == 7);
+    CHECK(erased.get_if<FileError>() == nullptr);
 }
 
 TEST_CASE("visit calls the branch for the held code and returns what it returns", "[error]") {

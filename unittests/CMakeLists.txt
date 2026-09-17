@@ -22,7 +22,6 @@ add_executable(unittests_terrainlib
     terrainlib/dataset.cpp
     terrainlib/enumerate.cpp
     terrainlib/error.cpp
-    terrainlib/error_code_storage.cpp
     terrainlib/error_error_code.cpp
     terrainlib/error_format.cpp
     terrainlib/error_result.cpp

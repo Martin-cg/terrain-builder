@@ -49,6 +49,12 @@ TEST_CASE("An error in a set mentions the code it holds", "[error][format]") {
     CHECK(!text.contains("file not found"));
 }
 
+TEST_CASE("An erased error mentions the code it was erased from", "[error][format]") {
+    const alp::Error<> erased = alp::make_error(ParseError::BadDigit);
+
+    CHECK(fmt::to_string(erased).contains("bad digit"));
+}
+
 TEST_CASE("An error's report mentions every message and the file and line of its origin and every frame", "[error][format]") {
     const auto error = alp::make_error(FileError::NotFound).context("reading the configuration");
     const std::string report = fmt::format("{:#}", error);

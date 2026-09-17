@@ -12,6 +12,7 @@
 #include <fmt/format.h>
 #include <tl/expected.hpp>
 
+#include "../tracked.h"
 #include "error/Error.h"
 #include "error/Result.h"
 #include "error/try.h"
@@ -221,16 +222,6 @@ TEST_CASE("ALP_TRY assigns to a member and leaves it alone on failure", "[error]
 }
 
 TEST_CASE("ALP_TRY moves the value out instead of copying it", "[error][try]") {
-    struct Tracked {
-        uint32_t copies = 0;
-        uint32_t moves = 0;
-
-        Tracked() = default;
-        Tracked(const Tracked &other) : copies(other.copies + 1), moves(other.moves) {}
-        Tracked(Tracked &&other) noexcept : copies(other.copies), moves(other.moves + 1) {}
-        Tracked &operator=(const Tracked &) = delete;
-        Tracked &operator=(Tracked &&) = delete;
-    };
     const auto forward = [](alp::Result<Tracked, FileError> source) -> alp::Result<Tracked, FileError> {
         ALP_TRY(Tracked value, std::move(source));
         return value;
