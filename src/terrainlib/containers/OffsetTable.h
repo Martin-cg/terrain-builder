@@ -22,11 +22,15 @@ public:
         bool empty() {
             return this->begin >= this->end;
         }
+
+        bool operator==(const range_type &) const = default;
     };
 
     struct locate_result {
         index_type segment;
         range_type range;
+
+        bool operator==(const locate_result &) const = default;
     };
 
     OffsetTable_() {
@@ -193,6 +197,8 @@ public:
 
         return {segment, this->segment_range(segment)};
     }
+
+    bool operator==(const OffsetTable_ &) const = default;
 
 private:
     std::vector<index_type> _offsets;

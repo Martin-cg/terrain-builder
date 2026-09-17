@@ -98,6 +98,10 @@ public:
         return {this->_data.get(), this->_size};
     }
 
+    bool operator==(const FixedArray &other) const {
+        return std::ranges::equal(*this, other);
+    }
+
 private:
     size_t _size;
     std::unique_ptr<T[]> _data;

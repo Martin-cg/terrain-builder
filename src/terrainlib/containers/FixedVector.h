@@ -344,6 +344,10 @@ public:
         return std::span<const T>(this->data(), this->size());
     }
 
+    bool operator==(const FixedVector &other) const {
+        return std::ranges::equal(*this, other);
+    }
+
     ~FixedVector() {
         this->clear();
     }

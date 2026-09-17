@@ -19,6 +19,14 @@ TEST_CASE("FixedVector initializer_list construction", "[containers][FixedVector
     REQUIRE_THROWS_AS((FixedVector<int, 2>{1, 2, 3}), std::out_of_range);
 }
 
+TEST_CASE("FixedVector compares equal when size and elements match", "[containers][FixedVector]") {
+    const FixedVector<int, 4> vec{1, 2, 3};
+
+    CHECK(vec == FixedVector<int, 4>{1, 2, 3});
+    CHECK_FALSE(vec == FixedVector<int, 4>{1, 2, 4});
+    CHECK_FALSE(vec == FixedVector<int, 4>{1, 2});
+}
+
 TEST_CASE("FixedVector copy constructor and assignment", "[containers][FixedVector]") {
     FixedVector<int, 5> vec{1, 2, 3};
     FixedVector<int, 5> copy_vec(vec);

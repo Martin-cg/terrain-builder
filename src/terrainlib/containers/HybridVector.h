@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <initializer_list>
 #include <span>
 #include <stdexcept>
@@ -126,6 +127,10 @@ public:
     }
     operator std::span<const T>() const {
         return std::span<const T>(this->data(), this->size());
+    }
+
+    bool operator==(const HybridVector &other) const {
+        return std::ranges::equal(*this, other);
     }
 
 private:
