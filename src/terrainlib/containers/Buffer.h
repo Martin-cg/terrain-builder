@@ -9,6 +9,7 @@
 #include <libassert/assert.hpp>
 
 #include "containers/Size.h"
+#include "type_utils.h"
 
 template <typename T, Size S>
 class BufferStorage;
@@ -20,18 +21,14 @@ public:
         return N;
     }
 
-    constexpr T *data() noexcept {
-        return this->storage.data();
-    }
-    constexpr const T *data() const noexcept {
-        return this->storage.data();
+    template <typename Self>
+    constexpr auto *data(this Self &&self) noexcept {
+        return self.storage.data();
     }
 
-    constexpr std::span<T, N> span() noexcept {
-        return std::span<T, N>(this->storage);
-    }
-    constexpr std::span<const T, N> span() const noexcept {
-        return std::span<const T, N>(this->storage);
+    template <typename Self>
+    constexpr auto span(this Self &&self) noexcept {
+        return std::span(self.storage);
     }
 
 private:
@@ -48,18 +45,14 @@ public:
         return this->n;
     }
 
-    T *data() noexcept {
-        return this->storage.get();
-    }
-    const T *data() const noexcept {
-        return this->storage.get();
+    template <typename Self>
+    copy_const_t<Self, T> *data(this Self &&self) noexcept {
+        return self.storage.get();
     }
 
-    std::span<T> span() noexcept {
-        return std::span<T>(this->data(), this->size());
-    }
-    std::span<const T> span() const noexcept {
-        return std::span<const T>(this->data(), this->size());
+    template <typename Self>
+    auto span(this Self &&self) noexcept {
+        return std::span(self.data(), self.size());
     }
 
 private:
@@ -101,70 +94,50 @@ public:
         return this->size() == 0;
     }
 
-    constexpr pointer data() noexcept {
-        return this->storage.data();
-    }
-    constexpr const_pointer data() const noexcept {
-        return this->storage.data();
+    template <typename Self>
+    constexpr auto *data(this Self &&self) noexcept {
+        return self.storage.data();
     }
 
-    constexpr auto span() noexcept {
-        return this->storage.span();
-    }
-    constexpr auto span() const noexcept {
-        return this->storage.span();
+    template <typename Self>
+    constexpr auto span(this Self &&self) noexcept {
+        return self.storage.span();
     }
 
-    constexpr reference operator[](const size_t i) noexcept {
-        DEBUG_ASSERT(i < this->size());
-        return this->data()[i];
-    }
-    constexpr const_reference operator[](const size_t i) const noexcept {
-        DEBUG_ASSERT(i < this->size());
-        return this->data()[i];
+    template <typename Self>
+    constexpr auto &operator[](this Self &&self, const size_t i) noexcept {
+        DEBUG_ASSERT(i < self.size());
+        return self.data()[i];
     }
 
-    reference at(const size_t i) {
-        if (i >= this->size()) {
+    template <typename Self>
+    auto &at(this Self &&self, const size_t i) {
+        if (i >= self.size()) {
             throw std::out_of_range("Buffer::at");
         }
-        return this->data()[i];
-    }
-    const_reference at(const size_t i) const {
-        if (i >= this->size()) {
-            throw std::out_of_range("Buffer::at");
-        }
-        return this->data()[i];
+        return self.data()[i];
     }
 
-    reference front() {
-        return this->at(0);
+    template <typename Self>
+    auto &front(this Self &&self) {
+        return self.at(0);
     }
-    const_reference front() const {
-        return this->at(0);
-    }
-    reference back() {
-        return this->at(this->size() - 1);
-    }
-    const_reference back() const {
-        return this->at(this->size() - 1);
+    template <typename Self>
+    auto &back(this Self &&self) {
+        return self.at(self.size() - 1);
     }
 
-    constexpr iterator begin() noexcept {
-        return this->data();
-    }
-    constexpr const_iterator begin() const noexcept {
-        return this->data();
+    template <typename Self>
+    constexpr auto *begin(this Self &&self) noexcept {
+        return self.data();
     }
     constexpr const_iterator cbegin() const noexcept {
         return this->data();
     }
 
-    constexpr iterator end() noexcept {
-        return this->data() + this->size();
-    }
-    constexpr const_iterator end() const noexcept {
-        return this->data() + this->size();
+    template <typename Self>
+    constexpr auto *end(this Self &&self) noexcept {
+        return self.data() + self.size();
     }
     constexpr const_iterator cend() const noexcept {
         return this->data() + this->size();

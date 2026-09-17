@@ -8,6 +8,8 @@
 #include <span>
 #include <utility>
 
+#include "type_utils.h"
+
 // A heap array whose size is fixed at construction, storing one addressable element each, bools included.
 template <typename T>
 class FixedArray {
@@ -58,44 +60,29 @@ public:
         return this->_size == 0;
     }
 
-    T &operator[](size_t index) noexcept {
-        return this->_data[index];
+    template <typename Self>
+    auto &operator[](this Self &&self, size_t index) noexcept {
+        return self.data()[index];
     }
 
-    const T &operator[](size_t index) const noexcept {
-        return this->_data[index];
+    template <typename Self>
+    copy_const_t<Self, T> *data(this Self &&self) noexcept {
+        return self._data.get();
     }
 
-    T *data() noexcept {
-        return this->_data.get();
+    template <typename Self>
+    auto *begin(this Self &&self) noexcept {
+        return self.data();
     }
 
-    const T *data() const noexcept {
-        return this->_data.get();
+    template <typename Self>
+    auto *end(this Self &&self) noexcept {
+        return self.data() + self._size;
     }
 
-    T *begin() noexcept {
-        return this->_data.get();
-    }
-
-    const T *begin() const noexcept {
-        return this->_data.get();
-    }
-
-    T *end() noexcept {
-        return this->_data.get() + this->_size;
-    }
-
-    const T *end() const noexcept {
-        return this->_data.get() + this->_size;
-    }
-
-    std::span<T> span() noexcept {
-        return {this->_data.get(), this->_size};
-    }
-
-    std::span<const T> span() const noexcept {
-        return {this->_data.get(), this->_size};
+    template <typename Self>
+    auto span(this Self &&self) noexcept {
+        return std::span(self.data(), self._size);
     }
 
     bool operator==(const FixedArray &other) const {

@@ -11,6 +11,8 @@
 #include <vector>
 #include <optional>
 
+#include "type_utils.h"
+
 template <typename T>
 class TinyVector {
 public:
@@ -78,12 +80,21 @@ public:
             });
     }
 
-    T *data() {
-        return this->data_impl(*this);
-    }
+    template <typename Self>
+    auto *data(this Self &&self) {
+        using Pointer = copy_const_t<Self, T> *;
 
-    const T *data() const {
-        return this->data_impl(*this);
+        return self.visit(
+            [](auto &option) -> Pointer {
+                if (option.has_value()) {
+                    return &option.value();
+                } else {
+                    return nullptr;
+                }
+            },
+            [](auto &vector) -> Pointer {
+                return vector.data();
+            });
     }
 
     size_t size() const noexcept {
@@ -100,38 +111,25 @@ public:
         return this->size() == 0;
     }
 
-    T &operator[](const size_t index) {
-        return this->data()[index];
+    template <typename Self>
+    auto &operator[](this Self &&self, const size_t index) {
+        return self.data()[index];
     }
 
-    const T &operator[](const size_t index) const {
-        return this->data()[index];
+    template <typename Self>
+    auto &at(this Self &&self, const size_t index) {
+        self.check_index(index);
+        return self[index];
     }
 
-    T &at(const size_t index) {
-        this->check_index(index);
-        return (*this)[index];
+    template <typename Self>
+    auto *begin(this Self &&self) {
+        return self.data();
     }
 
-    const T &at(const size_t index) const {
-        this->check_index(index);
-        return (*this)[index];
-    }
-
-    T *begin() {
-        return this->data();
-    }
-
-    T *end() {
-        return this->data() + this->size();
-    }
-
-    const T *begin() const {
-        return this->data();
-    }
-
-    const T *end() const {
-        return this->data() + this->size();
+    template <typename Self>
+    auto *end(this Self &&self) {
+        return self.data() + self.size();
     }
 
     const T *cbegin() const {
@@ -159,25 +157,9 @@ private:
     using Vector = std::vector<T>;
     using Storage = std::variant<Inline, Vector>;
 
-    template <typename InlineFn, typename VectorFn>
-    decltype(auto) visit(InlineFn &&inline_fn, VectorFn &&vector_fn) {
-        return this->visit_impl(
-            *this,
-            std::forward<InlineFn>(inline_fn),
-            std::forward<VectorFn>(vector_fn));
-    }
-
-    template <typename InlineFn, typename VectorFn>
-    decltype(auto) visit(InlineFn &&inline_fn, VectorFn &&vector_fn) const {
-        return this->visit_impl(
-            *this,
-            std::forward<InlineFn>(inline_fn),
-            std::forward<VectorFn>(vector_fn));
-    }
-
     template <typename Self, typename InlineFn, typename VectorFn>
-    static decltype(auto) visit_impl(
-        Self &self,
+    decltype(auto) visit(
+        this Self &&self,
         InlineFn &&inline_fn,
         VectorFn &&vector_fn) {
         return std::visit(
@@ -191,24 +173,6 @@ private:
                 }
             },
             self._storage);
-    }
-
-    template <typename Self>
-    static auto data_impl(Self &self) {
-        constexpr bool is_const = std::is_const_v<std::remove_reference_t<Self>>;
-        using Pointer = std::conditional_t<is_const, const T *, T *>;
-
-        return self.visit(
-            [](auto &option) -> Pointer {
-                if (option.has_value()) {
-                    return &option.value();
-                } else {
-                    return nullptr;
-                }
-            },
-            [](auto &vector) -> Pointer {
-                return vector.data();
-            });
     }
 
     Vector &promote_to_vector(const size_t min_capacity) {

@@ -29,27 +29,19 @@ struct OffsetVector {
         return index >= this->offset && index < this->offset + this->size();
     }
 
-    [[nodiscard]] T &operator[](size_t index) {
-        DEBUG_ASSERT(this->contains(index));
-        return this->data[index - this->offset];
+    template <typename Self>
+    [[nodiscard]] auto &operator[](this Self &&self, size_t index) {
+        DEBUG_ASSERT(self.contains(index));
+        return self.data[index - self.offset];
     }
 
-    [[nodiscard]] const T &operator[](size_t index) const {
-        DEBUG_ASSERT(this->contains(index));
-        return this->data[index - this->offset];
+    template <typename Self>
+    [[nodiscard]] auto begin(this Self &&self) {
+        return self.data.begin();
     }
-
-    [[nodiscard]] auto begin() {
-        return this->data.begin();
-    }
-    [[nodiscard]] auto end() {
-        return this->data.end();
-    }
-    [[nodiscard]] auto begin() const {
-        return this->data.begin();
-    }
-    [[nodiscard]] auto end() const {
-        return this->data.end();
+    template <typename Self>
+    [[nodiscard]] auto end(this Self &&self) {
+        return self.data.end();
     }
 
     bool operator==(const OffsetVector &) const = default;
