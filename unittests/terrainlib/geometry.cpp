@@ -106,6 +106,12 @@ TEST_CASE("compute_closest_along_segment takes the start of an empty segment", "
     CHECK(geometry::compute_closest_along_segment(glm::dvec2(1.0, 4.0), degenerate) == 0.0);
 }
 
+TEST_CASE("compute_closest_along_segment resolves a segment far shorter than one unit", "[geometry]") {
+    const radix::geometry::Edge<2, double> segment = {glm::dvec2(0.0, 0.0), glm::dvec2(4e-9, 0.0)};
+
+    CHECK(geometry::compute_closest_along_segment(glm::dvec2(1e-9, 1.0), segment) == Catch::Approx(0.25));
+}
+
 TEST_CASE("compute_closest_barycentric projects a point above the face", "[geometry]") {
     const radix::geometry::Triangle<3, double> triangle = {
         glm::dvec3(0.0, 0.0, 0.0),

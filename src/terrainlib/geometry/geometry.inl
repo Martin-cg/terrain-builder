@@ -142,11 +142,9 @@ V interpolate(const std::array<V, 3> &values, const glm::vec<3, T> &weights) {
 
 template <glm::length_t n_dims, typename T>
 T compute_closest_along_segment(const glm::vec<n_dims, T> &point, const radix::geometry::Edge<n_dims, T> &segment) {
-    constexpr T epsilon_squared = radix::geometry::epsilon<T> * radix::geometry::epsilon<T>;
-
     const glm::vec<n_dims, T> along = segment[1] - segment[0];
     const T length_squared = glm::dot(along, along);
-    if (length_squared <= epsilon_squared) {
+    if (length_squared <= epsilon_sq<T>()) {
         return T(0);
     }
     return std::clamp(glm::dot(point - segment[0], along) / length_squared, T(0), T(1));
@@ -183,8 +181,6 @@ namespace detail {
 // True when an edge normal of the first triangle separates the two. Touching does not separate.
 template <typename T>
 bool separates(const radix::geometry::Triangle<2, T> &triangle, const radix::geometry::Triangle<2, T> &other) {
-    constexpr T epsilon_squared = radix::geometry::epsilon<T> * radix::geometry::epsilon<T>;
-
     const auto extent_along = [](const glm::vec<2, T> &axis, const radix::geometry::Triangle<2, T> &corners) {
         T lowest = std::numeric_limits<T>::max();
         T highest = std::numeric_limits<T>::lowest();
@@ -199,7 +195,7 @@ bool separates(const radix::geometry::Triangle<2, T> &triangle, const radix::geo
     for (uint8_t corner = 0; corner < 3; corner++) {
         const glm::vec<2, T> edge = triangle[(corner + 1) % 3] - triangle[corner];
         const glm::vec<2, T> axis(-edge.y, edge.x);
-        if (glm::dot(axis, axis) <= epsilon_squared) {
+        if (glm::dot(axis, axis) <= epsilon_sq<T>()) {
             continue;
         }
 

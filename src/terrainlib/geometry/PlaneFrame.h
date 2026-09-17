@@ -15,11 +15,9 @@ template <typename T = double>
 struct PlaneFrame_ : CoordFrame_<T> {
     // Empty for a degenerate triangle, which spans no plane.
     static std::optional<PlaneFrame_> from_triangle(const radix::geometry::Triangle<3, T> &triangle) {
-        constexpr T epsilon_squared = radix::geometry::epsilon<T> * radix::geometry::epsilon<T>;
-
         const glm::vec<3, T> to_second = triangle[1] - triangle[0];
         const glm::vec<3, T> to_third = triangle[2] - triangle[0];
-        if (glm::length2(glm::cross(to_second, to_third)) <= epsilon_squared || glm::length2(to_second) <= epsilon_squared) {
+        if (glm::length2(glm::cross(to_second, to_third)) <= geometry::epsilon_sq<T>() || glm::length2(to_second) <= geometry::epsilon_sq<T>()) {
             return std::nullopt;
         }
 
