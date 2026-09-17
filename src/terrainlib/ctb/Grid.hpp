@@ -97,19 +97,6 @@ public:
         return mInitialResolution / pow(mZoomFactor, zoom);
     }
 
-    /**
-     * @brief Get the zoom level for a particular resolution
-     *
-     * If the resolution does not exactly match a zoom level then the zoom level
-     * is 'rounded up' to the next level.
-     */
-    [[nodiscard]] inline i_zoom zoomForResolution(double resolution) const
-    {
-        // if mZoomFactor == 2 the following is the same as using:
-        // log2(mInitialResolution) - log2(resolution)
-        return i_zoom(ceil((std::log(mInitialResolution) / std::log(mZoomFactor)) - (std::log(resolution) / std::log(mZoomFactor))));
-    }
-
     /// Get the tile covering a pixel location
     [[nodiscard]] inline TilePoint pixelsToTile(const PixelPoint& pixel) const
     {
@@ -241,62 +228,6 @@ public:
         }
 
         return std::nullopt;
-    }
-
-    // Searches for the smallest tile that encompasses the given bounding box.
-    [[nodiscard]] std::optional<radix::tile::Id> findLargestContainedTile(const radix::tile::SrsBounds &bounds) const {
-        const std::optional<radix::tile::Id> root = this->findSmallestEncompassingTile(bounds);
-        if (!root.has_value()) {
-            return std::nullopt;
-        }
-
-        std::vector<radix::tile::Id> tiles_to_inspect;
-        const std::array<radix::tile::Id, 4> root_children = root->children();
-        tiles_to_inspect.insert(tiles_to_inspect.end(), root_children.begin(), root_children.end());
-
-        std::optional<radix::tile::Id> current_candidate;
-        while (!tiles_to_inspect.empty()) {
-            const radix::tile::Id tile = tiles_to_inspect.back();
-            tiles_to_inspect.pop_back();
-
-            if (current_candidate.has_value() && current_candidate->zoom_level <= tile.zoom_level) {
-                // skip all tiles that dont have a chance of replacing the current candidate
-                continue;
-            }
-
-            const radix::tile::SrsBounds tile_bounds = this->srsBounds(tile, false);
-            const std::array<glm::dvec2, 4> points = {
-                tile_bounds.min,
-                tile_bounds.max,
-                glm::dvec2(tile_bounds.min.x, tile_bounds.max.y),
-                glm::dvec2(tile_bounds.max.x, tile_bounds.min.y)};
-
-            const bool target_bounds_overlapping_tile = radix::geometry::intersect(tile_bounds, bounds);
-            bool target_bounds_fully_inside_tile = false;
-            if (target_bounds_overlapping_tile) {
-                target_bounds_fully_inside_tile = true;
-
-                for (const glm::dvec2 &point : points) {
-                    if (!bounds.contains_inclusive(point)) {
-                        target_bounds_fully_inside_tile = false;
-                        break;
-                    }
-                }
-            }
-
-            if (target_bounds_fully_inside_tile) {
-                assert(!current_candidate.has_value() || current_candidate->zoom_level > tile.zoom_level);
-                current_candidate = tile;
-                continue;
-            }
-
-            if (target_bounds_overlapping_tile) {
-                const std::array<radix::tile::Id, 4> children = tile.children();
-                tiles_to_inspect.insert(tiles_to_inspect.end(), children.begin(), children.end());
-            }
-        }
-
-        return current_candidate;
     }
 
     /// Get the tile size associated with this grid

@@ -22,8 +22,6 @@
 #include <catch2/catch_approx.hpp>
 
 #include "Dataset.h"
-#include "ctb/GlobalGeodetic.hpp"
-#include "ctb/GlobalMercator.hpp"
 #include "ctb/types.hpp"
 #include "srs.h"
 
@@ -97,12 +95,6 @@ TEST_CASE("datasets are as expected", "[Dataset]") {
         CHECK(d_mgi.pixelWidthIn(wgs84) == Approx((eastern - western) / 620));
         CHECK(d_mgi.pixelHeightIn(wgs84) == Approx((northern - southern) / 350));
         CHECK(d_mgi.gridResolution(wgs84) == Approx((northern - southern) / 350));
-
-        const auto wgs84_grid = ctb::GlobalGeodetic(256);
-        CHECK(wgs84_grid.zoomForResolution(d_mgi.gridResolution(wgs84)) == 7);
-
-        const auto webmercator_grid = ctb::GlobalMercator();
-        CHECK(webmercator_grid.zoomForResolution(d_mgi.gridResolution(webmercator)) == 7);
     }
 }
 
