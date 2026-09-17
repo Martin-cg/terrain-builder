@@ -7,7 +7,7 @@
 
 namespace hash {
 
-namespace {
+namespace detail {
 // from https://github.com/boostorg/container_hash/blob/ee5285bfa64843a11e29700298c83a37e3132fcd/include/boost/container_hash/detail/hash_mix.hpp#L17
 template <size_t Bits>
 struct mix_impl;
@@ -46,7 +46,7 @@ struct mix_impl<32> {
 inline size_t mix(size_t v) {
     return mix_impl<sizeof(size_t) * CHAR_BIT>::fn(v);
 }
-}
+} // namespace detail
 
 constexpr size_t default_seed() {
     return 0x9e3779b9;
@@ -55,7 +55,7 @@ constexpr size_t default_seed() {
 // from https://github.com/boostorg/container_hash/blob/ee5285bfa64843a11e29700298c83a37e3132fcd/include/boost/container_hash/hash.hpp#L468
 template <class T>
 inline void append(size_t &seed, const T &v) {
-    seed = mix(seed + 0x9e3779b9 + std::hash<T>()(v));
+    seed = detail::mix(seed + 0x9e3779b9 + std::hash<T>()(v));
 }
 
 // modified from https://stackoverflow.com/questions/2590677/how-do-i-combine-hash-values-in-c0x/57595105#57595105
