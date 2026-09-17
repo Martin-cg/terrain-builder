@@ -33,7 +33,7 @@ public:
     using reverse_iterator = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
     
-    constexpr FixedVector() = default;
+    constexpr FixedVector() {}
 
     FixedVector(std::initializer_list<T> init) {
         if (init.size() > N) {
