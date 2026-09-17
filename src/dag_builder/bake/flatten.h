@@ -69,7 +69,7 @@ inline SourceTriangle project_source(
     }
 
     const geometry::Triangle3d vertices = geometry::corners(triangle, positions);
-    source_triangle.front_facing = glm::dot(radix::geometry::normal(vertices), frame.normal) > 0.0;
+    source_triangle.front_facing = glm::dot(geometry::compute_normal(vertices), frame.normal) > 0.0;
     return source_triangle;
 }
 

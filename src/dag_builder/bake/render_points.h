@@ -47,7 +47,7 @@ void render_point_texels(
 
         const geometry::Triangle3d target_triangle =
             geometry::corners(geometry.target.triangles[target_index], geometry.positions);
-        const glm::dvec3 normal = radix::geometry::normal(target_triangle);
+        const glm::dvec3 normal = geometry::compute_normal(target_triangle);
 
         // The orientation of a source against the target does not vary over the texels, so it is measured here.
         candidates.clear();
@@ -56,7 +56,7 @@ void render_point_texels(
                 geometry::corners(geometry.source.geometry.triangles[correspondent], geometry.positions);
             candidates.push_back(Candidate{
                 .triangle = triangle,
-                .normal_dot = glm::dot(radix::geometry::normal(triangle), normal)});
+                .normal_dot = glm::dot(geometry::compute_normal(triangle), normal)});
         }
 
         for_each_texel(geometry.target.uvs[target_index], target.size(), [&](const glm::uvec2 texel, const glm::dvec3 &barycentric) {

@@ -144,7 +144,7 @@ inline void collect_covering_triangles(
 
             const radix::geometry::Triangle<3, double> source_corners = geometry::corners(source.triangles[triangle_index], source.positions);
             if (options.min_normal_dot.has_value() &&
-                glm::dot(radix::geometry::normal(source_corners), output.frame.normal) <= *options.min_normal_dot) {
+                glm::dot(geometry::compute_normal(source_corners), output.frame.normal) <= *options.min_normal_dot) {
                 continue;
             }
             if (geometry::triangles_overlap(output.outline, output.frame.flatten(source_corners))) {

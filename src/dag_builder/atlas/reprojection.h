@@ -82,7 +82,7 @@ inline FlatSource flatten_source(
         flat.uvs[corner] = map_uvs[mapping.uvs[corner]];
     }
     const radix::geometry::Triangle<3, double> corners = geometry::corners(triangle, source.positions);
-    flat.front_facing = glm::dot(radix::geometry::normal(corners), frame.normal) > 0.0;
+    flat.front_facing = glm::dot(geometry::compute_normal(corners), frame.normal) > 0.0;
     return flat;
 }
 

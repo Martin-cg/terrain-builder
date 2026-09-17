@@ -268,6 +268,11 @@ glm::vec<3, T> compute_normal(const glm::uvec3 &triangle,
 }
 
 template <typename T>
+glm::vec<3, T> compute_normal(const radix::geometry::Triangle<3, T> &triangle, const bool normalize) {
+    return compute_normal(triangle[0], triangle[1], triangle[2], normalize);
+}
+
+template <typename T>
 glm::vec<3, T> compute_triangle_angles(const radix::geometry::Triangle<3, T> &triangle) {
     std::array<glm::vec<3, T>, 3> edges;
     for (const uint8_t k : range<uint8_t>(3)) {

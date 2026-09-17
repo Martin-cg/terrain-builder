@@ -131,6 +131,8 @@ template <typename T>
 glm::vec<3, T> compute_normal(const glm::uvec3 &triangle,
                               const std::span<const glm::vec<3, T>> positions,
                               const bool normalize = true);
+template <typename T>
+glm::vec<3, T> compute_normal(const radix::geometry::Triangle<3, T> &triangle, const bool normalize = true);
 
 // The angle the triangle turns through at each of its vertices, all zero for a degenerate triangle.
 template <typename T>
