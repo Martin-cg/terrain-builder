@@ -139,7 +139,7 @@ public:
         if (this->_index.map.has_value() && this->_index.dirty) {
             auto result = helpers::save_index_map(this->_index.map.value(), this->_inner.layout());
             if (!result.has_value()) {
-                LOG_ERROR("Failed to automatically save index when closing storage: {}", result.error());
+                LOG_ERROR("Failed to automatically save index when closing storage: {:#}", result.error());
             }
         }
     }

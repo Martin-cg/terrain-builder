@@ -30,11 +30,28 @@ std::string_view format_as(const ParseError) {
 
 } // namespace
 
-TEST_CASE("An error's one-line form mentions every context and its code's message", "[error][format]") {
+TEST_CASE("An error's message is its outermost context", "[error][format]") {
     const auto error = alp::make_error(FileError::NotFound)
                            .context("opening app.cfg")
                            .context("reading the configuration");
     const std::string text = fmt::to_string(error);
+
+    CHECK(text.contains("reading the configuration"));
+    CHECK(!text.contains("opening app.cfg"));
+    CHECK(!text.contains("file not found"));
+}
+
+TEST_CASE("An error's message skips the frames without one", "[error][format]") {
+    const auto error = alp::make_error(FileError::NotFound).context("opening app.cfg").propagate();
+
+    CHECK(fmt::to_string(error).contains("opening app.cfg"));
+}
+
+TEST_CASE("An error's one-line form mentions every context and its code's message", "[error][format]") {
+    const auto error = alp::make_error(FileError::NotFound)
+                           .context("opening app.cfg")
+                           .context("reading the configuration");
+    const std::string text = fmt::format("{:#}", error);
 
     CHECK(text.contains("file not found"));
     CHECK(text.contains("opening app.cfg"));
@@ -57,7 +74,7 @@ TEST_CASE("An erased error mentions the code it was erased from", "[error][forma
 
 TEST_CASE("An error's report mentions every message and the file and line of its origin and every frame", "[error][format]") {
     const auto error = alp::make_error(FileError::NotFound).context("reading the configuration");
-    const std::string report = fmt::format("{:#}", error);
+    const std::string report = fmt::format("{:?}", error);
 
     CHECK(report.contains("reading the configuration"));
     CHECK(report.contains("file not found"));

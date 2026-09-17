@@ -27,7 +27,7 @@ struct PendingBatch {
 
             const auto result = pending.output->write(pending.batch);
             if (!result) {
-                LOG_ERROR("Failed to write a batch: {}", result.error());
+                LOG_ERROR("Failed to write a batch: {:#}", result.error());
             }
         }
     };

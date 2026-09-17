@@ -18,7 +18,7 @@ namespace {
 void export_node(const cli::Args &args) {
     const auto load_result = octree::ZppBitsCodec<dag::ClusterBatch>::load_from_path(args.input_path);
     if (!load_result.has_value()) {
-        LOG_ERROR("Failed to load node from {}: {}", args.input_path, load_result.error());
+        LOG_ERROR("Failed to load node from {}: {:#}", args.input_path, load_result.error());
         return;
     }
 
@@ -26,7 +26,7 @@ void export_node(const cli::Args &args) {
 
     const auto save_result = mesh::io::save_to_path(mesh, args.output_path);
     if (!save_result.has_value()) {
-        LOG_ERROR("Failed to save mesh to {}: {}", args.output_path, save_result.error());
+        LOG_ERROR("Failed to save mesh to {}: {:#}", args.output_path, save_result.error());
     }
 }
 
@@ -52,7 +52,7 @@ void export_storage(const cli::Args &args) {
 
         const auto load_result = input_storage.load(id);
         if (!load_result.has_value()) {
-            LOG_ERROR("Failed to load node {}: {}", id, load_result.error());
+            LOG_ERROR("Failed to load node {}: {:#}", id, load_result.error());
             progress.task_finished();
             continue;
         }
@@ -61,7 +61,7 @@ void export_storage(const cli::Args &args) {
 
         const auto save_result = output_storage.save(id, mesh);
         if (!save_result.has_value()) {
-            LOG_ERROR("Failed to save mesh for node {}: {}", id, save_result.error());
+            LOG_ERROR("Failed to save mesh for node {}: {:#}", id, save_result.error());
             progress.task_finished();
             continue;
         }
@@ -74,7 +74,7 @@ void export_storage(const cli::Args &args) {
 
     const auto index_result = output_storage.save_or_create_index();
     if (!index_result.has_value()) {
-        LOG_ERROR("Failed to save index for {}: {}", args.output_path, index_result.error());
+        LOG_ERROR("Failed to save index for {}: {:#}", args.output_path, index_result.error());
     }
 
     LOG_INFO("Exported {} debug meshes to {}", exported_count, args.output_path);

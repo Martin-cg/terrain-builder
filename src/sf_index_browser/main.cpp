@@ -85,7 +85,7 @@ public:
                 const auto &mesh = result.value();
                 entry = MeshNode{parent.id, mesh.vertex_count(), mesh.face_count()};
             } else {
-                entry = ErrorNode{parent.id, fmt::to_string(result.error())};
+                entry = ErrorNode{parent.id, fmt::format("{:#}", result.error())};
             }
             it++;
             it = this->_view.emplace(it, entry);
