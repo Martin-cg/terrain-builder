@@ -170,6 +170,10 @@ public:
         return this->data() + this->size();
     }
 
+    bool operator==(const Buffer &other) const {
+        return std::ranges::equal(*this, other);
+    }
+
 private:
     BufferStorage<T, S> storage;
 };

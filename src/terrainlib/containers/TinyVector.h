@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cstddef>
 #include <initializer_list>
 #include <span>
@@ -147,6 +148,10 @@ public:
 
     operator std::span<const T>() const {
         return std::span<const T>(this->data(), this->size());
+    }
+
+    bool operator==(const TinyVector &other) const {
+        return std::ranges::equal(*this, other);
     }
 
 private:

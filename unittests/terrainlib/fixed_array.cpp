@@ -30,6 +30,14 @@ TEST_CASE("FixedArray holds the values of an initializer list", "[containers][Fi
     CHECK(std::vector<uint32_t>(array.begin(), array.end()) == std::vector<uint32_t>{1, 2, 3});
 }
 
+TEST_CASE("FixedArray compares equal when size and elements match", "[containers][FixedArray]") {
+    const FixedArray<uint32_t> array = {1, 2, 3};
+
+    CHECK(array == FixedArray<uint32_t>{1, 2, 3});
+    CHECK_FALSE(array == FixedArray<uint32_t>{1, 2, 4});
+    CHECK_FALSE(array == FixedArray<uint32_t>{1, 2});
+}
+
 TEST_CASE("FixedArray of size zero owns no storage", "[containers][FixedArray]") {
     const FixedArray<uint32_t> array(0);
 
