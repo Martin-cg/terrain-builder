@@ -11,6 +11,7 @@
 
 #include "error/Error.h"
 #include "error/ErrorCode.h"
+#include "error/utils.h"
 #include "macros.h"
 #include "type_utils.h"
 
@@ -34,7 +35,10 @@ struct PendingCode {
     template <ErrorCode... Es>
         requires std::is_convertible_v<Error<E>, BasicError<Es...>>
     operator BasicError<Es...>() const {
-        return Error<E>(this->code, this->message, this->location);
+        if (this->message.has_value()) {
+            return make_error(this->code, *this->message, this->location);
+        }
+        return make_error(this->code, this->location);
     }
 };
 
@@ -50,9 +54,9 @@ auto make_residual(R &&result, M message, const std::source_location location) {
         if constexpr (is_specialization_of_v<Failure, BasicError>) {
             Failure error = std::forward<R>(result).error();
             if constexpr (has_message) {
-                error.context(std::move(message), location);
+                error = std::move(error).context(std::move(message), location);
             } else {
-                error.propagate(location);
+                error = std::move(error).propagate(location);
             }
             return tl::make_unexpected(std::move(error));
         } else if constexpr (ErrorCode<Failure>) {

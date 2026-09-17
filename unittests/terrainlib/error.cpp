@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>
+#include <optional>
 #include <source_location>
 #include <string>
 #include <string_view>
@@ -12,6 +13,7 @@
 
 #include "error/Error.h"
 #include "error/format.h"
+#include "error/utils.h"
 #include "error_test_utils.h"
 #include "variant_utils.h"
 
@@ -101,19 +103,11 @@ TEST_CASE("An error set includes the codes of a nested set", "[error]") {
 
 TEST_CASE("An error records its code and the location it originates at", "[error]") {
     const std::source_location location = std::source_location::current();
-    const alp::Error<FileError> error(FileError::NotFound, std::nullopt, location);
+    const alp::Error<FileError> error(FileError::NotFound, location);
 
     CHECK(error.code() == FileError::NotFound);
     REQUIRE(error.frames().size() == 1);
     CHECK(is_same_location(error.frames()[0].location, location));
-}
-
-TEST_CASE("An error created with a message has it as its first context at its origin", "[error]") {
-    const alp::Error<FileError> error(FileError::NotFound, "opening app.cfg");
-
-    REQUIRE(error.frames().size() == 2);
-    CHECK(error.frames()[1].message == "opening app.cfg");
-    CHECK(is_same_location(error.frames()[1].location, error.frames()[0].location));
 }
 
 TEST_CASE("An erased error starts from a message at the location it is handed", "[error]") {
@@ -125,18 +119,37 @@ TEST_CASE("An erased error starts from a message at the location it is handed", 
     CHECK(is_same_location(error.frames()[0].location, location));
 }
 
+TEST_CASE("Context and propagate consume the error they are called on", "[error]") {
+    using FileFailure = alp::Error<FileError>;
+
+    STATIC_REQUIRE(std::is_same_v<std::invoke_result_t<decltype(&FileFailure::context), FileFailure, std::string, std::source_location>, FileFailure>);
+    STATIC_REQUIRE(std::is_same_v<std::invoke_result_t<decltype(&FileFailure::propagate), FileFailure, std::source_location>, FileFailure>);
+    STATIC_REQUIRE(!std::is_invocable_v<decltype(&FileFailure::context), FileFailure &, std::string, std::source_location>);
+    STATIC_REQUIRE(!std::is_invocable_v<decltype(&FileFailure::propagate), FileFailure &, std::source_location>);
+}
+
 TEST_CASE("Context adds a frame at the location it is handed", "[error]") {
-    alp::Error<FileError> error(FileError::NotFound);
     const std::source_location location = std::source_location::current();
-    error.context("reading the configuration", location);
+    const auto error = alp::make_error(FileError::NotFound).context("reading the configuration", location);
 
     REQUIRE(error.frames().size() == 2);
     CHECK(error.frames()[1].message == "reading the configuration");
     CHECK(is_same_location(error.frames()[1].location, location));
 }
 
-TEST_CASE("Context chains on a temporary error", "[error]") {
-    const alp::Error<FileError> error = alp::Error<FileError>(FileError::NotFound).context("inner").context("outer");
+TEST_CASE("Propagate adds a frame without a message at the location it is handed", "[error]") {
+    const std::source_location location = std::source_location::current();
+    const auto error = alp::make_error(FileError::NotFound).propagate(location);
+
+    REQUIRE(error.frames().size() == 2);
+    CHECK(error.frames()[1].message == std::nullopt);
+    CHECK(is_same_location(error.frames()[1].location, location));
+}
+
+TEST_CASE("Context adds its frames in the order it is called", "[error]") {
+    const auto error = alp::make_error(FileError::NotFound)
+                           .context("inner")
+                           .context("outer");
 
     REQUIRE(error.frames().size() == 3);
     CHECK(error.frames()[1].message == "inner");
@@ -144,8 +157,7 @@ TEST_CASE("Context chains on a temporary error", "[error]") {
 }
 
 TEST_CASE("An error widens into a set, keeping its frames", "[error]") {
-    alp::Error<FileError> error(FileError::NotFound, "opening app.cfg");
-    const alp::Error<FileError, ParseError> widened = std::move(error);
+    const alp::Error<FileError, ParseError> widened = alp::make_error(FileError::NotFound).context("opening app.cfg");
 
     CHECK(widened.holds(FileError::NotFound));
     REQUIRE(widened.frames().size() == 2);
@@ -153,7 +165,7 @@ TEST_CASE("An error widens into a set, keeping its frames", "[error]") {
 }
 
 TEST_CASE("A const error widens into a set and stays as it was", "[error]") {
-    const alp::Error<FileError> error(FileError::NotFound, "opening app.cfg");
+    const auto error = alp::make_error(FileError::NotFound).context("opening app.cfg");
     const alp::Error<FileError, ParseError> widened = error;
 
     CHECK(widened.holds(FileError::NotFound));
@@ -163,13 +175,10 @@ TEST_CASE("A const error widens into a set and stays as it was", "[error]") {
 }
 
 TEST_CASE("Erasure keeps the frames and the message of the code the error holds", "[error]") {
-    alp::Error<FileError, ParseError> error(ParseError::BadDigit, "parsing the header");
-    error.context("reading the configuration");
-    const alp::Error<> erased = std::move(error);
+    const alp::Error<> erased = alp::Error<FileError, ParseError>(ParseError::BadDigit).context("parsing the header");
 
-    REQUIRE(erased.frames().size() == 3);
+    REQUIRE(erased.frames().size() == 2);
     CHECK(erased.frames()[1].message == "parsing the header");
-    CHECK(erased.frames()[2].message == "reading the configuration");
     CHECK(fmt::to_string(erased).contains("bad digit"));
 }
 
@@ -179,8 +188,7 @@ TEST_CASE("narrow returns the narrowed error or the error it was called on", "[e
 }
 
 TEST_CASE("narrow gives the error with only the code it holds, keeping its frames", "[error]") {
-    alp::Error<FileError, ParseError> error(FileError::NotFound, "opening app.cfg");
-    const auto result = std::move(error).narrow<FileError>();
+    const auto result = alp::Error<FileError, ParseError>(FileError::NotFound).context("opening app.cfg").narrow<FileError>();
 
     REQUIRE(result.has_value());
     CHECK(result->code() == FileError::NotFound);
@@ -189,8 +197,7 @@ TEST_CASE("narrow gives the error with only the code it holds, keeping its frame
 }
 
 TEST_CASE("narrow hands the error back when it holds another code", "[error]") {
-    alp::Error<FileError, ParseError> error(ParseError::BadDigit, "parsing the header");
-    const auto result = std::move(error).narrow<FileError>();
+    const auto result = alp::Error<FileError, ParseError>(ParseError::BadDigit).context("parsing the header").narrow<FileError>();
 
     REQUIRE(!result.has_value());
     CHECK(result.error().holds(ParseError::BadDigit));
@@ -198,7 +205,7 @@ TEST_CASE("narrow hands the error back when it holds another code", "[error]") {
 }
 
 TEST_CASE("narrow on a const error leaves it as it was", "[error]") {
-    const alp::Error<FileError, ParseError> error(FileError::NotFound, "opening app.cfg");
+    const alp::Error<FileError, ParseError> error = alp::Error<FileError, ParseError>(FileError::NotFound).context("opening app.cfg");
     const auto result = error.narrow<FileError>();
 
     REQUIRE(result.has_value());
@@ -218,8 +225,9 @@ TEST_CASE("narrow to several codes keeps those it names", "[error]") {
 }
 
 TEST_CASE("narrow to a set gives the error with only that set's codes, keeping its frames", "[error]") {
-    alp::Error<alp::Error<FileError, ParseError>, OffsetError> error(ParseError::BadDigit, "parsing the header");
-    const auto result = std::move(error).narrow<alp::Error<FileError, ParseError>>();
+    const auto result = alp::Error<alp::Error<FileError, ParseError>, OffsetError>(ParseError::BadDigit)
+                            .context("parsing the header")
+                            .narrow<alp::Error<FileError, ParseError>>();
 
     REQUIRE(result.has_value());
     CHECK(result->holds(ParseError::BadDigit));
@@ -227,8 +235,9 @@ TEST_CASE("narrow to a set gives the error with only that set's codes, keeping i
 }
 
 TEST_CASE("narrow to a set hands the error back when it holds a code outside the set", "[error]") {
-    alp::Error<alp::Error<FileError, ParseError>, OffsetError> error(OffsetError{.offset = 7}, "reading the body");
-    const auto result = std::move(error).narrow<alp::Error<FileError, ParseError>>();
+    const auto result = alp::Error<alp::Error<FileError, ParseError>, OffsetError>(OffsetError{.offset = 7})
+                            .context("reading the body")
+                            .narrow<alp::Error<FileError, ParseError>>();
 
     REQUIRE(!result.has_value());
     CHECK(result.error().holds(OffsetError{.offset = 7}));

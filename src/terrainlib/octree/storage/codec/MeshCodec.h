@@ -28,7 +28,7 @@ struct MeshCodec {
 
     // Creates the error a load reports for a missing file at `path`.
     static load_error file_not_found(const std::filesystem::path &path, const std::source_location location = std::source_location::current()) {
-        return load_error(::io::FileError(std::make_error_code(std::errc::no_such_file_or_directory), path), std::nullopt, location);
+        return load_error(::io::FileError(std::make_error_code(std::errc::no_such_file_or_directory), path), location);
     }
 
     static std::vector<std::string_view> supported_extensions() {

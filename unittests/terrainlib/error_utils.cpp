@@ -29,6 +29,32 @@ std::string_view format_as(const FileError) {
 
 } // namespace
 
+TEST_CASE("make_error creates an error with its code at the location it is handed", "[error][utils]") {
+    const std::source_location location = std::source_location::current();
+    const alp::Error<FileError> error = alp::make_error(FileError::NotFound, location);
+
+    CHECK(error.code() == FileError::NotFound);
+    REQUIRE(error.frames().size() == 1);
+    CHECK(is_same_location(error.frames()[0].location, location));
+}
+
+TEST_CASE("make_error adds a message as the first context at the error's origin", "[error][utils]") {
+    const alp::Error<FileError> error = alp::make_error(FileError::NotFound, "opening app.cfg");
+
+    REQUIRE(error.frames().size() == 2);
+    CHECK(error.frames()[1].message == "opening app.cfg");
+    CHECK(is_same_location(error.frames()[1].location, error.frames()[0].location));
+}
+
+TEST_CASE("make_error creates an erased error from text at the location it is handed", "[error][utils]") {
+    const std::source_location location = std::source_location::current();
+    const alp::Error<> error = alp::make_error("round 3 made no progress", location);
+
+    CHECK(fmt::to_string(error).contains("round 3 made no progress"));
+    REQUIRE(error.frames().size() == 1);
+    CHECK(is_same_location(error.frames()[0].location, location));
+}
+
 TEST_CASE("make_unexpected creates an error with its code", "[error][utils]") {
     const alp::Result<int, FileError> result = alp::make_unexpected(FileError::NotFound);
 
@@ -47,7 +73,7 @@ TEST_CASE("make_unexpected adds a message as the first context", "[error][utils]
 
 TEST_CASE("make_unexpected records the location it is handed", "[error][utils]") {
     const std::source_location location = std::source_location::current();
-    const alp::Result<int, FileError> result = alp::make_unexpected(FileError::NotFound, std::nullopt, location);
+    const alp::Result<int, FileError> result = alp::make_unexpected(FileError::NotFound, location);
 
     REQUIRE(!result.has_value());
     REQUIRE(result.error().frames().size() == 1);
@@ -69,19 +95,17 @@ TEST_CASE("propagate passes an error on as the same type", "[error][utils]") {
 }
 
 TEST_CASE("propagate adds a frame without a message at the location it is handed", "[error][utils]") {
-    alp::Error<FileError> error(FileError::NotFound, "opening app.cfg");
     const std::source_location location = std::source_location::current();
-    const alp::Result<int, FileError> result = alp::propagate(std::move(error), location);
+    const alp::Result<int, FileError> result = alp::propagate(alp::make_error(FileError::NotFound), location);
 
     REQUIRE(!result.has_value());
-    REQUIRE(result.error().frames().size() == 3);
-    CHECK(result.error().frames()[1].message == "opening app.cfg");
-    CHECK(result.error().frames()[2].message == std::nullopt);
-    CHECK(is_same_location(result.error().frames()[2].location, location));
+    REQUIRE(result.error().frames().size() == 2);
+    CHECK(result.error().frames()[1].message == std::nullopt);
+    CHECK(is_same_location(result.error().frames()[1].location, location));
 }
 
 TEST_CASE("propagate passes a const error on and leaves it unchanged", "[error][utils]") {
-    const alp::Error<FileError> error(FileError::NotFound);
+    const auto error = alp::make_error(FileError::NotFound);
     const alp::Result<int, FileError> result = alp::propagate(error);
 
     REQUIRE(!result.has_value());
@@ -97,7 +121,7 @@ TEST_CASE("to_expected passes a value through", "[error][utils]") {
 
 TEST_CASE("to_expected turns an empty optional into an error at the location it is handed", "[error][utils]") {
     const std::source_location location = std::source_location::current();
-    const alp::Result<int, FileError> result = alp::to_expected(std::optional<int>(), FileError::NotFound, std::nullopt, location);
+    const alp::Result<int, FileError> result = alp::to_expected(std::optional<int>(), FileError::NotFound, location);
 
     REQUIRE(!result.has_value());
     CHECK(result.error().code() == FileError::NotFound);
@@ -111,6 +135,13 @@ TEST_CASE("to_expected adds a message as the first context", "[error][utils]") {
     REQUIRE(!result.has_value());
     REQUIRE(result.error().frames().size() == 2);
     CHECK(result.error().frames()[1].message == "looking up the mesh");
+}
+
+TEST_CASE("to_expected turns an empty optional into an erased error from text", "[error][utils]") {
+    const alp::Result<int> result = alp::to_expected(std::optional<int>(), "the mesh is missing");
+
+    REQUIRE(!result.has_value());
+    CHECK(fmt::to_string(result.error()).contains("the mesh is missing"));
 }
 
 TEST_CASE("context adds a frame at the location it is handed to a failed result", "[error][utils]") {

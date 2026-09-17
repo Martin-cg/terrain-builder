@@ -36,15 +36,10 @@ public:
     static constexpr bool includes = !Error<Fs...>::is_erased && is_subset_v<Error<Fs...>, BasicError>;
 
     // Creates an error with `code` that originates at `location`.
-    // A `message` becomes its first context.
     template <OneOf<Es...> E>
-    explicit BasicError(E code, std::optional<std::string> message = std::nullopt, const std::source_location location = std::source_location::current())
+    explicit BasicError(E code, const std::source_location location = std::source_location::current())
         : _code(std::move(code)),
-          _trace(location) {
-        if (message.has_value()) {
-            this->context(std::move(*message), location);
-        }
-    }
+          _trace(location) {}
 
     // Creates an erased error from `message`.
     explicit BasicError(std::string message, const std::source_location location = std::source_location::current())
@@ -60,17 +55,17 @@ public:
           _trace(std::move(other._trace)) {}
 
     // Adds a frame holding `message`.
-    template <typename Self>
-    Self &&context(this Self &&self, std::string message, const std::source_location location = std::source_location::current()) {
-        self._trace.push(Frame{.message = std::move(message), .location = location});
-        return std::forward<Self>(self);
+    [[nodiscard]]
+    BasicError context(std::string message, const std::source_location location = std::source_location::current()) && {
+        this->_trace.push(Frame{.message = std::move(message), .location = location});
+        return std::move(*this);
     }
 
     // Adds a frame without a message.
-    template <typename Self>
-    Self &&propagate(this Self &&self, const std::source_location location = std::source_location::current()) {
-        self._trace.push(Frame{.location = location});
-        return std::forward<Self>(self);
+    [[nodiscard]]
+    BasicError propagate(const std::source_location location = std::source_location::current()) && {
+        this->_trace.push(Frame{.location = location});
+        return std::move(*this);
     }
 
     [[nodiscard]]
