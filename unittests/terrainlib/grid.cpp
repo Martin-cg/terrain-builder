@@ -17,8 +17,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
+#include <optional>
+
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <radix/tile.h>
 
 #include "ctb/GlobalGeodetic.hpp"
 #include "ctb/GlobalMercator.hpp"
@@ -55,4 +58,22 @@ TEST_CASE("grid", "[ctb][GlobalGeodetic][GlobalMercator]") {
         CHECK(webmercator.getExtent().min.y == Approx(-lim));
         CHECK(webmercator.getExtent().max.y == Approx(lim));
     }
+}
+
+TEST_CASE("Grid::findSmallestEncompassingTile stops at the deepest zoom level the grid supports", "[ctb][Grid]") {
+    const ctb::GlobalMercator grid;
+    // Zoom 23 tile (4194304, 4194304) spans [0, 4.777] on both axes, and every deeper tile holding the bounds starts at 0 as well.
+    const radix::tile::SrsBounds bounds{{2.0, 2.0}, {2.1, 2.1}};
+
+    const std::optional<radix::tile::Id> tile = grid.findSmallestEncompassingTile(bounds);
+
+    REQUIRE(tile.has_value());
+    CHECK(*tile == radix::tile::Id{23, {4194304, 4194304}, radix::tile::Scheme::Tms});
+}
+
+TEST_CASE("Grid::getMaxZoomLevel is the deepest level whose pixel coordinates fit", "[ctb][Grid]") {
+    // A 256 pixel tile uses 8 of the 32 bits, and the border pixel rules out the level that would fill all of them.
+    CHECK(ctb::GlobalMercator(256).getMaxZoomLevel() == 23);
+    // Two root tiles side by side double the pixel columns, which costs one level.
+    CHECK(ctb::GlobalGeodetic(256).getMaxZoomLevel() == 22);
 }

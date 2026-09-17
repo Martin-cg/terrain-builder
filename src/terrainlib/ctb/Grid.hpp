@@ -23,8 +23,15 @@
  * @brief This defines and declares the `Grid` class
  */
 
+#include <array>
+#include <bit>
 #include <cmath>
+#include <limits>
 #include <optional>
+#include <stdexcept>
+#include <vector>
+
+#include <libassert/assert.hpp>
 
 #include "ogr_spatialref.h"
 
@@ -118,6 +125,7 @@ public:
     /// Get the pixel location represented by a CRS point and zoom level
     [[nodiscard]] inline PixelPoint crsToPixels(const CRSPoint& coord, i_zoom zoom) const
     {
+        DEBUG_ASSERT(zoom <= this->getMaxZoomLevel());
         const auto res = resolution(zoom);
         const auto px = (mXOriginShift + coord.x) / res;
         const auto py = (mYOriginShift + coord.y) / res;
@@ -137,6 +145,7 @@ public:
     /// border_se should be true if a border should be included on the south eastern corner
     /// e.g., for the cesium raster terrain format (https://github.com/CesiumGS/cesium/wiki/heightmap-1%2E0)
     [[nodiscard]] inline radix::tile::SrsBounds srsBounds(const radix::tile::Id &tile_id, bool border_se) const {
+        DEBUG_ASSERT(tile_id.zoom_level <= this->getMaxZoomLevel());
         const auto tms_tile_id = tile_id.to(radix::tile::Scheme::Tms);
         // get the pixels coordinates representing the tile bounds
         const PixelPoint pxMinLeft(tms_tile_id.coords.x * mGridSize, tms_tile_id.coords.y * mGridSize);
@@ -189,7 +198,7 @@ public:
 
             // Now find the smallest tile under this root.
             radix::tile::Id current_smallest_encompassing_tile = root_tile;
-            while (true) {
+            while (current_smallest_encompassing_tile.zoom_level < this->getMaxZoomLevel()) {
                 const std::array<radix::tile::Id, 4> children = current_smallest_encompassing_tile.children();
 
                 bool all_points_inside_any_child = false;
@@ -226,6 +235,13 @@ public:
         }
 
         return std::nullopt;
+    }
+
+    /// The deepest zoom level whose pixel coordinates still fit a PixelPoint.
+    [[nodiscard]] constexpr i_zoom getMaxZoomLevel() const {
+        // The root tiles lie side by side, and a border adds one pixel beyond the last tile.
+        const i_pixel max_tile_columns = (std::numeric_limits<i_pixel>::max() - 1) / this->mGridSize / static_cast<i_pixel>(this->mRootTiles.size());
+        return static_cast<i_zoom>(std::bit_width(max_tile_columns) - 1);
     }
 
     /// Get the tile size associated with this grid
