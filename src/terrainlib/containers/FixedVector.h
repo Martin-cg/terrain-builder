@@ -277,7 +277,7 @@ public:
         return this->_size == N;
     }
 
-    void erase(const size_t index) {
+    void erase_at(const size_t index) {
         if (index >= this->_size) {
             throw std::out_of_range("index out of range");
         }
@@ -296,7 +296,7 @@ public:
         }
 
         const size_t index = static_cast<size_t>(it - first);
-        this->erase(index);
+        this->erase_at(index);
         return this->data() + index;
     }
     T *erase(const T *first, const T *last) {

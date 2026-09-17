@@ -118,6 +118,15 @@ TEST_CASE("FixedVector resize", "[containers][FixedVector]") {
     REQUIRE_THROWS_AS(vec.resize(5), std::out_of_range);
 }
 
+TEST_CASE("FixedVector erase_at", "[containers][FixedVector]") {
+    FixedVector<int, 4> vec{1, 2, 3, 4};
+
+    vec.erase_at(1);
+
+    CHECK(vec == FixedVector<int, 4>{1, 3, 4});
+    REQUIRE_THROWS_AS(vec.erase_at(3), std::out_of_range);
+}
+
 TEST_CASE("FixedVector begin/end iterators", "[containers][FixedVector]") {
     FixedVector<int, 3> vec{1, 2, 3};
     int sum = 0;
