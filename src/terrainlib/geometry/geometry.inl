@@ -226,6 +226,11 @@ glm::vec<3, T> compute_normal(const glm::uvec3 &triangle,
     return compute_normal(a, b, c, normalize);
 }
 
+template <typename T>
+glm::vec<3, T> compute_normal(const radix::geometry::Triangle<3, T> &triangle, const bool normalize) {
+    return compute_normal(triangle[0], triangle[1], triangle[2], normalize);
+}
+
 template <glm::length_t n_dims, typename T>
 T compute_squared_triangle_area(const glm::vec<n_dims, T> &v0, const glm::vec<n_dims, T> &v1, const glm::vec<n_dims, T> &v2) {
     const glm::vec<n_dims, T> e1 = v1 - v0;

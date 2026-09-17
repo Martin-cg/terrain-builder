@@ -120,6 +120,8 @@ template <typename T>
 glm::vec<3, T> compute_normal(const glm::uvec3 &triangle,
                               const std::span<const glm::vec<3, T>> positions,
                               const bool normalize = true);
+template <typename T>
+glm::vec<3, T> compute_normal(const radix::geometry::Triangle<3, T> &triangle, const bool normalize = true);
 
 template <glm::length_t n_dims, typename T>
 T compute_triangle_area(const glm::vec<n_dims, T> &v0, const glm::vec<n_dims, T> &v1, const glm::vec<n_dims, T> &v2);
