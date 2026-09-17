@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <initializer_list>
 #include <memory>
 #include <ranges>
 #include <span>
@@ -17,6 +18,10 @@ public:
 
     FixedArray(const size_t size, const T &value) : FixedArray(size) {
         std::ranges::fill(this->span(), value);
+    }
+
+    FixedArray(std::initializer_list<T> values) : FixedArray(values.size()) {
+        std::ranges::copy(values, this->begin());
     }
 
     FixedArray(const FixedArray &other) : FixedArray(other._size) {

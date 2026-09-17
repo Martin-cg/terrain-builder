@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <initializer_list>
 #include <span>
 #include <stdexcept>
 #include <type_traits>
@@ -13,6 +14,13 @@ template <typename T>
 class TinyVector {
 public:
     TinyVector() = default;
+
+    TinyVector(std::initializer_list<T> values) {
+        this->reserve(values.size());
+        for (const T &value : values) {
+            this->push_back(value);
+        }
+    }
 
     template <typename U>
     void push_back(U &&value) {

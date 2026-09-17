@@ -1,5 +1,6 @@
 #include <cstdint>
 #include <utility>
+#include <vector>
 
 #include "../catch2_helpers.h"
 
@@ -21,6 +22,12 @@ TEST_CASE("FixedArray fills every element with the given value", "[containers][F
     for (const uint32_t value : array) {
         REQUIRE(value == 7);
     }
+}
+
+TEST_CASE("FixedArray holds the values of an initializer list", "[containers][FixedArray]") {
+    const FixedArray<uint32_t> array = {1, 2, 3};
+
+    CHECK(std::vector<uint32_t>(array.begin(), array.end()) == std::vector<uint32_t>{1, 2, 3});
 }
 
 TEST_CASE("FixedArray of size zero owns no storage", "[containers][FixedArray]") {
