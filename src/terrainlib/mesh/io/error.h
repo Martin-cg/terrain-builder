@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <string>
 #include <string_view>
 
 #include <cgltf.h>
@@ -65,12 +66,10 @@ struct UnsupportedFormat {
 
 // A glTF file whose content this library cannot read as a mesh.
 struct UnsupportedGltf {
+    std::string reason;
+
     bool operator==(const UnsupportedGltf &) const = default;
 };
-
-inline std::string_view format_as(const UnsupportedGltf) {
-    return "the glTF content is not supported";
-}
 
 } // namespace mesh::io
 
@@ -82,6 +81,17 @@ struct fmt::formatter<mesh::io::UnsupportedFormat> {
 
     fmt::format_context::iterator format(const mesh::io::UnsupportedFormat &error, fmt::format_context &context) const {
         return fmt::format_to(context.out(), "unsupported format {}", error.extension.string());
+    }
+};
+
+template <>
+struct fmt::formatter<mesh::io::UnsupportedGltf> {
+    constexpr fmt::format_parse_context::iterator parse(fmt::format_parse_context &context) {
+        return context.begin();
+    }
+
+    fmt::format_context::iterator format(const mesh::io::UnsupportedGltf &error, fmt::format_context &context) const {
+        return fmt::format_to(context.out(), "the glTF content is not supported: {}", error.reason);
     }
 };
 

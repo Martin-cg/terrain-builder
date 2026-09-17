@@ -262,16 +262,16 @@ Result<SimpleMesh> load_from_raw(const RawMesh &raw, const LoadOptions& /* optio
 
     const cgltf_data &data = *raw;
 
-    ALP_TRY(const cgltf_mesh &mesh, alp::to_expected(get_single_element(data.meshes_count, data.meshes), UnsupportedGltf{}, "expected exactly one mesh"));
+    ALP_TRY(const cgltf_mesh &mesh, alp::to_expected(get_single_element(data.meshes_count, data.meshes), UnsupportedGltf{.reason = "expected exactly one mesh"}));
 
-    ALP_TRY(const cgltf_primitive &mesh_primitive, alp::to_expected(get_single_element(mesh.primitives_count, mesh.primitives), UnsupportedGltf{}, "expected exactly one mesh primitive"));
+    ALP_TRY(const cgltf_primitive &mesh_primitive, alp::to_expected(get_single_element(mesh.primitives_count, mesh.primitives), UnsupportedGltf{.reason = "expected exactly one mesh primitive"}));
     if (mesh_primitive.type != cgltf_primitive_type::cgltf_primitive_type_triangles) {
-        return alp::make_unexpected(UnsupportedGltf{}, "the mesh primitive is not made of triangles");
+        return alp::make_unexpected(UnsupportedGltf{.reason = "the mesh primitive is not made of triangles"});
     }
 
     // indices
     if (mesh_primitive.indices == nullptr) {
-        return alp::make_unexpected(UnsupportedGltf{}, "the mesh primitive has no indices");
+        return alp::make_unexpected(UnsupportedGltf{.reason = "the mesh primitive has no indices"});
     }
     cgltf_accessor &index_accessor = *mesh_primitive.indices;
     std::vector<glm::uvec3> indices;
@@ -286,12 +286,12 @@ Result<SimpleMesh> load_from_raw(const RawMesh &raw, const LoadOptions& /* optio
     // positions
     cgltf_attribute *position_attr = find_attribute_with_type(mesh_primitive.attributes, mesh_primitive.attributes_count, cgltf_attribute_type_position);
     if (position_attr == nullptr) {
-        return alp::make_unexpected(UnsupportedGltf{}, "the mesh has no position attribute");
+        return alp::make_unexpected(UnsupportedGltf{.reason = "the mesh has no position attribute"});
     }
 
     cgltf_accessor &position_accessor = *position_attr->data;
     if (position_accessor.type != cgltf_type_vec3) {
-        return alp::make_unexpected(UnsupportedGltf{}, "the mesh positions are not vec3");
+        return alp::make_unexpected(UnsupportedGltf{.reason = "the mesh positions are not vec3"});
     }
     std::vector<glm::vec3> positions;
     positions.resize(position_accessor.count);
@@ -305,7 +305,7 @@ Result<SimpleMesh> load_from_raw(const RawMesh &raw, const LoadOptions& /* optio
     } else {
         cgltf_accessor &uv_accessor = *uv_attr->data;
         if (uv_accessor.type != cgltf_type_vec2) {
-            return alp::make_unexpected(UnsupportedGltf{}, "the mesh uvs are not vec2");
+            return alp::make_unexpected(UnsupportedGltf{.reason = "the mesh uvs are not vec2"});
         }
         uvs.resize(uv_accessor.count);
         cgltf_accessor_unpack_floats(&uv_accessor, reinterpret_cast<float *>(uvs.data()), uvs.size() * 2);
