@@ -85,10 +85,8 @@ public:
         return mGridSize == other.mGridSize
             && mExtent == other.mExtent
             && mSRS.IsSame(&(other.mSRS))
-            && mInitialResolution == other.mInitialResolution
-            && mXOriginShift == other.mXOriginShift
-            && mYOriginShift == other.mYOriginShift
-            && mZoomFactor == other.mZoomFactor;
+            && mZoomFactor == other.mZoomFactor
+            && mRootTiles == other.mRootTiles;
     }
 
     /// Get the resolution for a particular zoom level
