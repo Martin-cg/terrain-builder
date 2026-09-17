@@ -37,6 +37,8 @@ void to_approximate_normalized(
     const glm::vec<n_dims, double> center = bounds.centre();
     const glm::vec<n_dims, double> extents = bounds.size() / 2.0;
     const double max_extents = glm::compMax(extents);
+    // Guard against coincident positions.
+    const double scale = max_extents > 0 ? 1.0 / max_extents : 1.0;
 
     if (out_bounds) {
         *out_bounds = bounds;
@@ -46,7 +48,7 @@ void to_approximate_normalized(
     approx.clear();
     approx.reserve(positions.size());
     for (const auto &p : positions) {
-        const glm::vec<n_dims, double> rel = (p - center) / max_extents;
+        const glm::vec<n_dims, double> rel = (p - center) * scale;
         approx.push_back(glm::vec<n_dims, float>(rel));
     }
 }
