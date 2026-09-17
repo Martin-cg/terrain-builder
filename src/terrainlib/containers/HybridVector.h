@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cstddef>
 #include <initializer_list>
 #include <span>
 #include <stdexcept>
@@ -12,7 +13,7 @@
 template <typename T, size_t N>
 class HybridVector {
 public:
-    HybridVector() : _is_on_stack(true) {}
+    HybridVector() = default;
 
     HybridVector(std::initializer_list<T> values) : HybridVector() {
         this->reserve(values.size());
@@ -52,6 +53,14 @@ public:
         }
     }
 
+    void clear() {
+        if (this->_is_on_stack) {
+            this->_stack.clear();
+        } else {
+            this->_heap.clear();
+        }
+    }
+
     void reserve(size_t new_capacity) {
         if (this->_is_on_stack) {
             if (new_capacity > N) {
@@ -83,8 +92,15 @@ public:
     size_t size() const {
         return this->_is_on_stack ? this->_stack.size() : this->_heap.size();
     }
+    size_t capacity() const {
+        return this->_is_on_stack ? this->_stack.capacity() : this->_heap.capacity();
+    }
     bool empty() const {
         return this->size() == 0;
+    }
+    // Whether the elements have moved from the inline storage to the heap.
+    bool spilled() const {
+        return !this->_is_on_stack;
     }
 
     template <typename Self>
@@ -136,5 +152,5 @@ private:
     // TODO: use std::variant
     FixedVector<T, N> _stack;
     std::vector<T> _heap;
-    bool _is_on_stack;
+    bool _is_on_stack = true;
 };
