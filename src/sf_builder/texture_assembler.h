@@ -64,9 +64,11 @@ namespace terrainbuilder {
     // A list of tiles determined to be relevant for the target bounds.
     std::vector<radix::tile::Id> tiles_to_splatter;
 
+    const uint32_t max_zoom_level = std::min(max_zoom_level_to_consider.value_or(grid.getMaxZoomLevel()), grid.getMaxZoomLevel());
+
     const std::function<bool(const radix::tile::Id tile)> helper = [&](const radix::tile::Id tile) {
         // Check if we have recursed too deep.
-        if (max_zoom_level_to_consider.has_value() && tile.zoom_level > max_zoom_level_to_consider.value()) {
+        if (tile.zoom_level > max_zoom_level) {
             return false;
         }
 
@@ -481,11 +483,6 @@ inline std::optional<AssembledTexture> assemble_texture_from_tiles(
         smallest_encompassing_tile = smallest_encompassing_tile.parent();
     }
 
-    // Tile pixel coordinates are stored as 32-bit unsigned ints (see PixelPoint/i_pixel), so
-    // coords.x * grid.tileSize() overflows past this zoom level; never recurse deeper than that.
-    const uint32_t max_safe_zoom_level = static_cast<uint32_t>(std::log2(std::numeric_limits<uint32_t>::max() / grid.tileSize()));
-    const uint32_t clamped_max_zoom = std::min(max_zoom.value_or(max_safe_zoom_level), max_safe_zoom_level);
-
     // The padding reaches past the requested bounds, so select tiles for slightly grown bounds.
     const radix::tile::SrsBounds selection_bounds = min_padding == glm::uvec2(0)
         ? encompassing_bounds
@@ -493,7 +490,7 @@ inline std::optional<AssembledTexture> assemble_texture_from_tiles(
 
     // Find relevant tiles in bounds
     const std::vector<radix::tile::Id> tiles_to_splatter = find_relevant_tiles_to_splatter_in_bounds(
-        smallest_encompassing_tile, grid, selection_bounds, tile_provider, clamped_max_zoom);
+        smallest_encompassing_tile, grid, selection_bounds, tile_provider, max_zoom);
     LOG_TRACE("Found {} relevant texture tiles", tiles_to_splatter.size());
 
     // If we found to relevant tiles, we are done.
