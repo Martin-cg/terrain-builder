@@ -123,3 +123,44 @@ TEST_CASE("HybridVector works with move-only types", "[containers][HybridVector]
     REQUIRE(vec[0]);
     CHECK(*vec[0] == 42);
 }
+
+TEST_CASE("HybridVector default construction", "[containers][HybridVector]") {
+    const HybridVector<int, 3> vec;
+
+    CHECK(vec.size() == 0);
+    CHECK(vec.capacity() == 3);
+    CHECK(vec.empty());
+    CHECK_FALSE(vec.spilled());
+}
+
+TEST_CASE("HybridVector capacity and spilled follow the storage in use", "[containers][HybridVector]") {
+    HybridVector<int, 3> vec{1, 2, 3};
+
+    CHECK(vec.capacity() == 3);
+    CHECK_FALSE(vec.spilled());
+
+    vec.push_back(4);
+
+    CHECK(vec.spilled());
+    CHECK(vec.capacity() > 3);
+}
+
+TEST_CASE("HybridVector clear removes every element", "[containers][HybridVector]") {
+    SECTION("from the inline storage") {
+        HybridVector<int, 3> vec{1, 2, 3};
+
+        vec.clear();
+
+        CHECK(vec.empty());
+        CHECK_FALSE(vec.spilled());
+    }
+
+    SECTION("from the heap, which it stays on") {
+        HybridVector<int, 3> vec{1, 2, 3, 4};
+
+        vec.clear();
+
+        CHECK(vec.empty());
+        CHECK(vec.spilled());
+    }
+}
