@@ -1,5 +1,6 @@
 #pragma once
 
+#include <initializer_list>
 #include <span>
 #include <stdexcept>
 #include <utility>
@@ -11,6 +12,13 @@ template <typename T, size_t N>
 class HybridVector {
 public:
     HybridVector() : _is_on_stack(true) {}
+
+    HybridVector(std::initializer_list<T> values) : HybridVector() {
+        this->reserve(values.size());
+        for (const T &value : values) {
+            this->push_back(value);
+        }
+    }
 
     template <typename U>
     void push_back(U &&value) {
