@@ -40,6 +40,8 @@ public:
         return this->_data.size();
     }
 
+    bool operator==(const Vector2D &) const = default;
+
 private:
     index_type _rows;
     index_type _cols;

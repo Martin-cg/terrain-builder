@@ -51,4 +51,6 @@ struct OffsetVector {
     [[nodiscard]] auto end() const {
         return this->data.end();
     }
+
+    bool operator==(const OffsetVector &) const = default;
 };

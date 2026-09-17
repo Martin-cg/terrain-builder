@@ -190,6 +190,8 @@ public:
         return this->_data;
     }
 
+    bool operator==(const SegmentedBuffer &) const = default;
+
 private:
     template <typename Self>
     static inline auto &get_impl(Self &self, const segment_index segment_index, const index_type element_index) {
