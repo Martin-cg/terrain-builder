@@ -49,9 +49,9 @@ TEST_CASE("ALP_TRY passes a failed result on with a frame at its line", "[error]
 
     REQUIRE(!result.has_value());
     CHECK(result.error().code() == FileError::NotFound);
-    REQUIRE(result.error().frames().size() == 2);
-    CHECK(result.error().frames()[1].message == std::nullopt);
-    CHECK(result.error().frames()[1].location.line() == before.line() + 1);
+    REQUIRE(result.error().frames().size() == 1);
+    CHECK(result.error().frames()[0].message == std::nullopt);
+    CHECK(result.error().frames()[0].location.line() == before.line() + 1);
 }
 
 TEST_CASE("ALP_TRY without a target passes a failed result on with a frame at its line", "[error][try]") {
@@ -65,8 +65,8 @@ TEST_CASE("ALP_TRY without a target passes a failed result on with a frame at it
 
     const alp::Result<void, FileError> result = skip(alp::make_unexpected(FileError::NotFound));
     REQUIRE(!result.has_value());
-    REQUIRE(result.error().frames().size() == 2);
-    CHECK(result.error().frames()[1].location.line() == before.line() + 1);
+    REQUIRE(result.error().frames().size() == 1);
+    CHECK(result.error().frames()[0].location.line() == before.line() + 1);
 }
 
 TEST_CASE("ALP_TRY_CONTEXT adds one frame with its message at its line", "[error][try]") {
@@ -79,9 +79,9 @@ TEST_CASE("ALP_TRY_CONTEXT adds one frame with its message at its line", "[error
     const alp::Result<int, FileError> result = forward(alp::make_unexpected(FileError::NotFound));
 
     REQUIRE(!result.has_value());
-    REQUIRE(result.error().frames().size() == 2);
-    CHECK(result.error().frames()[1].message == "loading the configuration");
-    CHECK(result.error().frames()[1].location.line() == before.line() + 1);
+    REQUIRE(result.error().frames().size() == 1);
+    CHECK(result.error().frames()[0].message == "loading the configuration");
+    CHECK(result.error().frames()[0].location.line() == before.line() + 1);
 }
 
 TEST_CASE("ALP_TRY_CONTEXT builds its message only on failure", "[error][try]") {
@@ -120,7 +120,7 @@ TEST_CASE("ALP_TRY hands a plain code to an enclosing function whose error is th
     CHECK(result.error() == FileError::NotFound);
 }
 
-TEST_CASE("ALP_TRY roots a plain code at its line for an enclosing function that returns an Error", "[error][try]") {
+TEST_CASE("ALP_TRY turns a plain code into an error that originates at its line for an enclosing function that returns an Error", "[error][try]") {
     std::source_location before;
     const auto forward = [&before](tl::expected<int, FileError> source) -> alp::Result<int, FileError> {
         before = std::source_location::current();
@@ -132,8 +132,8 @@ TEST_CASE("ALP_TRY roots a plain code at its line for an enclosing function that
     const alp::Result<int, FileError> result = forward(tl::make_unexpected(FileError::NotFound));
     REQUIRE(!result.has_value());
     CHECK(result.error().code() == FileError::NotFound);
-    REQUIRE(result.error().frames().size() == 1);
-    CHECK(result.error().frames()[0].location.line() == before.line() + 1);
+    CHECK(result.error().frames().empty());
+    CHECK(result.error().origin().line() == before.line() + 1);
 }
 
 TEST_CASE("ALP_TRY_CONTEXT adds its message to a plain code as the first context", "[error][try]") {
@@ -146,10 +146,10 @@ TEST_CASE("ALP_TRY_CONTEXT adds its message to a plain code as the first context
     const alp::Result<int, FileError> result = forward(tl::make_unexpected(FileError::NotFound));
 
     REQUIRE(!result.has_value());
-    REQUIRE(result.error().frames().size() == 2);
-    CHECK(result.error().frames()[1].message == "reading app.cfg");
+    REQUIRE(result.error().frames().size() == 1);
+    CHECK(result.error().frames()[0].message == "reading app.cfg");
+    CHECK(result.error().origin().line() == before.line() + 1);
     CHECK(result.error().frames()[0].location.line() == before.line() + 1);
-    CHECK(result.error().frames()[1].location.line() == before.line() + 1);
 }
 
 TEST_CASE("ALP_TRY_CONTEXT hands a plain code without its message to an enclosing function whose error is that code", "[error][try]") {
@@ -312,9 +312,9 @@ TEST_CASE("ALP_TRY in a loop returns at the first failure and leaves the result 
 
     REQUIRE(!result.has_value());
     CHECK(visited == 2);
-    CHECK(result.error().frames().size() == 2);
+    CHECK(result.error().frames().size() == 1);
     REQUIRE(!sources[1].has_value());
-    CHECK(sources[1].error().frames().size() == 1);
+    CHECK(sources[1].error().frames().empty());
 }
 
 TEST_CASE("Two ALP_TRY on one line do not collide", "[error][try]") {
@@ -361,8 +361,8 @@ TEST_CASE("ALP_TRY_CONTEXT takes a message with commas and variables named like 
 
     const alp::Result<int, FileError> result = forward(alp::make_unexpected(FileError::NotFound));
     REQUIRE(!result.has_value());
-    REQUIRE(result.error().frames().size() == 2);
-    CHECK(result.error().frames()[1].message == "reading app.cfg, then the index");
+    REQUIRE(result.error().frames().size() == 1);
+    CHECK(result.error().frames()[0].message == "reading app.cfg, then the index");
 }
 
 TEST_CASE("Frames accumulate across several ALP_TRY", "[error][try]") {
@@ -380,7 +380,7 @@ TEST_CASE("Frames accumulate across several ALP_TRY", "[error][try]") {
     const alp::Result<int> result = fail_outer();
 
     REQUIRE(!result.has_value());
-    REQUIRE(result.error().frames().size() == 3);
-    CHECK(result.error().frames()[1].message == "reading the configuration");
-    CHECK(result.error().frames()[2].message == std::nullopt);
+    REQUIRE(result.error().frames().size() == 2);
+    CHECK(result.error().frames()[0].message == "reading the configuration");
+    CHECK(result.error().frames()[1].message == std::nullopt);
 }

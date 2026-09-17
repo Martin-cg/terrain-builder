@@ -96,7 +96,13 @@ public:
         return held != nullptr && *held == code;
     }
 
-    // The frames, innermost first.
+    // Where the error originated.
+    [[nodiscard]]
+    std::source_location origin() const {
+        return this->_trace.origin();
+    }
+
+    // The frames added after the origin, innermost first.
     [[nodiscard]]
     std::span<const Frame> frames() const {
         return this->_trace.frames();

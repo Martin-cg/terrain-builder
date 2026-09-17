@@ -53,8 +53,8 @@ TEST_CASE("A typed result converts to an erased result", "[error][Result]") {
     const alp::Result<int> erased_failure = failed;
     REQUIRE(!erased_failure.has_value());
     CHECK(fmt::to_string(erased_failure.error()).contains("file not found"));
-    REQUIRE(erased_failure.error().frames().size() == 2);
-    CHECK(erased_failure.error().frames()[1].message == "opening app.cfg");
+    REQUIRE(erased_failure.error().frames().size() == 1);
+    CHECK(erased_failure.error().frames()[0].message == "opening app.cfg");
 }
 
 TEST_CASE("An unexpected error converts into a result whose error includes its codes", "[error][Result]") {

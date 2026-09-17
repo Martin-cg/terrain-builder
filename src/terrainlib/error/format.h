@@ -42,15 +42,14 @@ struct fmt::formatter<alp::BasicError<Es...>> {
 
         for (const alp::Frame &frame : frames | std::views::reverse) {
             output = fmt::format_to(output, "\n");
-
-            const bool is_origin = &frame == &frames.front();
-            if (is_origin) {
-                output = fmt::format_to(output, "{} ", cause);
-            } else if (frame.message.has_value()) {
+            if (frame.message.has_value()) {
                 output = fmt::format_to(output, "{} ", *frame.message);
             }
             output = fmt::format_to(output, "at {}:{} in {}", frame.location.file_name(), frame.location.line(), frame.location.function_name());
         }
+
+        const std::source_location origin = error.origin();
+        output = fmt::format_to(output, "\n{} at {}:{} in {}", cause, origin.file_name(), origin.line(), origin.function_name());
         return output;
     }
 

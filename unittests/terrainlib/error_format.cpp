@@ -49,12 +49,14 @@ TEST_CASE("An error in a set mentions the code it holds", "[error][format]") {
     CHECK(!text.contains("file not found"));
 }
 
-TEST_CASE("An error's report mentions every message and the file and line of every frame", "[error][format]") {
+TEST_CASE("An error's report mentions every message and the file and line of its origin and every frame", "[error][format]") {
     const auto error = alp::make_error(FileError::NotFound).context("reading the configuration");
     const std::string report = fmt::format("{:#}", error);
 
     CHECK(report.contains("reading the configuration"));
     CHECK(report.contains("file not found"));
+    CHECK(report.contains(error.origin().file_name()));
+    CHECK(report.contains(std::to_string(error.origin().line())));
     for (const alp::Frame &frame : error.frames()) {
         CHECK(report.contains(frame.location.file_name()));
         CHECK(report.contains(std::to_string(frame.location.line())));
