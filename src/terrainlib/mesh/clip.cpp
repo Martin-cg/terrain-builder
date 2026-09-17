@@ -43,7 +43,7 @@ struct Intersection {
 template <typename T>
 std::optional<Intersection<T>> compute_intersection(const radix::geometry::Line<3, T> &line, const radix::geometry::Plane<T> &plane) {
     const auto dot = glm::dot(plane.normal, line.direction);
-    if (std::abs(dot) < radix::geometry::epsilon<T>) {
+    if (std::abs(dot) < geometry::epsilon<T>()) {
         return {};
     }
     const T t = (-plane.distance - glm::dot(plane.normal, line.point)) / dot;
