@@ -23,7 +23,7 @@ struct PlaneFrame_ : CoordFrame_<T> {
 
         PlaneFrame_ frame;
         frame.origin = triangle[0];
-        frame.normal = radix::geometry::normal(triangle);
+        frame.normal = geometry::compute_normal(triangle);
         frame.tangent = glm::normalize(to_second);
         frame.bitangent = glm::cross(frame.normal, frame.tangent);
 
