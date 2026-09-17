@@ -10,6 +10,7 @@
 #include <libassert/assert.hpp>
 
 #include "containers/OffsetTable.h"
+#include "type_utils.h"
 
 // Contiguous buffer partitioned into segments using an OffsetTable for range-based indexing.
 template <typename TValue, typename TValueIndex = size_t, typename TSegmentIndex = TValueIndex>
@@ -119,13 +120,15 @@ public:
     }
 
     // Accesses an element using segment-relative indexing.
-    value_type &operator()(const segment_index segment_index, const index_type element_index) {
-        return this->get_impl(*this, segment_index, element_index);
-    }
+    template <typename Self>
+    auto &operator()(this Self &&self, const segment_index segment_index, const index_type element_index) {
+        DEBUG_ASSERT(segment_index < self._offsets.size());
 
-    // Const-qualified access to elements using segment-relative indexing.
-    const value_type &operator()(const segment_index segment_index, const index_type element_index) const {
-        return this->get_impl(*this, segment_index, element_index);
+        const offset_range range = self._offsets.segment_range(segment_index);
+        const index_type flat_index = range.begin + element_index;
+
+        DEBUG_ASSERT(flat_index < range.end);
+        return self._data[flat_index];
     }
 
     // Returns the total number of segments currently tracked.
@@ -143,69 +146,9 @@ public:
         return this->_data.size();
     }
 
-    // Returns a readonly view of one segment of the buffer.
-    std::span<const value_type> segment(const segment_index segment_index) const & noexcept {
-        return this->get_segment_impl(*this, segment_index);
-    }
-    // Returns a view of one segment of the buffer.
-    std::span<value_type> segment(const segment_index segment_index) & noexcept {
-        return this->get_segment_impl(*this, segment_index);
-    }
-
-    // Returns a readonly view of the last segment of the buffer, empty while there is none.
-    std::span<const value_type> last_segment() const & noexcept {
-        if (this->segment_count() == 0) {
-            return {};
-        }
-        return this->segment(this->segment_count() - 1);
-    }
-    // Returns a view of the last segment of the buffer, empty while there is none.
-    std::span<value_type> last_segment() & noexcept {
-        if (this->segment_count() == 0) {
-            return {};
-        }
-        return this->segment(this->segment_count() - 1);
-    }
-
-    // Returns a readonly flat view of the buffer.
-    std::span<const value_type> flat() const & noexcept {
-        return this->_data;
-    }
-    // Returns a flat view of the buffer.
-    std::span<value_type> flat() & noexcept {
-        return this->_data;
-    }
-
-    auto segments() const & noexcept {
-        return this->segments_impl(*this);
-    }
-    auto segments() & noexcept {
-        return this->segments_impl(*this);
-    }
-
-    std::vector<value_type>& backing() noexcept {
-        return this->_data;
-    }
-    const std::vector<value_type>& backing() const noexcept {
-        return this->_data;
-    }
-
-    bool operator==(const SegmentedBuffer &) const = default;
-
-private:
+    // Returns a view of one segment of the buffer, read-only when the buffer is.
     template <typename Self>
-    static inline auto &get_impl(Self &self, const segment_index segment_index, const index_type element_index) {
-        DEBUG_ASSERT(segment_index < self._offsets.size());
-
-        const offset_range range = self._offsets.segment_range(segment_index);
-        const index_type flat_index = range.begin + element_index;
-
-        DEBUG_ASSERT(flat_index < range.end);
-        return self._data[flat_index];
-    }
-
-    template <typename Self>
-    static inline auto get_segment_impl(Self &self, const segment_index segment_index) {
+    std::span<copy_const_t<Self, value_type>> segment(this Self &self, const segment_index segment_index) noexcept {
         DEBUG_ASSERT(segment_index < self._offsets.size());
 
         const offset_range range = self._offsets.segment_range(segment_index);
@@ -213,18 +156,42 @@ private:
         return std::span(self._data.data() + range.begin, length);
     }
 
+    // Returns a view of the last segment of the buffer, read-only when the buffer is.
+    // Empty while there is none.
+    template <typename Self>
+    std::span<copy_const_t<Self, value_type>> last_segment(this Self &self) noexcept {
+        if (self.segment_count() == 0) {
+            return {};
+        }
+        return self.segment(self.segment_count() - 1);
+    }
+
+    // Returns a flat view of the buffer, read-only when the buffer is.
+    template <typename Self>
+    std::span<copy_const_t<Self, value_type>> flat(this Self &self) noexcept {
+        return self._data;
+    }
+
+    template <typename Self>
+    auto segments(this Self &self) noexcept {
+        return std::views::iota(segment_index{0}, self.segment_count())
+             | std::views::transform([&self](const segment_index i) noexcept {
+                   return self.segment(i);
+               });
+    }
+
+    template <typename Self>
+    auto &backing(this Self &&self) noexcept {
+        return self._data;
+    }
+
+    bool operator==(const SegmentedBuffer &) const = default;
+
+private:
     void ensure_segment() {
         if (this->segment_count() == 0) {
             this->start_new_segment();
         }
-    }
-
-    template <typename Self>
-    static auto segments_impl(Self &self) noexcept {
-        return std::views::iota(segment_index{0}, self.segment_count()) 
-             | std::views::transform([&self](const segment_index i) noexcept {
-                   return self.segment(i);
-               });
     }
 
     // Manages the boundaries of each segment.

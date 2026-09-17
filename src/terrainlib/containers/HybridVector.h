@@ -75,11 +75,9 @@ public:
         }
     }
 
-    T *data() {
-        return this->_is_on_stack ? this->_stack.data() : this->_heap.data();
-    }
-    const T *data() const {
-        return this->_is_on_stack ? this->_stack.data() : this->_heap.data();
+    template <typename Self>
+    auto *data(this Self &&self) {
+        return self._is_on_stack ? self._stack.data() : self._heap.data();
     }
 
     size_t size() const {
@@ -89,31 +87,23 @@ public:
         return this->size() == 0;
     }
 
-    T &operator[](size_t i) {
-        return this->_is_on_stack ? this->_stack[i] : this->_heap[i];
-    }
-    const T &operator[](size_t i) const {
-        return this->_is_on_stack ? this->_stack[i] : this->_heap[i];
+    template <typename Self>
+    auto &operator[](this Self &&self, size_t i) {
+        return self._is_on_stack ? self._stack[i] : self._heap[i];
     }
 
-    T &at(size_t index) {
-        return this->_is_on_stack ? this->_stack.at(index) : this->_heap.at(index);
-    }
-    const T &at(size_t index) const {
-        return this->_is_on_stack ? this->_stack.at(index) : this->_heap.at(index);
+    template <typename Self>
+    auto &at(this Self &&self, size_t index) {
+        return self._is_on_stack ? self._stack.at(index) : self._heap.at(index);
     }
 
-    T* begin() {
-        return this->_is_on_stack ? this->_stack.data() : this->_heap.data();
+    template <typename Self>
+    auto *begin(this Self &&self) {
+        return self.data();
     }
-    T *end() {
-        return this->_is_on_stack ? this->_stack.data() + this->_stack.size() : this->_heap.data() + this->_heap.size();
-    }
-    const T* begin() const {
-        return this->_is_on_stack ? this->_stack.data() : this->_heap.data();
-    }
-    const T* end() const {
-        return this->_is_on_stack ? this->_stack.data() + this->_stack.size() : this->_heap.data() + this->_heap.size();
+    template <typename Self>
+    auto *end(this Self &&self) {
+        return self.data() + self.size();
     }
     const T* cbegin() const {
         return this->begin();

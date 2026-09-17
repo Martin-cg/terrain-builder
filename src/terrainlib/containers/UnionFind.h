@@ -33,12 +33,25 @@ public:
         this->_set_count = size;
     }
 
-    [[nodiscard]] Index find(const Index item) const noexcept {
-        return this->find_impl(*this, item);
-    }
+    template <typename Self>
+    [[nodiscard]] Index find(this Self &&self, const Index item) noexcept {
+        DEBUG_ASSERT(item < self.size());
 
-    [[nodiscard]] Index find(const Index item) noexcept {
-        return this->find_impl(*this, item);
+        Index root = item;
+        while (self._parents[root] != root) {
+            root = self._parents[root];
+        }
+
+        if constexpr (!std::is_const_v<std::remove_reference_t<Self>>) {
+            Index current = item;
+            while (self._parents[current] != current) {
+                const Index next = self._parents[current];
+                self._parents[current] = root;
+                current = next;
+            }
+        }
+
+        return root;
     }
 
     Index make_union(const Index x, const Index y) noexcept {
@@ -60,11 +73,11 @@ public:
         return y_rep;
     }
 
-    bool is_same_set(const Index x, const Index y) const noexcept {
-        return this->is_same_set_impl(*this, x, y);
-    }
-    bool is_same_set(const Index x, const Index y) noexcept {
-        return this->is_same_set_impl(*this, x, y);
+    template <typename Self>
+    bool is_same_set(this Self &&self, const Index x, const Index y) noexcept {
+        const Index x_rep = self.find(x);
+        const Index y_rep = self.find(y);
+        return x_rep == y_rep;
     }
 
     [[nodiscard]] Size size() const noexcept {
@@ -88,66 +101,8 @@ public:
         return !this->is_joint();
     }
 
-    [[nodiscard]] std::unordered_map<Index, std::vector<Index>> get_sets_as_map() const {
-        return this->get_sets_as_map_impl(*this);
-    }
-
-    [[nodiscard]] std::unordered_map<Index, std::vector<Index>> get_sets_as_map() {
-        return this->get_sets_as_map_impl(*this);
-    }
-
-    [[nodiscard]] SegmentedBuffer<Index, Size, Index> get_sets_compact() const {
-        return this->get_sets_compact_impl(*this);
-    }
-    [[nodiscard]] SegmentedBuffer<Index, Size, Index> get_sets_compact() {
-        return this->get_sets_compact_impl(*this);
-    }
-
-    [[nodiscard]] SegmentedBuffer<Index, Size, Index> get_sets_sparse() const {
-        return this->get_sets_sparse_impl(*this);
-    }
-    [[nodiscard]] SegmentedBuffer<Index, Size, Index> get_sets_sparse() {
-        return this->get_sets_sparse_impl(*this);
-    }
-
-    [[nodiscard]] std::vector<Index> get_set_labels() const {
-        return this->get_set_labels_impl(*this);
-    }
-    [[nodiscard]] std::vector<Index> get_set_labels() {
-        return this->get_set_labels_impl(*this);
-    }
-
-private:
     template <typename Self>
-    static Index find_impl(Self &self, const Index item) noexcept {
-        DEBUG_ASSERT(item < self.size());
-
-        Index root = item;
-        while (self._parents[root] != root) {
-            root = self._parents[root];
-        }
-
-        if constexpr (!std::is_const_v<Self>) {
-            Index current = item;
-            while (self._parents[current] != current) {
-                const Index next = self._parents[current];
-                self._parents[current] = root;
-                current = next;
-            }
-        }
-
-        return root;
-    }
-
-    template <typename Self>
-    static bool is_same_set_impl(Self &self, const Index x, const Index y) noexcept {
-        const Index x_rep = self.find(x);
-        const Index y_rep = self.find(y);
-        return x_rep == y_rep;
-    }
-
-    template <typename Self>
-    static std::unordered_map<Index, std::vector<Index>> get_sets_as_map_impl(Self &self) {
+    [[nodiscard]] std::unordered_map<Index, std::vector<Index>> get_sets_as_map(this Self &&self) {
         std::unordered_map<Index, std::vector<Index>> sets;
 
         const Size n = self.size();
@@ -161,14 +116,14 @@ private:
     }
 
     template <typename Self>
-    static SegmentedBuffer<Index, Size, Index> get_sets_compact_impl(Self &self) {
-        SegmentedBuffer<Index, Size, Index> sparse = get_sets_sparse_impl(self);
+    [[nodiscard]] SegmentedBuffer<Index, Size, Index> get_sets_compact(this Self &&self) {
+        SegmentedBuffer<Index, Size, Index> sparse = self.get_sets_sparse();
         sparse.remove_empty_segments();
         return sparse;
     }
 
     template <typename Self>
-    static SegmentedBuffer<Index, Size, Index> get_sets_sparse_impl(Self &self) {
+    [[nodiscard]] SegmentedBuffer<Index, Size, Index> get_sets_sparse(this Self &&self) {
         const Size n = self.size();
         SegmentedBuffer<Index, Size, Index> sets;
 
@@ -204,7 +159,7 @@ private:
     }
 
     template <typename Self>
-    static std::vector<Index> get_set_labels_impl(Self &self) {
+    [[nodiscard]] std::vector<Index> get_set_labels(this Self &&self) {
         const Size n = self.size();
         constexpr Index NO_LABEL = std::numeric_limits<Index>::max();
 
