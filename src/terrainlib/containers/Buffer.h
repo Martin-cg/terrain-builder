@@ -1,6 +1,8 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
+#include <initializer_list>
 #include <memory>
 #include <span>
 
@@ -85,6 +87,12 @@ public:
     explicit Buffer(const size_t n)
         requires(S::is_runtime())
         : storage(n) {}
+
+    Buffer(std::initializer_list<T> values)
+        requires(S::is_runtime())
+        : storage(values.size()) {
+        std::ranges::copy(values, this->begin());
+    }
 
     constexpr size_t size() const noexcept {
         return this->storage.size();
