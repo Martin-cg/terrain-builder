@@ -12,6 +12,8 @@
 
 #include <libassert/assert.hpp>
 
+#include "type_utils.h"
+
 template <typename T, std::size_t N>
 class FixedVector {
 public:
@@ -198,45 +200,35 @@ public:
         this->destroy_back();
     }
     
-    T &back() {
-        if (this->_size == 0) {
+    template <typename Self>
+    auto &back(this Self &&self) {
+        if (self._size == 0) {
             throw std::out_of_range("empty vector");
         }
-        return (*this)[this->_size - 1];
+        return self[self._size - 1];
     }
 
-    const T &back() const {
-        if (this->_size == 0) {
-            throw std::out_of_range("empty vector");
-        }
-        return (*this)[this->_size - 1];
+    template <typename Self>
+    auto &operator[](this Self &&self, const size_t i) {
+        return self.get_at(i);
     }
 
-    T &operator[](const size_t i) {
-        return this->get_at(i);
-    }
-    const T &operator[](const size_t i) const {
-        return this->get_at(i);
-    }
-
-    T &at(const size_t i) {
-        if (i >= this->_size) {
+    template <typename Self>
+    auto &at(this Self &&self, const size_t i) {
+        if (i >= self._size) {
             throw std::out_of_range("index out of range");
         }
-        return this->get_at(i);
-    }
-    const T &at(const size_t i) const {
-        if (i >= this->_size) {
-            throw std::out_of_range("index out of range");
-        }
-        return this->get_at(i);
+        return self.get_at(i);
     }
 
-    T *data() {
-        return std::launder(reinterpret_cast<T *>(this->_data));
-    }
-    const T *data() const {
-        return std::launder(reinterpret_cast<const T *>(this->_data));
+    template <typename Self>
+    copy_const_t<Self, T> *data(this Self &&self) {
+        const auto address = reinterpret_cast<copy_const_t<Self, T> *>(self._data);
+        // Without elements there is no object at the address to launder.
+        if (self._size == 0) {
+            return address;
+        }
+        return std::launder(address);
     }
 
     void clear() {
@@ -323,17 +315,13 @@ public:
         return begin + first_index;
     }
 
-    T *begin() {
-        return this->data();
+    template <typename Self>
+    auto *begin(this Self &&self) {
+        return self.data();
     }
-    T *end() {
-        return this->data() + this->_size;
-    }
-    const T *begin() const {
-        return this->data();
-    }
-    const T *end() const {
-        return this->data() + this->_size;
+    template <typename Self>
+    auto *end(this Self &&self) {
+        return self.data() + self._size;
     }
 
     operator std::span<T>() {
@@ -353,13 +341,10 @@ public:
     }
 
 private:
-    T &get_at(const size_t index) {
-        DEBUG_ASSERT(index < this->_size);
-        return *std::launder(reinterpret_cast<T *>(this->_data + index * sizeof(T)));
-    }
-    const T &get_at(const size_t index) const {
-        DEBUG_ASSERT(index < this->_size);
-        return *std::launder(reinterpret_cast<const T *>(this->_data + index * sizeof(T)));
+    template <typename Self>
+    auto &get_at(this Self &&self, const size_t index) {
+        DEBUG_ASSERT(index < self._size);
+        return self.data()[index];
     }
 
     template <typename... Args>

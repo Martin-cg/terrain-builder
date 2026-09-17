@@ -82,3 +82,7 @@ struct is_specialization_of<Tmpl<Args...>, Tmpl> : std::true_type {};
 
 template <typename T, template <typename...> class Tmpl>
 inline constexpr bool is_specialization_of_v = is_specialization_of<T, Tmpl>::value;
+
+// `To`, made const if `From` is const, with references on `From` ignored.
+template <typename From, typename To>
+using copy_const_t = std::conditional_t<std::is_const_v<std::remove_reference_t<From>>, const To, To>;
