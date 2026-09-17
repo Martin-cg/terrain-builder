@@ -1,3 +1,5 @@
+#include <cstdint>
+
 #include <glm/glm.hpp>
 #include <radix/geometry.h>
 
@@ -37,6 +39,30 @@ TEST_CASE("PlaneFrame::from_triangle rejects a degenerate triangle", "[geometry]
         glm::dvec3(5.0, 1.0, 0.0),
     };
     CHECK_FALSE(PlaneFrame::from_triangle(repeated).has_value());
+}
+
+TEST_CASE("PlaneFrame::from_triangle rejects a flat sliver without a short edge", "[geometry][PlaneFrame]") {
+    const radix::geometry::Triangle<3, double> sliver = {
+        glm::dvec3(0.0, 0.0, 0.0),
+        glm::dvec3(1000.0, 0.0, 0.0),
+        glm::dvec3(500.0, 1e-13, 0.0),
+    };
+
+    CHECK_FALSE(PlaneFrame::from_triangle(sliver).has_value());
+}
+
+TEST_CASE("PlaneFrame::from_triangle rejects a needle wherever its short edge lies", "[geometry][PlaneFrame]") {
+    // The area is well above epsilon, but the short edge makes the triangle thinner than it.
+    const radix::geometry::Triangle<3, double> corners = {
+        glm::dvec3(0.0, 0.0, 0.0),
+        glm::dvec3(1e-13, 0.0, 0.0),
+        glm::dvec3(0.0, 1000.0, 0.0),
+    };
+    const uint32_t first = GENERATE(0u, 1u, 2u);
+    const radix::geometry::Triangle<3, double> needle = {corners[first], corners[(first + 1) % 3], corners[(first + 2) % 3]};
+    INFO("first corner: " << first);
+
+    CHECK_FALSE(PlaneFrame::from_triangle(needle).has_value());
 }
 
 TEST_CASE("CoordFrame maps to local coordinates and back", "[geometry][CoordFrame]") {

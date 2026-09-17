@@ -13,18 +13,17 @@
 // A plane carrying an in-plane coordinate system, so geometry can be laid out on it.
 template <typename T = double>
 struct PlaneFrame_ : CoordFrame_<T> {
-    // Empty for a degenerate triangle, which spans no plane.
+    // Empty for a triangle thinner than epsilon, whose normal is unreliable.
     static std::optional<PlaneFrame_> from_triangle(const radix::geometry::Triangle<3, T> &triangle) {
-        const glm::vec<3, T> to_second = triangle[1] - triangle[0];
-        const glm::vec<3, T> to_third = triangle[2] - triangle[0];
-        if (glm::length2(glm::cross(to_second, to_third)) <= geometry::epsilon_sq<T>() || glm::length2(to_second) <= geometry::epsilon_sq<T>()) {
+        // The smallest altitude never exceeds the shortest edge, so this also rejects every near-zero edge.
+        if (geometry::compute_triangle_thickness(triangle) <= geometry::epsilon<T>()) {
             return std::nullopt;
         }
 
         PlaneFrame_ frame;
         frame.origin = triangle[0];
         frame.normal = geometry::compute_normal(triangle);
-        frame.tangent = glm::normalize(to_second);
+        frame.tangent = glm::normalize(triangle[1] - triangle[0]);
         frame.bitangent = glm::cross(frame.normal, frame.tangent);
 
         return frame;
