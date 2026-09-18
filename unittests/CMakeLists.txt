@@ -34,6 +34,7 @@ add_executable(unittests_terrainlib
     terrainlib/stamp_set.cpp
     terrainlib/index_map.cpp
     terrainlib/index_traverse.cpp
+    terrainlib/mesh_adjacency.cpp
     terrainlib/mesh_boundary.cpp
     terrainlib/mesh_geometry.cpp
     terrainlib/mesh_bounds.cpp

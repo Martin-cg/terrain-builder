@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <ranges>
 #include <span>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -200,3 +201,25 @@ private:
     // The contiguous backing storage for all segments.
     std::vector<value_type> _data;
 };
+
+// One segment per key in [0, segment_count), holding the values paired with that key in the order they appear in pairs.
+template <typename TValue, typename TValueIndex, typename TSegmentIndex = TValueIndex>
+SegmentedBuffer<TValue, TValueIndex, TSegmentIndex> group_by_key(
+    const TSegmentIndex segment_count,
+    std::span<const std::pair<std::type_identity_t<TSegmentIndex>, TValue>> pairs) {
+    std::vector<TValueIndex> counts(segment_count, 0);
+    for (const auto &[key, _] : pairs) {
+        counts[key]++;
+    }
+
+    SegmentedBuffer<TValue, TValueIndex, TSegmentIndex> groups;
+    groups.init(counts);
+
+    // Walking backwards with the counts as write cursors keeps each segment in pair order.
+    for (const auto &[key, value] : pairs | std::views::reverse) {
+        counts[key]--;
+        groups.segment(key)[counts[key]] = value;
+    }
+
+    return groups;
+}

@@ -10,6 +10,7 @@
 
 #include "containers/FixedVector.h"
 #include "containers/HybridVector.h"
+#include "containers/SegmentedBuffer.h"
 #include "mesh/SimpleMesh.h"
 #include "mesh/View.h"
 
@@ -44,6 +45,11 @@ std::unordered_map<glm::uvec2, std::vector<uint32_t>> create_edge_to_triangle_ma
 template <glm::length_t n_dims, typename T>
 std::unordered_map<glm::uvec2, std::vector<uint32_t>> create_edge_to_triangle_mapping_non_manifold2(const mesh::View_<n_dims, T> &mesh);
 std::unordered_map<glm::uvec2, std::vector<uint32_t>> create_edge_to_triangle_mapping_non_manifold2(const std::span<const glm::uvec3> triangles);
+
+// Per entry of queried, the triangles sharing at least one edge with it, itself included, in ascending index order.
+SegmentedBuffer<uint32_t, uint32_t> find_edge_neighbourhoods(
+    std::span<const glm::uvec3> triangles,
+    std::span<const uint32_t> queried);
 
 template <glm::length_t n_dims, typename T>
 std::vector<std::vector<uint32_t>> create_vertex_to_triangle_mapping(const mesh::Simple_<n_dims, T> &mesh);

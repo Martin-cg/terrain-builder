@@ -5,6 +5,7 @@
 #include "../catch2_helpers.h"
 #include "mesh/SimpleMesh.h"
 #include "mesh/cleanup.h"
+#include "mesh/connectivity/triangle_compare.h"
 
 namespace {
 std::vector<uint32_t> sorted(std::vector<uint32_t> v) {
@@ -127,6 +128,46 @@ SimpleMesh make_mesh_with_one_tiny_and_one_large_triangle() {
 
 } // namespace
 
+TEST_CASE("mesh::find_duplicate_triangle_groups", "[mesh][cleanup]") {
+    const std::vector<glm::uvec3> triangles = {
+        glm::uvec3(0, 1, 2), // 0
+        glm::uvec3(3, 4, 5), // 1
+        glm::uvec3(4, 5, 3), // 2 rotation of 1
+        glm::uvec3(1, 2, 0), // 3 rotation of 0
+        glm::uvec3(0, 2, 1), // 4 flip of 0
+        glm::uvec3(6, 7, 8), // 5 unique
+        glm::uvec3(5, 4, 3), // 6 flip of 1
+        glm::uvec3(0, 1, 2), // 7 copy of 0
+    };
+
+    SECTION("considering orientation, rotations match and flips do not") {
+        const SegmentedBuffer<uint32_t, uint32_t> groups = mesh::find_duplicate_triangle_groups(triangles, false);
+
+        SegmentedBuffer<uint32_t, uint32_t> expected;
+        expected.push_new_segment(std::vector<uint32_t>{1, 2});
+        expected.push_new_segment(std::vector<uint32_t>{0, 3, 7});
+        CHECK(groups == expected);
+    }
+
+    SECTION("ignoring orientation, rotations and flips match") {
+        const SegmentedBuffer<uint32_t, uint32_t> groups = mesh::find_duplicate_triangle_groups(triangles, true);
+
+        SegmentedBuffer<uint32_t, uint32_t> expected;
+        expected.push_new_segment(std::vector<uint32_t>{1, 2, 6});
+        expected.push_new_segment(std::vector<uint32_t>{0, 3, 4, 7});
+        CHECK(groups == expected);
+    }
+}
+
+TEST_CASE("mesh::find_duplicate_triangle_groups without duplicates is empty", "[mesh][cleanup]") {
+    const std::vector<glm::uvec3> triangles = {
+        glm::uvec3(0, 1, 2),
+        glm::uvec3(1, 3, 2),
+    };
+
+    CHECK(mesh::find_duplicate_triangle_groups(triangles, true) == SegmentedBuffer<uint32_t, uint32_t>());
+}
+
 TEST_CASE("mesh::find_duplicate_triangles", "[mesh][cleanup]") {
 
     SECTION("unique mesh has no duplicates") {
@@ -183,6 +224,23 @@ TEST_CASE("mesh::find_duplicate_triangles", "[mesh][cleanup]") {
         CHECK((a[0] == 0 || a[0] == 1));
         CHECK((b[0] == 0 || b[0] == 1));
         CHECK((c[0] == 0 || c[0] == 1));
+    }
+
+    SECTION("three copies with one flipped keep only the first aligned copy") {
+        const std::vector<glm::dvec3> positions = {
+            glm::dvec3(0, 0, 0),
+            glm::dvec3(1, 0, 0),
+            glm::dvec3(0, 1, 0),
+        };
+        const std::vector<glm::uvec3> triangles = {
+            glm::uvec3(0, 1, 2),
+            glm::uvec3(0, 2, 1),
+            glm::uvec3(0, 1, 2),
+        };
+
+        const std::vector<uint32_t> duplicates = mesh::find_duplicate_triangles_ignore_orientation(triangles, positions);
+
+        CHECK(duplicates == std::vector<uint32_t>{1, 2});
     }
 }
 
