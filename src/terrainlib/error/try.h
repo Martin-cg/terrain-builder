@@ -18,27 +18,30 @@
 namespace alp::detail {
 
 // A plain code ALP_TRY caught from a failed result, with where it was caught and the message to add; it becomes the error the enclosing function returns.
-template <ErrorCode E>
+template <ErrorCode E, typename M>
 struct PendingCode {
     E code;
-    std::optional<std::string> message;
+    M message;
     std::source_location location;
 
-    // Becomes any other type the code converts to, dropping the location and the message.
+    // Becomes any other type the code converts to, dropping the location.
     template <typename Target>
         requires(!is_specialization_of_v<Target, BasicError> && std::is_convertible_v<const E &, Target>)
     operator Target() const {
+        // Declared for every message so that tl::expected sees the conversion, and rejected on use so that the reason is readable.
+        static_assert(std::same_as<M, std::nullopt_t>, "ALP_TRY_CONTEXT needs a function returning an alp::Result: a plain expected has no place for the message");
         return this->code;
     }
 
-    // Becomes an Error with its origin where the code was caught and the message as its first context.
+    // Becomes an Error with its origin where the code was caught and the message, if any, as its first context.
     template <ErrorCode... Es>
         requires std::is_convertible_v<Error<E>, BasicError<Es...>>
     operator BasicError<Es...>() const {
-        if (this->message.has_value()) {
-            return make_error(this->code, *this->message, this->location);
+        if constexpr (std::same_as<M, std::nullopt_t>) {
+            return make_error(this->code, this->location);
+        } else {
+            return make_error(this->code, this->message, this->location);
         }
-        return make_error(this->code, this->location);
     }
 };
 
@@ -60,7 +63,7 @@ auto make_residual(R &&result, M message, const std::source_location location) {
             }
             return tl::make_unexpected(std::move(error));
         } else if constexpr (ErrorCode<Failure>) {
-            return tl::make_unexpected(PendingCode<Failure>{.code = std::forward<R>(result).error(), .message = std::move(message), .location = location});
+            return tl::make_unexpected(PendingCode<Failure, M>{.code = std::forward<R>(result).error(), .message = std::move(message), .location = location});
         } else {
             static_assert(!has_message, "ALP_TRY_CONTEXT needs an Error or a plain code: any other error has no place for the message");
             return tl::make_unexpected(std::forward<R>(result).error());

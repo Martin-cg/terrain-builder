@@ -153,17 +153,6 @@ TEST_CASE("ALP_TRY_CONTEXT adds its message to a plain code as the first context
     CHECK(result.error().frames()[0].location.line() == before.line() + 1);
 }
 
-TEST_CASE("ALP_TRY_CONTEXT hands a plain code without its message to an enclosing function whose error is that code", "[error][try]") {
-    const auto forward = [](tl::expected<int, FileError> source) -> tl::expected<int, FileError> {
-        ALP_TRY_CONTEXT(const int value, std::move(source), "reading app.cfg");
-        return value + 1;
-    };
-    const tl::expected<int, FileError> result = forward(tl::make_unexpected(FileError::NotFound));
-
-    REQUIRE(!result.has_value());
-    CHECK(result.error() == FileError::NotFound);
-}
-
 TEST_CASE("ALP_TRY passes any other error through unchanged", "[error][try]") {
     const auto forward = [](tl::expected<int, std::string> source) -> tl::expected<int, std::string> {
         ALP_TRY(const int value, std::move(source));
