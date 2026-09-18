@@ -1,3 +1,4 @@
+#include <ranges>
 #include <span>
 #include <unordered_set>
 #include <unordered_map>
@@ -15,26 +16,16 @@ namespace mesh {
 
 void find_boundary_edges(const std::span<const glm::uvec3> triangles, std::unordered_set<glm::uvec2>& boundary) {
     boundary.clear();
-    for_each_halfedge(triangles, [&](const glm::uvec2 &edge) {
-        auto it = boundary.find(glm::uvec2(edge.y, edge.x));
-        if (it != boundary.end()) {
-            // Edge already there -> shared egde -> remove it
-            boundary.erase(it);
-        } else {
-            // Edge not present -> add it (but in correct order)
-            boundary.insert(edge);
-        }
-    }, /* normalize */ false);
+    detail::for_each_boundary_halfedge(triangles, [&](const glm::uvec2 &edge, const uint32_t) {
+        boundary.insert(edge);
+    });
 }
 
 void find_boundary_triangles(const std::span<const glm::uvec3> triangles, std::unordered_set<uint32_t>& boundary_triangles) {
-    const std::unordered_map<glm::uvec2, uint32_t> edge_to_triangle = detail::find_boundary_edges_and_triangles(triangles);
-
     boundary_triangles.clear();
-    boundary_triangles.reserve(edge_to_triangle.size());
-    for (const auto &[_, triangle_index] : edge_to_triangle) {
+    detail::for_each_boundary_halfedge(triangles, [&](const glm::uvec2 &, const uint32_t triangle_index) {
         boundary_triangles.insert(triangle_index);
-    }
+    });
 }
 
 void find_boundary_vertices(const std::span<const glm::uvec3> triangles, std::unordered_set<uint32_t> &boundary_vertices) {
@@ -148,6 +139,10 @@ std::vector<std::vector<uint32_t>> find_boundaries_non_manifold(const std::span<
                 auto loop_start = boundary.begin() + first_occurance;
                 auto loop_end = boundary.begin() + i;
                 std::vector<uint32_t> loop(loop_start, loop_end);
+                // The cut vertices leave the boundary; the first stays at first_occurance, where the repeat at i moves to.
+                for (const uint32_t loop_vertex : loop | std::views::drop(1)) {
+                    visited.erase(loop_vertex);
+                }
                 boundaries.push_back(std::move(loop));
                 boundary.erase(loop_start, loop_end);
                 i = first_occurance;
