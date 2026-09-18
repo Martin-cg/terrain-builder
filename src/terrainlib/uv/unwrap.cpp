@@ -216,7 +216,7 @@ alp::Result<Map, UnwrapError> unwrap(
     DEBUG_ASSERT(mesh::compute_topology(mesh).is_disk(true));
     
     cgal::Mesh cgal_mesh = convert::to_cgal_mesh(mesh);
-    ALP_TRY(const CgalMap &cgal_map, parameterize_mesh(cgal_mesh, algorithm, border));
+    ALP_TRY_CONTEXT(const CgalMap &cgal_map, parameterize_mesh(cgal_mesh, algorithm, border), "unwrapping a mesh");
     Uvs uvs = decode_uv_map(cgal_map.uvs, mesh.vertex_count());
     return Map{std::move(uvs), cgal_map.aspect};
 }

@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <unordered_set>
 
+#include <fmt/format.h>
 #include <tl/expected.hpp>
 
 #include "octree/storage/helpers.h"
@@ -100,7 +101,7 @@ tl::expected<void, io::Error> save_index_map(const IndexMap& index, const disk::
     index_file.preferred_extension = layout.extension_with_dot();
     index_file.layout_strategy_id = disk::layout::StrategyRegister::instance().get_id(layout.strategy());
 
-    ALP_TRY_CONTEXT(io::write_to_path(index_file, index_path), "saving the index");
+    ALP_TRY_CONTEXT(io::write_to_path(index_file, index_path), fmt::format("saving an index to {}", index_path.string()));
     return {};
 }
 

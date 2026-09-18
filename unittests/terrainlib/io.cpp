@@ -52,7 +52,9 @@ TEST_CASE("Writing below a file fails with a file error, naming the directory it
     const alp::Result<void, io::FileError> result = io::write_bytes_to_path(std::vector<uint8_t>{1}, path);
 
     REQUIRE(!result.has_value());
-    CHECK(fmt::format("{:#}", result.error()).contains(blocker.string()));
+    const std::string chain = fmt::format("{:#}", result.error());
+    CHECK(chain.contains(blocker.string()));
+    CHECK(chain.contains(path.string()));
 }
 
 TEST_CASE("Reading truncated bytes reports that the data ended early") {
@@ -101,30 +103,6 @@ TEST_CASE("A failed read of a value names the file", "[io][serialize]") {
 
     REQUIRE(!result.has_value());
     CHECK(fmt::format("{:#}", result.error()).contains(path.string()));
-}
-
-TEST_CASE("A failed io operation names the operation", "[io][bytes]") {
-    const TempDirectory directory("io_error_operation");
-    std::string chain;
-    std::string operation;
-
-    SECTION("opening a missing file") {
-        const alp::Result<std::vector<uint8_t>, io::FileError> result = io::read_bytes_from_path(directory.path() / "missing.bin");
-        REQUIRE(!result.has_value());
-        chain = fmt::format("{:#}", result.error());
-        operation = "opening the file";
-    }
-
-    SECTION("creating the directories below a file") {
-        const std::filesystem::path blocker = directory.path() / "blocker";
-        REQUIRE(io::write_bytes_to_path(std::vector<uint8_t>{1}, blocker).has_value());
-        const alp::Result<void, io::FileError> result = io::write_bytes_to_path(std::vector<uint8_t>{1}, blocker / "child.bin");
-        REQUIRE(!result.has_value());
-        chain = fmt::format("{:#}", result.error());
-        operation = "creating the parent directories";
-    }
-
-    CHECK(chain.contains(operation));
 }
 
 TEST_CASE("Writing and reading a value round-trips it") {

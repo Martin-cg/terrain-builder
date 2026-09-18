@@ -16,7 +16,7 @@ Result<SimpleMesh> load_from_path(
     } else if (extension == ".terrain") {
         return terrain::load_from_path(path, options);
     } else {
-        return alp::make_unexpected(UnsupportedFormat{.extension = extension}, fmt::format("loading the mesh from {}", path.string()));
+        return alp::make_unexpected(UnsupportedFormat{.extension = extension}, fmt::format("loading a mesh from {}", path.string()));
     }
 }
 
@@ -34,7 +34,7 @@ Result<void> save_to_path(
     } else if (extension == ".terrain") {
         return terrain::save_to_path(mesh, path, options);
     } else {
-        return alp::make_unexpected(UnsupportedFormat{.extension = extension}, fmt::format("saving the mesh to {}", path.string()));
+        return alp::make_unexpected(UnsupportedFormat{.extension = extension}, fmt::format("saving a mesh to {}", path.string()));
     }
 }
 

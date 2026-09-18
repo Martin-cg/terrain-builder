@@ -359,7 +359,7 @@ inline radix::geometry::Aabb3d encompassing_bounds_transfer(
 inline alp::Result<OGRSpatialReference, gdal::OgrError> from_epsg(const uint32_t epsg) {
     OGRSpatialReference srs;
     if (const OGRErr code = srs.importFromEPSG(epsg); code != OGRERR_NONE) {
-        return alp::make_unexpected(gdal::OgrError(code), fmt::format("importing EPSG code {}", epsg));
+        return alp::make_unexpected(gdal::OgrError(code), fmt::format("importing reference from EPSG code {}", epsg));
     }
     srs.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
     return srs;
@@ -368,7 +368,7 @@ inline alp::Result<OGRSpatialReference, gdal::OgrError> from_epsg(const uint32_t
 inline alp::Result<OGRSpatialReference, gdal::OgrError> from_user_input(const std::string &user_input) {
     OGRSpatialReference srs;
     if (const OGRErr code = srs.SetFromUserInput(user_input.c_str()); code != OGRERR_NONE) {
-        return alp::make_unexpected(gdal::OgrError(code), fmt::format("parsing the spatial reference {}", user_input));
+        return alp::make_unexpected(gdal::OgrError(code), fmt::format("parsing a spatial reference from {}", user_input));
     }
     srs.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
     return srs;

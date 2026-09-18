@@ -84,7 +84,7 @@ TEST_CASE("A failed node copy names the node", "[octree][storage]") {
     CHECK(message.contains(fmt::to_string(id)));
 }
 
-TEST_CASE("A failed node copy names the step that failed", "[octree][storage]") {
+TEST_CASE("A failed node copy names the file it could not replace", "[octree][storage]") {
     const TempDirectory directory("octree_storage_failed_copy_step");
     const octree::MeshStorage source = octree::open_folder(directory.path() / "source");
     octree::MeshStorage target = octree::open_folder(directory.path() / "target");
@@ -97,5 +97,9 @@ TEST_CASE("A failed node copy names the step that failed", "[octree][storage]") 
     const auto result = target.copy_from(id, source);
 
     REQUIRE(!result.has_value());
-    CHECK(fmt::format("{:#}", result.error()).contains("removing the old file"));
+    const io::FileError *error = result.error().get_if<io::FileError>();
+    REQUIRE(error != nullptr);
+    CHECK(error->path() == target.path_for(id));
+    // A link onto the directory fails as file_exists, so another code shows the removal reported its own failure.
+    CHECK(error->code() != std::errc::file_exists);
 }

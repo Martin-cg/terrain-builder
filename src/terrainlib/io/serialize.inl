@@ -6,6 +6,7 @@
 #include "error/try.h"
 #include "error/utils.h"
 #include "io/bytes.h"
+#include "type_utils.h"
 
 namespace io {
 
@@ -15,7 +16,7 @@ alp::Result<std::vector<uint8_t>, SerdeError> write_to_bytes(const T &value) {
     zpp::bits::out out(data);
     const auto result = out(value);
     if (zpp::bits::failure(result)) {
-        return alp::make_unexpected(SerdeError(result));
+        return alp::make_unexpected(SerdeError(result), fmt::format("encoding {}", type_name<T>()));
     }
     return data;
 }
@@ -26,22 +27,28 @@ alp::Result<T, SerdeError> read_from_bytes(const std::span<const uint8_t> bytes)
     T value = zpp::bits::access::make<T>();
     const auto result = in(value);
     if (zpp::bits::failure(result)) {
-        return alp::make_unexpected(SerdeError(result));
+        return alp::make_unexpected(SerdeError(result), fmt::format("decoding {}", type_name<T>()));
     }
     return value;
 }
 
 template <typename T>
 Result<T> read_from_path(const std::filesystem::path &path) {
-    ALP_TRY(const std::vector<uint8_t> &bytes, read_bytes_from_path(path));
-    ALP_TRY_CONTEXT(T value, read_from_bytes<T>(bytes), fmt::format("decoding the data in {}", path.string()));
+    const auto context = [&] {
+        return fmt::format("reading {} from {}", type_name<T>(), path.string());
+    };
+    ALP_TRY_CONTEXT(const std::vector<uint8_t> &bytes, read_bytes_from_path(path), context());
+    ALP_TRY_CONTEXT(T value, read_from_bytes<T>(bytes), context());
     return value;
 }
 
 template <typename T>
 Result<void> write_to_path(const T &value, const std::filesystem::path &path, bool make_dirs) {
-    ALP_TRY_CONTEXT(const std::vector<uint8_t> &bytes, write_to_bytes(value), fmt::format("encoding the data for {}", path.string()));
-    ALP_TRY(write_bytes_to_path(bytes, path, make_dirs));
+    const auto context = [&] {
+        return fmt::format("writing {} to {}", type_name<T>(), path.string());
+    };
+    ALP_TRY_CONTEXT(const std::vector<uint8_t> &bytes, write_to_bytes(value), context());
+    ALP_TRY_CONTEXT(write_bytes_to_path(bytes, path, make_dirs), context());
     return {};
 }
 

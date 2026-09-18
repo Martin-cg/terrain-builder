@@ -16,7 +16,7 @@
 [[nodiscard]]
 alp::Result<void> run(const cli::Args& args) {
     LOG_INFO("Loading input mesh...");
-    ALP_TRY_CONTEXT(SimpleMesh mesh, mesh::io::load_from_path(args.input_path), "loading the input mesh");
+    ALP_TRY(SimpleMesh mesh, mesh::io::load_from_path(args.input_path));
 
     if (args.texture_resolution.has_value()) {
         if (mesh.texture.has_value()) {
@@ -30,7 +30,7 @@ alp::Result<void> run(const cli::Args& args) {
     }
 
     LOG_INFO("Writing output mesh...");
-    ALP_TRY_CONTEXT(mesh::io::save_to_path(mesh, args.output_path), "saving the output mesh");
+    ALP_TRY(mesh::io::save_to_path(mesh, args.output_path));
     return {};
 }
 

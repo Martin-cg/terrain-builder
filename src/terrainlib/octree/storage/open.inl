@@ -4,8 +4,10 @@
 #include <unordered_set>
 #include <vector>
 
+#include <fmt/format.h>
 #include <tl/expected.hpp>
 
+#include "error/try.h"
 #include "io/serialize.h"
 #include "log.h"
 #include "io/Error.h"
@@ -22,12 +24,7 @@ template <typename T, CodecFor<T> Codec>
 tl::expected<IndexedStorage_<T, Codec>, io::Error> open_index(const std::filesystem::path &index_path) {
     LOG_TRACE("Opening storage index {}", index_path);
 
-    const auto result = io::read_from_path<disk::v1::IndexFile>(index_path);
-    if (!result.has_value()) {
-        LOG_TRACE("Failed to open storage index due to {}", result.error());
-        return tl::unexpected(result.error());
-    }
-    auto index_file = result.value();
+    ALP_TRY_CONTEXT(disk::v1::IndexFile index_file, io::read_from_path<disk::v1::IndexFile>(index_path), fmt::format("opening an index from {}", index_path.string()));
     LOG_TRACE("Successfully read storage index with {} entries.", index_file.map.size());
     auto index_map = std::move(index_file.map);
     const auto base_path = index_path.parent_path();

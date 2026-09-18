@@ -232,6 +232,8 @@ static std::string image_ext_to_mime(std::string_view extension) {
 }
 }
 
+namespace detail {
+
 alp::Result<RawMesh, GltfError> load_raw_from_path(const std::filesystem::path &path) {
     cgltf_options options = {};
     cgltf_data *data = NULL;
@@ -332,6 +334,18 @@ Result<SimpleMesh> load_from_raw(const RawMesh &raw, const LoadOptions& /* optio
     }
 
     return SimpleMesh(indices, positionsd, uvsd, texture);
+}
+
+} // namespace detail
+
+alp::Result<RawMesh, GltfError> load_raw_from_path(const std::filesystem::path &path) {
+    ALP_TRY_CONTEXT(RawMesh raw, detail::load_raw_from_path(path), fmt::format("parsing a glTF file at {}", path.string()));
+    return raw;
+}
+
+Result<SimpleMesh> load_from_raw(const RawMesh &raw, const LoadOptions &options) {
+    ALP_TRY_CONTEXT(SimpleMesh mesh, detail::load_from_raw(raw, options), "converting a glTF mesh");
+    return mesh;
 }
 
 /// Saves the mesh as a .gltf or .glb file at the given path.
@@ -661,22 +675,28 @@ Result<void> save_to_path(
     }
 
     // ********************* Save the GLTF data to a file ********************* //
-    ALP_TRY(::io::utils::create_parent_directories(path));
+    const auto context = [&] {
+        return fmt::format("saving a glTF mesh to {}", path.string());
+    };
+    ALP_TRY_CONTEXT(::io::utils::create_parent_directories(path), context());
     cgltf_options gltf_options = {};
     if (binary_output) {
         gltf_options.type = cgltf_file_type_glb;
     }
     const cgltf_result write_result = cgltf_write_file(&gltf_options, path.string().c_str(), &data);
     if (write_result != cgltf_result_success) {
-        return alp::make_unexpected(GltfError(write_result), fmt::format("writing the glTF mesh to {}", path.string()));
+        return alp::make_unexpected(GltfError(write_result), context());
     }
 
     return {};
 }
 
 Result<SimpleMesh> load_from_path(const std::filesystem::path &path, const LoadOptions &options) {
-    ALP_TRY_CONTEXT(const RawMesh &raw_mesh, load_raw_from_path(path), fmt::format("parsing the glTF mesh in {}", path.string()));
-    ALP_TRY_CONTEXT(SimpleMesh mesh, load_from_raw(raw_mesh, options), fmt::format("decoding the mesh in {}", path.string()));
+    const auto context = [&] {
+        return fmt::format("loading a glTF mesh from {}", path.string());
+    };
+    ALP_TRY_CONTEXT(const RawMesh &raw_mesh, detail::load_raw_from_path(path), context());
+    ALP_TRY_CONTEXT(SimpleMesh mesh, detail::load_from_raw(raw_mesh, options), context());
     return mesh;
 }
 

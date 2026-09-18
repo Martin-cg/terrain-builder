@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
 
         const auto index_result = output_storage.save_index();
         if (!index_result.has_value()) {
-            LOG_FAILURE(index_result.error(), "saving the output storage");
+            LOG_FAILURE(index_result.error());
             return EXIT_FAILURE;
         }
 

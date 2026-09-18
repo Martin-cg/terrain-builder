@@ -225,6 +225,8 @@ glm::dvec2 calculate_radius_range(const std::span<const SimpleMesh3d> meshes) {
 
 } // namespace
 
+namespace detail {
+
 inline alp::Result<ReferencedPolygonMask, ContentError> load_referenced_from_dataset(Dataset& mask_dataset) {
     GDALDataset *dataset = mask_dataset.gdalDataset();
 
@@ -236,7 +238,7 @@ inline alp::Result<ReferencedPolygonMask, ContentError> load_referenced_from_dat
     }
 
     if (polygons.is_empty()) {
-        return alp::make_unexpected(ContentError::NoPolygons, fmt::format("reading the mask dataset {}", mask_dataset.name()));
+        return alp::make_unexpected(ContentError::NoPolygons);
     }
 
     OGRSpatialReference srs;
@@ -250,6 +252,13 @@ inline alp::Result<ReferencedPolygonMask, ContentError> load_referenced_from_dat
     }
 
     return ReferencedPolygonMask{.polygons = std::move(polygons), .srs = std::move(srs)};
+}
+
+} // namespace detail
+
+inline alp::Result<ReferencedPolygonMask, ContentError> load_referenced_from_dataset(Dataset& mask_dataset) {
+    ALP_TRY_CONTEXT(ReferencedPolygonMask referenced_mask, detail::load_referenced_from_dataset(mask_dataset), fmt::format("reading a mask from {}", mask_dataset.name()));
+    return referenced_mask;
 }
 
 inline SpherePolygonMask project_onto_sphere(ReferencedPolygonMask ref_mask, const double radius) {
@@ -410,8 +419,11 @@ inline MeshMask extrude(
 }
 
 inline alp::Result<ReferencedPolygonMask, LoadError> load_referenced_from_path(const std::filesystem::path &path) {
-    ALP_TRY(Dataset dataset, Dataset::open_vector(path));
-    ALP_TRY(ReferencedPolygonMask referenced_mask, load_referenced_from_dataset(dataset));
+    const auto context = [&] {
+        return fmt::format("loading a mask from {}", path.string());
+    };
+    ALP_TRY_CONTEXT(Dataset dataset, Dataset::open_vector(path), context());
+    ALP_TRY_CONTEXT(ReferencedPolygonMask referenced_mask, detail::load_referenced_from_dataset(dataset), context());
     return referenced_mask;
 }
 

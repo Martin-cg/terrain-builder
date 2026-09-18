@@ -53,18 +53,20 @@ public:
     }
 
     tl::expected<void, copy_error> copy_from(const Id &id, const RawStorage_ &source) {
-        const std::string operation = fmt::format("copying node {}", id);
+        const auto context = [&] {
+            return fmt::format("copying node {}", id);
+        };
         const auto source_path = source.path_for(id);
         const auto target_path = this->path_for(id);
         // Checked first so that a missing source leaves the target untouched.
         if (!source.has(id)) {
-            return alp::make_unexpected(io::FileError(std::make_error_code(std::errc::no_such_file_or_directory), source_path), operation);
+            return alp::make_unexpected(io::FileError(std::make_error_code(std::errc::no_such_file_or_directory), source_path), context());
         }
 
         if (source_path.extension() != target_path.extension()) {
             // TODO: should this error instead?
-            ALP_TRY_CONTEXT(const T node, Codec::load_from_path(source_path), operation);
-            ALP_TRY_CONTEXT(Codec::save_to_path(node, target_path), operation);
+            ALP_TRY_CONTEXT(const T node, Codec::load_from_path(source_path), context());
+            ALP_TRY_CONTEXT(Codec::save_to_path(node, target_path), context());
             return {};
         }
 
@@ -72,14 +74,14 @@ public:
         std::error_code code;
         std::filesystem::remove(target_path, code);
         if (code) {
-            return tl::make_unexpected(alp::make_error(io::FileError(code, target_path), "removing the old file").context(operation));
+            return tl::make_unexpected(alp::make_error(io::FileError(code, target_path), fmt::format("removing a node file at {}", target_path.string())).context(context()));
         }
 
-        ALP_TRY_CONTEXT(io::utils::create_parent_directories(target_path), operation);
+        ALP_TRY_CONTEXT(io::utils::create_parent_directories(target_path), context());
 
         std::filesystem::create_hard_link(source_path, target_path, code);
         if (code) {
-            return tl::make_unexpected(alp::make_error(io::FileError(code, target_path), "linking the file").context(operation));
+            return tl::make_unexpected(alp::make_error(io::FileError(code, target_path), fmt::format("linking a node file from {} to {}", source_path.string(), target_path.string())).context(context()));
         }
 
         return {};

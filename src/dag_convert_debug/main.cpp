@@ -20,11 +20,11 @@ namespace {
 
 [[nodiscard]]
 alp::Result<void> export_node(const cli::Args &args) {
-    ALP_TRY_CONTEXT(const dag::ClusterBatch &node, octree::ZppBitsCodec<dag::ClusterBatch>::load_from_path(args.input_path), "loading the input node");
+    ALP_TRY(const dag::ClusterBatch &node, octree::ZppBitsCodec<dag::ClusterBatch>::load_from_path(args.input_path));
 
     const mesh::Simple mesh = clustering_to_mesh(node.clustering);
 
-    ALP_TRY_CONTEXT(mesh::io::save_to_path(mesh, args.output_path), "saving the output mesh");
+    ALP_TRY(mesh::io::save_to_path(mesh, args.output_path));
     return {};
 }
 
@@ -71,7 +71,7 @@ alp::Result<void> export_storage(const cli::Args &args) {
 
     progress_thread.join();
 
-    ALP_TRY_CONTEXT(output_storage.save_or_create_index(), "saving the output index");
+    ALP_TRY(output_storage.save_or_create_index());
 
     LOG_INFO("Exported {} debug meshes to {}", exported_count, args.output_path);
     return {};
