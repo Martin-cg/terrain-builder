@@ -1,22 +1,22 @@
+#include <cstdlib>
 #include <filesystem>
 
 #include <glm/glm.hpp>
 #include <tl/expected.hpp>
 
+#include "error/Result.h"
+#include "error/log.h"
+#include "error/try.h"
 #include "mesh/SimpleMesh.h"
 #include "mesh/io.h"
 #include "opencv_utils.h"
 #include "log.h"
 #include "cli.h"
 
-void run(const cli::Args& args) {
+[[nodiscard]]
+alp::Result<void> run(const cli::Args& args) {
     LOG_INFO("Loading input mesh...");
-    const mesh::io::Result<SimpleMesh> load_result = mesh::io::load_from_path(args.input_path);
-    if (!load_result.has_value()) {
-        LOG_ERROR("Failed to load mesh: {:#}", load_result.error());
-        return;
-    }
-    SimpleMesh mesh = load_result.value();
+    ALP_TRY_CONTEXT(SimpleMesh mesh, mesh::io::load_from_path(args.input_path), "loading the input mesh");
 
     if (args.texture_resolution.has_value()) {
         if (mesh.texture.has_value()) {
@@ -30,16 +30,19 @@ void run(const cli::Args& args) {
     }
 
     LOG_INFO("Writing output mesh...");
-    const mesh::io::Result<void> save_result = mesh::io::save_to_path(mesh, args.output_path);
-    if (!save_result.has_value()) {
-        LOG_ERROR("Failed to save mesh: {:#}", save_result.error());
-        return;
-    }
+    ALP_TRY_CONTEXT(mesh::io::save_to_path(mesh, args.output_path), "saving the output mesh");
+    return {};
 }
 
 int main(int argc, char **argv) {
     const cli::Args args = cli::parse(argc, argv);
     Log::init(args.log_level);
 
-    run(args);
+    const alp::Result<void> result = run(args);
+    if (!result.has_value()) {
+        LOG_FAILURE(result.error());
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
 }

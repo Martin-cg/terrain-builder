@@ -10,6 +10,7 @@
 
 #include "error/Result.h"
 #include "error/format.h"
+#include "error/log.h"
 #include "error/try.h"
 #include "io/Error.h"
 #include "io/serialize.h"
@@ -52,7 +53,7 @@ public:
 
         const auto result = this->save_index();
         if (!result) {
-            LOG_ERROR("Failed to save index of {}: {:#}", this->_directory.string(), result.error());
+            LOG_FAILURE(result.error());
         }
     }
 

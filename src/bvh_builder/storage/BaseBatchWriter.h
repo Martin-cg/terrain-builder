@@ -11,6 +11,7 @@
 #include "storage/batch_limits.h"
 #include "error/Result.h"
 #include "error/format.h"
+#include "error/log.h"
 #include "error/try.h"
 
 namespace detail {
@@ -27,7 +28,7 @@ struct PendingBatch {
 
             const auto result = pending.output->write(pending.batch);
             if (!result) {
-                LOG_ERROR("Failed to write a batch: {:#}", result.error());
+                LOG_FAILURE(result.error());
             }
         }
     };

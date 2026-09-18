@@ -4,6 +4,9 @@
 #include "cli.h"
 #include "dag_node.h"
 #include "encoded.h"
+#include "error/Result.h"
+#include "error/log.h"
+#include "error/try.h"
 #include "log.h"
 #include "mesh/io.h"
 #include "octree/storage/MeshStorage.h"
@@ -15,22 +18,18 @@
 
 namespace {
 
-void export_node(const cli::Args &args) {
-    const auto load_result = octree::ZppBitsCodec<dag::ClusterBatch>::load_from_path(args.input_path);
-    if (!load_result.has_value()) {
-        LOG_ERROR("Failed to load node from {}: {:#}", args.input_path, load_result.error());
-        return;
-    }
+[[nodiscard]]
+alp::Result<void> export_node(const cli::Args &args) {
+    ALP_TRY_CONTEXT(const dag::ClusterBatch &node, octree::ZppBitsCodec<dag::ClusterBatch>::load_from_path(args.input_path), "loading the input node");
 
-    const mesh::Simple mesh = clustering_to_mesh(load_result.value().clustering);
+    const mesh::Simple mesh = clustering_to_mesh(node.clustering);
 
-    const auto save_result = mesh::io::save_to_path(mesh, args.output_path);
-    if (!save_result.has_value()) {
-        LOG_ERROR("Failed to save mesh to {}: {:#}", args.output_path, save_result.error());
-    }
+    ALP_TRY_CONTEXT(mesh::io::save_to_path(mesh, args.output_path), "saving the output mesh");
+    return {};
 }
 
-void export_storage(const cli::Args &args) {
+[[nodiscard]]
+alp::Result<void> export_storage(const cli::Args &args) {
     const octree::IndexedDagStorage input_storage = octree::open_folder_indexed<dag::ClusterBatch>(args.input_path);
 
     octree::MeshStorage output_storage = octree::open_folder<mesh::Simple, octree::MeshCodec>(
@@ -52,7 +51,7 @@ void export_storage(const cli::Args &args) {
 
         const auto load_result = input_storage.load(id);
         if (!load_result.has_value()) {
-            LOG_ERROR("Failed to load node {}: {:#}", id, load_result.error());
+            LOG_FAILURE(load_result.error());
             progress.task_finished();
             continue;
         }
@@ -61,7 +60,7 @@ void export_storage(const cli::Args &args) {
 
         const auto save_result = output_storage.save(id, mesh);
         if (!save_result.has_value()) {
-            LOG_ERROR("Failed to save mesh for node {}: {:#}", id, save_result.error());
+            LOG_FAILURE(save_result.error());
             progress.task_finished();
             continue;
         }
@@ -72,12 +71,19 @@ void export_storage(const cli::Args &args) {
 
     progress_thread.join();
 
-    const auto index_result = output_storage.save_or_create_index();
-    if (!index_result.has_value()) {
-        LOG_ERROR("Failed to save index for {}: {:#}", args.output_path, index_result.error());
-    }
+    ALP_TRY_CONTEXT(output_storage.save_or_create_index(), "saving the output index");
 
     LOG_INFO("Exported {} debug meshes to {}", exported_count, args.output_path);
+    return {};
+}
+
+[[nodiscard]]
+alp::Result<void> run(const cli::Args &args) {
+    if (std::filesystem::is_directory(args.input_path)) {
+        return export_storage(args);
+    } else {
+        return export_node(args);
+    }
 }
 
 } // namespace
@@ -86,10 +92,10 @@ int main(int argc, char **argv) {
     const cli::Args args = cli::parse(argc, argv);
     Log::init(args.log_level);
 
-    if (std::filesystem::is_directory(args.input_path)) {
-        export_storage(args);
-    } else {
-        export_node(args);
+    const alp::Result<void> result = run(args);
+    if (!result.has_value()) {
+        LOG_FAILURE(result.error());
+        return EXIT_FAILURE;
     }
 
     return EXIT_SUCCESS;

@@ -19,6 +19,7 @@
 #include "encoded.h"
 #include "geometry/geometry.h"
 #include "numeric/int_math.h"
+#include "error/log.h"
 #include "log.h"
 #include "merge/clusterings.h"
 #include "mesh/SimpleMesh.h"
@@ -55,7 +56,7 @@ std::optional<Clustering> load_and_clusterize_mesh(
     if (!result) {
         const ::io::FileError *file_error = result.error().get_if<::io::FileError>();
         if (file_error == nullptr || *file_error != std::errc::no_such_file_or_directory) {
-            LOG_ERROR("Failed to read node {}: {:#}", id, result.error());
+            LOG_FAILURE(result.error());
         }
         return std::nullopt;
     }
@@ -210,7 +211,7 @@ dag::ClusterBatch load_and_simplify_dag_nodes(
         // Load dag node clusters
         auto dag_node = ctx.output_storage.load(id);
         if (!dag_node) {
-            LOG_WARN("Failed to load DAG node {}, skipping", id);
+            LOG_FAILURE(dag_node.error());
             continue;
         }
         auto &[metadata, clustering] = dag_node.value();
@@ -554,7 +555,7 @@ std::unordered_set<octree::Id> build_level(
                 }
                 saved_ids.push_back(target);
             } else {
-                LOG_ERROR("Failed to save node {}: {:#}", target, save_result.error());
+                LOG_FAILURE(save_result.error());
             }
         }
         progress.task_finished();
@@ -619,7 +620,7 @@ void build_levels(
 
         // Persist per level so a finished level can be read back before the whole run completes
         if (const auto result = ctx.output_storage.save_or_create_index(); !result.has_value()) {
-            LOG_WARN("Could not save index after level {}: {:#}", level, result.error());
+            LOG_FAILURE(result.error(), "building level {}", level);
         }
     }
 

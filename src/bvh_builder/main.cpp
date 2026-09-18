@@ -13,6 +13,7 @@
 #include "bvh/flatten_dag.h"
 #include "error/Result.h"
 #include "error/format.h"
+#include "error/log.h"
 #include "error/try.h"
 #include "io/Error.h"
 #include "log.h"
@@ -102,7 +103,7 @@ int main(int argc, char **argv) {
     try {
         const alp::Result<void> result = build_bvh(args);
         if (!result.has_value()) {
-            LOG_ERROR("{:?}", result.error());
+            LOG_FAILURE(result.error());
             return EXIT_FAILURE;
         }
         return EXIT_SUCCESS;
