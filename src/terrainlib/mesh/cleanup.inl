@@ -2,6 +2,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <numeric>
 #include <ranges>
 #include <span>
@@ -163,32 +164,57 @@ void remove_duplicate_triangles_consider_orientation(mesh::Simple_<3, T> &mesh) 
 }
 
 template <glm::length_t n_dims, typename T>
-size_t remove_isolated_vertices(mesh::Simple_<n_dims, T> &mesh) {
-    const bool has_uvs = mesh.has_uvs();
-    const std::vector<uint32_t> isolated = find_isolated_vertices(mesh);
-    DEBUG_ASSERT(std::is_sorted(isolated.begin(), isolated.end()));
-
-    for (uint32_t i : isolated | std::views::reverse) {
-        const uint32_t last_index = static_cast<uint32_t>(mesh.positions.size() - 1);
-
-        if (i != last_index) {
-            std::swap(mesh.positions[i], mesh.positions[last_index]);
-            if (has_uvs) {
-                std::swap(mesh.uvs[i], mesh.uvs[last_index]);
-            }
-
-            for (glm::uvec3 &triangle : mesh.triangles) {
-                change_vertex_inplace(triangle, last_index, i);
-            }
-        }
-
-        mesh.positions.pop_back();
-        if (has_uvs) {
-            mesh.uvs.pop_back();
-        }
+void remove_unused_vertices(mesh::Simple_<n_dims, T> &mesh, const std::span<const uint32_t> sorted_vertices) {
+    DEBUG_ASSERT(std::ranges::is_sorted(sorted_vertices));
+    if (sorted_vertices.empty()) {
+        return;
     }
 
-    return isolated.size();
+    // Kept vertices are numbered in their original order; removed ones map to nothing.
+    constexpr uint32_t no_vertex = std::numeric_limits<uint32_t>::max();
+    const uint32_t vertex_count = static_cast<uint32_t>(mesh.vertex_count());
+    std::vector<uint32_t> map(vertex_count);
+    uint32_t next_removed = 0;
+    uint32_t next_index = 0;
+    for (uint32_t old_index = 0; old_index < vertex_count; old_index++) {
+        if (next_removed < sorted_vertices.size() && sorted_vertices[next_removed] == old_index) {
+            map[old_index] = no_vertex;
+            next_removed++;
+        } else {
+            map[old_index] = next_index;
+            next_index++;
+        }
+    }
+    const uint32_t new_vertex_count = next_index;
+
+    // Kept vertices only move down, so a forward pass never overwrites one it has yet to read.
+    const bool has_uvs = mesh.has_uvs();
+    for (uint32_t old_index = 0; old_index < vertex_count; old_index++) {
+        const uint32_t new_index = map[old_index];
+        if (new_index == no_vertex) {
+            continue;
+        }
+        mesh.positions[new_index] = mesh.positions[old_index];
+        if (has_uvs) {
+            mesh.uvs[new_index] = mesh.uvs[old_index];
+        }
+    }
+    mesh.positions.resize(new_vertex_count);
+    if (has_uvs) {
+        mesh.uvs.resize(new_vertex_count);
+    }
+
+    for (glm::uvec3 &triangle : mesh.triangles) {
+        triangle = glm::uvec3(map[triangle.x], map[triangle.y], map[triangle.z]);
+        DEBUG_ASSERT(triangle.x != no_vertex && triangle.y != no_vertex && triangle.z != no_vertex, "A removed vertex is still used by a triangle");
+    }
+}
+
+template <glm::length_t n_dims, typename T>
+size_t remove_unused_vertices(mesh::Simple_<n_dims, T> &mesh) {
+    const std::vector<uint32_t> unused = find_unused_vertices(mesh);
+    remove_unused_vertices(mesh, unused);
+    return unused.size();
 }
 
 template <glm::length_t n_dims, typename T>
