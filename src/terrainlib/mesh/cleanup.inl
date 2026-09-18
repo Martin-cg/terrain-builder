@@ -5,6 +5,7 @@
 #include <numeric>
 #include <ranges>
 #include <span>
+#include <tuple>
 #include <type_traits>
 #include <vector>
 
@@ -206,11 +207,14 @@ size_t remove_triangles_of_negligible_size(
     const T total_area = std::reduce(areas.begin(), areas.end(), static_cast<T>(0));
     const T average_area = total_area / static_cast<T>(areas.size());
 
-    const size_t erased_count = std::erase_if(mesh.triangles,
-        [&](const glm::uvec3 &tri) {
-            const size_t idx = &tri - &mesh.triangles.front();
-            return areas[idx] < average_area * threshold_fraction_of_average;
-        });
+    // Zipping moves each area along with its triangle, so the predicate never has to recover an index.
+    const T threshold = average_area * threshold_fraction_of_average;
+    const auto removed = std::ranges::remove_if(
+        std::views::zip(mesh.triangles, areas),
+        [&](const T area) { return area < threshold; },
+        [](const auto &triangle_and_area) { return std::get<1>(triangle_and_area); });
+    const size_t erased_count = removed.size();
+    mesh.triangles.resize(mesh.triangles.size() - erased_count);
     return erased_count;
 }
 
