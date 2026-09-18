@@ -11,4 +11,8 @@ namespace io::utils {
 [[nodiscard]]
 alp::Result<void, FileError> create_parent_directories(const std::filesystem::path &path);
 
+// The canonical form of `path`, or `path` as given if it cannot be made canonical.
+[[nodiscard]]
+std::filesystem::path canonicalize(const std::filesystem::path &path);
+
 } // namespace io::utils
