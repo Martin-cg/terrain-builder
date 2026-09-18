@@ -32,10 +32,10 @@ namespace detail {
 
     // Quantizes every vertex of every cluster of `clusterings`, cluster by cluster, onto the global grid.
     [[nodiscard]] inline PageVertices quantize_vertices(const std::span<const Clustering> clusterings) {
-        // TODO: additional meshopt-style quantization for compression.
         PageVertices vertices;
         for (const Clustering &clustering : clusterings) {
             for (const Cluster &cluster : clustering.clusters) {
+                DEBUG_ASSERT(cluster.uvs.size() == cluster.vertex_count());
                 vertices.cluster_offsets.append_segment(cluster.vertex_count());
                 for (const uint32_t index : cluster.vertex_indices) {
                     const glm::dvec3 &position = clustering.positions[index];
