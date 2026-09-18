@@ -23,43 +23,13 @@ bool IndexMap::add(Id id) {
                 // Nothing to do
                 return false;
             case NodeStatus::Virtual:
-                this->set_raw(id, NodeStatus::Inner);
+                *status = NodeStatus::Inner;
                 return true;
         }
     }
 
-    const auto parent_opt = id.parent();
-    if (!parent_opt.has_value()) {
-        DEBUG_ASSERT(id.is_root());
-        if (this->empty()) {
-            this->set_raw(id, NodeStatus::Leaf);
-            return true;
-        } else {
-            UNREACHABLE();
-            return true;
-        }
-    }
-    
-    const auto parent = parent_opt.value();
-    const NodeStatus* parent_status = this->get_raw(parent);
-    if (parent_status == nullptr) {
-        this->add(parent);
-        this->set_raw(parent, NodeStatus::Virtual);
-        this->set_raw(id, NodeStatus::Leaf);
-        return true;
-    }
-
-    switch (*parent_status) {
-        case NodeStatus::Leaf:
-            this->set_raw(parent, NodeStatus::Inner);
-            this->set_raw(id, NodeStatus::Leaf);
-            break;
-        case NodeStatus::Inner:
-        case NodeStatus::Virtual:
-            this->set_raw(id, NodeStatus::Leaf);
-            break;
-    }
-
+    this->update_parent_before_add(id);
+    this->set_raw(id, NodeStatus::Leaf);
     return true;
 }
 
@@ -86,8 +56,7 @@ bool IndexMap::remove(Id id) {
 }
 
 bool IndexMap::is_present(Id id) const {
-    auto it = this->_index.find(id);
-    return it != this->_index.end();
+    return this->get_raw(id) != nullptr;
 }
 bool IndexMap::is_absent(Id id) const {
     return !this->is_present(id);
@@ -136,6 +105,30 @@ void IndexMap::set_raw(Id id, NodeStatus status) {
 }
 void IndexMap::remove_raw(Id id) {
     this->_index.erase(id);
+}
+
+void IndexMap::update_parent_before_add(Id id) {
+    const auto parent_opt = id.parent();
+    if (!parent_opt.has_value()) {
+        return;
+    }
+
+    const auto parent = parent_opt.value();
+    NodeStatus* parent_status = this->get_raw(parent);
+    if (parent_status == nullptr) {
+        this->update_parent_before_add(parent);
+        this->set_raw(parent, NodeStatus::Virtual);
+        return;
+    }
+
+    switch (*parent_status) {
+        case NodeStatus::Leaf:
+            *parent_status = NodeStatus::Inner;
+            break;
+        case NodeStatus::Inner:
+        case NodeStatus::Virtual:
+            break;
+    }
 }
 
 void IndexMap::update_parent_after_remove(Id id) {

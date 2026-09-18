@@ -28,21 +28,24 @@ public:
     bool empty() const;
     size_t size() const;
 
+    bool operator==(const IndexMap &other) const = default;
+
     const_iterator begin() const;
     const_iterator end() const;
     const_iterator cbegin() const;
     const_iterator cend() const;
 
+    using serialize = zpp::bits::members<1>;
+    friend zpp::bits::access;
+
+private:
     NodeStatus* get_raw(Id id);
     const NodeStatus* get_raw(Id id) const;
     void set_raw(Id id, NodeStatus status);
     void remove_raw(Id id);
 
-    using serialize = zpp::bits::members<1>;
-    friend zpp::bits::access;
-
-private:
     Container _index;
+    void update_parent_before_add(Id id);
     void update_parent_after_remove(Id id);
 };
 
