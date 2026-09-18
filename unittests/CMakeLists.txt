@@ -160,6 +160,10 @@ if(TARGET packerlib)
         packer/geometry/codec.cpp
         packer/geometry/format.cpp
         packer/geometry/serialize.cpp
+        packer/hierarchy/build.cpp
+        packer/hierarchy/format.cpp
+        packer/hierarchy/serialize.cpp
+        packer/point_codec.cpp
         packer/quantize.cpp
         packer/texture/basis.cpp
         packer/texture/serialize.cpp

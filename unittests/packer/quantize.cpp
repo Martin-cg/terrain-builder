@@ -29,4 +29,27 @@ TEST_CASE("quantize_point round-trips within half a step", "[quantize]") {
     }
 }
 
+TEST_CASE("quantize_bounds contains the bounds it quantizes", "[quantize]") {
+    const std::vector<radix::geometry::Aabb3d> all_bounds = {
+        {.min = {0.0, 0.0, 0.0}, .max = {1.0, 1.0, 1.0}},
+        {.min = {0.0004, -0.0004, 0.0009}, .max = {1.5, -0.0001, 1000.125}},
+        {.min = {-6378137.3, -2.25, 0.5}, .max = {6378137.7, 2.25, 0.5}},
+    };
+
+    for (const radix::geometry::Aabb3d &bounds : all_bounds) {
+        const GridBox quantized = quantize_bounds(bounds);
+        const radix::geometry::Aabb3d restored{.min = dequantize_point(quantized.min), .max = dequantize_point(quantized.max)};
+
+        REQUIRE(restored.contains_inclusive(bounds.min));
+        REQUIRE(restored.contains_inclusive(bounds.max));
+    }
+}
+
+TEST_CASE("quantize_bounds keeps bounds on the grid unchanged", "[quantize]") {
+    const radix::geometry::Aabb3d bounds{.min = {-3 * GRID_STEP, 0.0, 5.0}, .max = {7 * GRID_STEP, 2.0, 1000.0}};
+    const FixedPoint::repr_t unit = FixedPoint::scale;
+
+    CHECK(quantize_bounds(bounds) == GridBox{.min = {-3, 0, 5 * unit}, .max = {7, 2 * unit, 1000 * unit}});
+}
+
 }
