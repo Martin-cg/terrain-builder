@@ -2,6 +2,7 @@
 
 #include <span>
 #include <functional>
+#include "geometry/bounds.h"
 #include "geometry/geometry.h"
 #include "mesh/SimpleMesh.h"
 #include "spatial_lookup/Grid.h"
@@ -48,14 +49,14 @@ spatial_lookup::Grid3d<T> _construct_grid_for_meshes(const radix::geometry::Aabb
 
 template <typename T>
 spatial_lookup::Grid3d<T> construct_grid_for_mesh(const SimpleMesh &mesh) {
-    const radix::geometry::Aabb3d bounds = calculate_bounds(mesh);
+    const radix::geometry::Aabb3d bounds = mesh::calculate_bounds(mesh);
     const size_t vertex_count = mesh.vertex_count();
     return _construct_grid_for_meshes<T>(bounds, vertex_count);
 }
 
 template <typename T>
 spatial_lookup::Grid3d<T> construct_grid_for_meshes(const std::span<const std::reference_wrapper<const SimpleMesh>> meshes) {
-    const radix::geometry::Aabb3d bounds = calculate_bounds(meshes);
+    const radix::geometry::Aabb3d bounds = mesh::calculate_bounds(meshes);
     const size_t maximal_merged_mesh_size = std::transform_reduce(
         meshes.begin(), meshes.end(), 0, [](const size_t a, const size_t b) { return a + b; }, [](const SimpleMesh &mesh) { return mesh.vertex_count(); });
     return _construct_grid_for_meshes<T>(bounds, maximal_merged_mesh_size);

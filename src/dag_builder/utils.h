@@ -8,6 +8,7 @@
 
 #include "atlas/rect/atlas.h"
 #include "cluster.h"
+#include "geometry/bounds.h"
 #include "geometry/geometry.h"
 #include "mesh/cleanup.h"
 #include "mesh/SimpleMesh.h"
@@ -33,7 +34,7 @@ inline std::vector<glm::dvec3> collect_cluster_positions(const Cluster &cluster,
 }
 
 inline radix::geometry::Aabb3d compute_cluster_bounds(const Cluster &cluster, const std::span<const glm::dvec3> global_positions) {
-    return radix::geometry::find_bounds(std::span<const glm::dvec3>(collect_cluster_positions(cluster, global_positions)));
+    return geometry::calculate_bounds(collect_cluster_positions(cluster, global_positions));
 }
 
 inline mesh::Simple materialize_cluster(const Cluster& cluster, const std::span<const glm::dvec3> positions) {
@@ -246,7 +247,7 @@ inline void trim_textures_inplace(Clustering &clustering) {
         for (const uint32_t cluster_index : clusters) {
             const Cluster &cluster = clustering.clusters[cluster_index];
             const std::span<const glm::dvec2> cluster_uvs = cluster.uvs;
-            const radix::geometry::Aabb2d cluster_uv_bounds = radix::geometry::find_bounds(cluster_uvs);
+            const radix::geometry::Aabb2d cluster_uv_bounds = geometry::calculate_bounds(cluster_uvs);
             uv_bounds.expand_by(cluster_uv_bounds);
         }
 

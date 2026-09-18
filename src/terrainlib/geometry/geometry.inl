@@ -12,20 +12,9 @@
 #include <libassert/assert.hpp>
 #include <radix/geometry.h>
 
+#include "geometry/bounds.h"
+
 namespace geometry {
-
-template <glm::length_t n_dims, typename T>
-radix::geometry::Aabb<n_dims, T> pad_bounds_absolute(const radix::geometry::Aabb<n_dims, T> &bounds, const T padding) {
-    using Vec = glm::vec<n_dims, T>;
-    return radix::geometry::Aabb<n_dims, T>(bounds.min - Vec(padding), bounds.max + Vec(padding));
-}
-
-template <glm::length_t n_dims, typename T>
-radix::geometry::Aabb<n_dims, T> pad_bounds_relative(const radix::geometry::Aabb<n_dims, T> &bounds, const T fraction, const T min_padding) {
-    using Vec = glm::vec<n_dims, T>;
-    const Vec padding = glm::max(bounds.size() * fraction, Vec(min_padding));
-    return radix::geometry::Aabb<n_dims, T>(bounds.min - padding, bounds.max + padding);
-}
 
 template <glm::length_t n_dims>
 void to_approximate_normalized(
@@ -33,7 +22,7 @@ void to_approximate_normalized(
     std::vector<glm::vec<n_dims, float>> &approx,
     radix::geometry::Aabb<n_dims, double> *out_bounds) {
     // compute bounds
-    const radix::geometry::Aabb<n_dims, double> bounds = radix::geometry::find_bounds(positions);
+    const radix::geometry::Aabb<n_dims, double> bounds = calculate_bounds(positions);
     const glm::vec<n_dims, double> center = bounds.centre();
     const glm::vec<n_dims, double> extents = bounds.size() / 2.0;
     const double max_extents = glm::compMax(extents);

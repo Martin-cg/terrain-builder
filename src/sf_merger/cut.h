@@ -2,6 +2,7 @@
 
 #include <libassert/assert.hpp>
 
+#include "geometry/bounds.h"
 #include "mesh/SimpleMesh.h"
 #include "log.h"
 #include "mask.h"
