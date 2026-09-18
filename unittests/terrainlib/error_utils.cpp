@@ -173,3 +173,53 @@ TEST_CASE("with_context builds its message only for a failed result", "[error][u
     REQUIRE(failed.error().frames().size() == 1);
     CHECK(failed.error().frames()[0].message == "loading the configuration");
 }
+
+TEST_CASE("A body run with a context that fails gets the context", "[error][utils]") {
+    const auto fail = []() -> alp::Result<int, FileError> {
+        return alp::make_unexpected(FileError::NotFound);
+    };
+    std::optional<alp::Result<int, FileError>> result;
+
+    SECTION("message") {
+        result = alp::run_with_context("loading the configuration", fail);
+    }
+
+    SECTION("lazy message") {
+        result = alp::run_with_context([] { return std::string("loading the configuration"); }, fail);
+    }
+
+    REQUIRE(!result->has_value());
+    CHECK(result->error().code() == FileError::NotFound);
+    REQUIRE(result->error().frames().size() == 1);
+    CHECK(result->error().frames()[0].message == "loading the configuration");
+}
+
+TEST_CASE("A body run with a context that succeeds passes its value through, never building the message", "[error][utils]") {
+    bool is_built = false;
+
+    const alp::Result<int, FileError> result = alp::run_with_context(
+        [&is_built] {
+            is_built = true;
+            return std::string("loading the configuration");
+        },
+        []() -> alp::Result<int, FileError> {
+            return 3;
+        });
+
+    CHECK(result.value() == 3);
+    CHECK(!is_built);
+}
+
+TEST_CASE("A body run with a context records the context at the location it is handed", "[error][utils]") {
+    const std::source_location location = std::source_location::current();
+    const alp::Result<int, FileError> result = alp::run_with_context(
+        "loading the configuration",
+        []() -> alp::Result<int, FileError> {
+            return alp::make_unexpected(FileError::NotFound);
+        },
+        location);
+
+    REQUIRE(!result.has_value());
+    REQUIRE(result.error().frames().size() == 1);
+    CHECK(is_same_location(result.error().frames()[0].location, location));
+}

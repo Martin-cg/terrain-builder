@@ -85,6 +85,21 @@ BasicResult<T, BasicError<Es...>> with_context(BasicResult<T, BasicError<Es...>>
     return std::move(result);
 }
 
+// Runs `body` and, if it fails, adds a frame holding `message` at the caller.
+template <std::invocable F>
+[[nodiscard]]
+std::invoke_result_t<F> run_with_context(std::string message, F &&body, const std::source_location location = std::source_location::current()) {
+    return alp::context(std::invoke(std::forward<F>(body)), std::move(message), location);
+}
+
+// Runs `body` and, if it fails, adds a frame holding the result of `make_message` at the caller.
+// `make_message` only runs on failure.
+template <std::invocable M, std::invocable F>
+[[nodiscard]]
+std::invoke_result_t<F> run_with_context(M &&make_message, F &&body, const std::source_location location = std::source_location::current()) {
+    return alp::with_context(std::invoke(std::forward<F>(body)), std::forward<M>(make_message), location);
+}
+
 // Turns `value` into a result that fails with `code` when it is empty.
 template <typename T, ErrorCode E>
 [[nodiscard]]
