@@ -168,11 +168,11 @@ private:
 
     static constexpr Index EMPTY_SLOT = std::numeric_limits<Index>::max();
     static constexpr Index OVERFLOW_SLOT = std::numeric_limits<Index>::max() - 1;
-    static constexpr Index LAST_SAFE_INDEX = std::numeric_limits<Index>::max() - 2;
+    static constexpr Index LAST_NON_SENTINEL = std::numeric_limits<Index>::max() - 2;
 
-    static void check_safe_index(const Index primary_key) {
-        DEBUG_ASSERT(primary_key <= LAST_SAFE_INDEX);
-        ALP_UNUSED(primary_key);
+    static void check_not_sentinel(const Index value) {
+        DEBUG_ASSERT(value <= LAST_NON_SENTINEL);
+        ALP_UNUSED(value);
     }
 
     struct Slot {
@@ -210,7 +210,7 @@ private:
             this->secondary_key = new_secondary_key;
 
             if constexpr (std::is_same_v<Index, Value>) {
-                check_safe_index(new_value);
+                check_not_sentinel(new_value);
                 this->value = std::move(new_value);
             } else {
                 this->value = direct_values.size();
@@ -224,7 +224,7 @@ private:
             DEBUG_ASSERT(this->is_direct());
 
             if constexpr (std::is_same_v<Index, Value>) {
-                check_safe_index(new_value);
+                check_not_sentinel(new_value);
                 this->value = std::move(new_value);
             } else {
                 direct_values[this->value] = std::move(new_value);
@@ -261,7 +261,7 @@ private:
     };
 
     Slot &ensure_slot(const Index primary_key) {
-        check_safe_index(primary_key);
+        check_not_sentinel(primary_key);
         if (primary_key >= this->_slots.size()) {
             this->_slots.resize(primary_key + 1);
         }
