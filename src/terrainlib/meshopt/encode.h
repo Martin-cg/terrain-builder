@@ -175,10 +175,16 @@ template <DecodableIndex T = uint32_t>
     return *std::move(result);
 }
 
+// The most vertices `meshopt_encodeMeshlet` supports.
+inline constexpr size_t MAX_ENCODED_MESHLET_VERTICES = 256;
+// The most triangles `meshopt_encodeMeshlet` supports.
+inline constexpr size_t MAX_ENCODED_MESHLET_TRIANGLES = 256;
+
 // Encodes one meshlet with meshopt's meshlet codec.
 [[nodiscard]] inline std::vector<uint8_t> encode_meshlet(
     const std::span<const uint32_t> vertex_indices,
     const std::span<const glm::tvec3<uint8_t>> local_triangles) {
+    ASSERT(vertex_indices.size() <= MAX_ENCODED_MESHLET_VERTICES && local_triangles.size() <= MAX_ENCODED_MESHLET_TRIANGLES);
     const std::span<const uint8_t> local_indices = flatten(local_triangles);
 
     const size_t bound = meshopt_encodeMeshletBound(vertex_indices.size(), local_triangles.size());
