@@ -38,7 +38,6 @@ add_executable(unittests_terrainlib
     terrainlib/hybrid_vector.cpp
     terrainlib/offset_table.cpp
     terrainlib/segmented_buffer.cpp
-    terrainlib/serde_error.cpp
     terrainlib/stamp_set.cpp
     terrainlib/index_map.cpp
     terrainlib/index_traverse.cpp

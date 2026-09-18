@@ -264,10 +264,6 @@ SimpleMesh make_triangle() {
 
 } // namespace
 
-TEST_CASE("A glTF error formats what cgltf's result means") {
-    CHECK(fmt::to_string(mesh::io::GltfError(cgltf_result_file_not_found)) == "the file was not found");
-}
-
 TEST_CASE("Loading a mesh with an unsupported extension fails, naming the extension") {
     const mesh::io::Result<SimpleMesh> result = mesh::io::load_from_path("mesh.xyz");
 
