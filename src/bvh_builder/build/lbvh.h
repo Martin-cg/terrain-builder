@@ -9,6 +9,7 @@
 #include <span>
 #include <vector>
 
+#include <fmt/format.h>
 #include <libassert/assert.hpp>
 #include <tl/expected.hpp>
 
@@ -16,6 +17,7 @@
 #include "numeric/wide_integer.h"
 #include "error/Result.h"
 #include "error/try.h"
+#include "error/utils.h"
 
 #include "storage/batch_limits.h"
 #include "bvh/BatchWriter.h"
@@ -123,12 +125,18 @@ inline alp::Result<frontier::Entry, io::Error> build(
 [[nodiscard]]
 inline alp::Result<bvh::Reference, io::Error> build(
     const frontier::Storage &input, bvh::Storage &output, const Options &options) {
-    bvh::BatchWriter sink(output, options.max_batch_bytes);
+    return alp::run_with_context(
+        [&] {
+            return fmt::format("building a tree from {} to {}", input.directory().string(), output.directory().string());
+        },
+        [&] -> alp::Result<bvh::Reference, io::Error> {
+            bvh::BatchWriter sink(output, options.max_batch_bytes);
 
-    ALP_TRY(const frontier::Entry root, build(input, sink));
-    ALP_TRY(sink.flush());
-    ALP_TRY(output.save_index());
-    return root.ref;
+            ALP_TRY(const frontier::Entry root, build(input, sink));
+            ALP_TRY(sink.flush());
+            ALP_TRY(output.save_index());
+            return root.ref;
+        });
 }
 
 } // namespace lbvh

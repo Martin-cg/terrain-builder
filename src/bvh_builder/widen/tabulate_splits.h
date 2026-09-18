@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include <fmt/format.h>
 #include <libassert/assert.hpp>
 #include <tl/expected.hpp>
 
@@ -17,6 +18,7 @@
 #include "mem.h"
 #include "error/Result.h"
 #include "error/try.h"
+#include "error/utils.h"
 
 #include "containers/SegmentedBuffer.h"
 
@@ -248,12 +250,18 @@ inline alp::Result<void, io::Error> tabulate_subtree(
 inline alp::Result<void, io::Error> tabulate_splits(bvh::NodeCache &input, const bvh::Reference &root, SplitStorage &splits, const Options &options) {
     ASSERT(options.arity >= 2 && options.arity <= max_arity);
 
-    BatchWriter writer(splits, options.max_batch_bytes);
+    return alp::run_with_context(
+        [&] {
+            return fmt::format("tabulating splits for a tree at batch {} node {}", root.batch, root.node);
+        },
+        [&] -> alp::Result<void, io::Error> {
+            BatchWriter writer(splits, options.max_batch_bytes);
 
-    detail::Scratch scratch;
-    ALP_TRY(detail::tabulate_subtree(input, root, options, writer, scratch));
+            detail::Scratch scratch;
+            ALP_TRY(detail::tabulate_subtree(input, root, options, writer, scratch));
 
-    return writer.flush();
+            return writer.flush();
+        });
 }
 
 }

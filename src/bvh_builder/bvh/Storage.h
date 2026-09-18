@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <utility>
 
+#include <fmt/format.h>
 #include <libassert/assert.hpp>
 #include <tl/expected.hpp>
 
@@ -29,6 +30,7 @@ public:
     Storage(Storage &&) noexcept = default;
     Storage &operator=(Storage &&) noexcept = default;
 
+    using Base::directory;
     using Base::save_index;
     using Base::size;
 
@@ -41,13 +43,13 @@ public:
     alp::Result<void, io::Error> write(const Batch &batch) const {
         ASSERT(batch.index() < this->size());
         this->mark_dirty();
-        ALP_TRY(io::write_to_path(batch, this->get_batch_path(batch.index())));
+        ALP_TRY_CONTEXT(io::write_to_path(batch, this->get_batch_path(batch.index())), fmt::format("writing batch {}", batch.index()));
         return {};
     }
 
     [[nodiscard]]
     alp::Result<Batch, io::Error> read(const uint32_t index) const {
-        ALP_TRY(Batch batch, io::read_from_path<Batch>(this->get_batch_path(index)));
+        ALP_TRY_CONTEXT(Batch batch, io::read_from_path<Batch>(this->get_batch_path(index)), fmt::format("reading batch {}", index));
         ASSERT(batch.index() == index);
         return batch;
     }

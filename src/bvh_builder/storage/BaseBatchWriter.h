@@ -28,7 +28,7 @@ struct PendingBatch {
 
             const auto result = pending.output->write(pending.batch);
             if (!result) {
-                LOG_FAILURE(result.error());
+                LOG_FAILURE(result.error(), "closing a batch writer for {}", pending.output->directory().string());
             }
         }
     };

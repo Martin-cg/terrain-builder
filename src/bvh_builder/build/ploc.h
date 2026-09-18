@@ -404,6 +404,10 @@ inline alp::Result<bvh::Reference, io::Error> build(
     const std::filesystem::path &scratch_root, const Options &options) {
     ASSERT(input.size() > 0, "the frontier is empty");
 
+    const auto context = [input_directory = input.directory(), &output] {
+        return fmt::format("building a tree from {} to {}", input_directory.string(), output.directory().string());
+    };
+
     const detail::RoundLayout layout(scratch_root);
     const frontier::SortOptions sort_options{
         .max_batch_bytes = options.max_batch_bytes,
@@ -415,20 +419,20 @@ inline alp::Result<bvh::Reference, io::Error> build(
     uint64_t previous = std::numeric_limits<uint64_t>::max();
     for (uint32_t round = 0;; round++) {
         frontier::Storage merged = layout.open_merged(round);
-        ALP_TRY(const uint64_t remaining, detail::run_round(current, merged, output, options));
+        ALP_TRY_CONTEXT(const uint64_t remaining, alp::with_context(detail::run_round(current, merged, output, options), [&] { return fmt::format("merging round {}", round); }), context());
         ASSERT(remaining < previous, "a ploc round left the frontier no smaller than it found it");
         previous = remaining;
 
-        ALP_TRY(merged.save_index());
+        ALP_TRY_CONTEXT(merged.save_index(), context());
         LOG_DEBUG("ploc round {} left {} entries on the frontier", round, remaining);
 
         frontier::Storage sorted = layout.open_sorted(round);
-        ALP_TRY(frontier::sort_by_morton(merged, sorted, sort_options));
-        ALP_TRY(sorted.save_index());
+        ALP_TRY_CONTEXT(frontier::sort_by_morton(merged, sorted, sort_options), context());
+        ALP_TRY_CONTEXT(sorted.save_index(), context());
 
         if (remaining == 1) {
-            ALP_TRY(const frontier::Batch batch, sorted.read(0));
-            ALP_TRY(output.save_index());
+            ALP_TRY_CONTEXT(const frontier::Batch batch, sorted.read(0), context());
+            ALP_TRY_CONTEXT(output.save_index(), context());
             return batch.entries.front().ref;
         }
 

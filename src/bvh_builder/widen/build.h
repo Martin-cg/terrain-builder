@@ -4,12 +4,14 @@
 #include <cstdint>
 #include <filesystem>
 
+#include <fmt/format.h>
 #include <libassert/assert.hpp>
 #include <tl/expected.hpp>
 
 #include "io/Error.h"
 #include "error/Result.h"
 #include "error/try.h"
+#include "error/utils.h"
 
 #include "bvh/NodeCache.h"
 #include "bvh/Storage.h"
@@ -25,18 +27,23 @@ namespace widen {
 inline alp::Result<bvh::Reference, io::Error> build(
     const bvh::Storage &input, const bvh::Reference &root, bvh::Storage &output,
     const std::filesystem::path &scratch, const Options &options) {
+    return alp::run_with_context(
+        [&] {
+            return fmt::format("widening a tree from {} to {}", input.directory().string(), output.directory().string());
+        },
+        [&] -> alp::Result<bvh::Reference, io::Error> {
+            const auto max_resident_batches = static_cast<uint32_t>(std::max<size_t>(1, options.max_resident_bytes / options.max_batch_bytes));
 
-    const auto max_resident_batches = static_cast<uint32_t>(std::max<size_t>(1, options.max_resident_bytes / options.max_batch_bytes));
+            bvh::NodeCache tree(input, max_resident_batches);
 
-    bvh::NodeCache tree(input, max_resident_batches);
+            SplitStorage splits(scratch / "splits");
+            ALP_TRY(tabulate_splits(tree, root, splits, options));
+            ALP_TRY(splits.save_index());
 
-    SplitStorage splits(scratch / "splits");
-    ALP_TRY(tabulate_splits(tree, root, splits, options));
-    ALP_TRY(splits.save_index());
-
-    ALP_TRY(const bvh::Reference wide_root, write_wide_nodes(splits, tree, root, output, options));
-    ALP_TRY(output.save_index());
-    return wide_root;
+            ALP_TRY(const bvh::Reference wide_root, write_wide_nodes(splits, tree, root, output, options));
+            ALP_TRY(output.save_index());
+            return wide_root;
+        });
 }
 
 }

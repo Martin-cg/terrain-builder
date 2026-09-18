@@ -5,6 +5,7 @@
 #include <span>
 #include <vector>
 
+#include <fmt/format.h>
 #include <libassert/assert.hpp>
 #include <tl/expected.hpp>
 
@@ -12,6 +13,7 @@
 #include "io/Error.h"
 #include "error/Result.h"
 #include "error/try.h"
+#include "error/utils.h"
 
 #include "bvh/BatchWriter.h"
 #include "bvh/NodeCache.h"
@@ -104,16 +106,22 @@ inline alp::Result<bvh::Reference, io::Error> write_wide_nodes(
     bvh::Storage &output, const Options &options) {
     ASSERT(options.arity >= 2 && options.arity <= max_arity, "the arity does not fit a slot count");
 
-    bvh::BatchWriter writer(output, options.max_batch_bytes);
-    SplitReader rows(splits);
+    return alp::run_with_context(
+        [&] {
+            return fmt::format("writing wide nodes to {}", output.directory().string());
+        },
+        [&] -> alp::Result<bvh::Reference, io::Error> {
+            bvh::BatchWriter writer(output, options.max_batch_bytes);
+            SplitReader rows(splits);
 
-    // The root stands in one slot of nothing at all, which leaves it no way out but to keep it.
-    std::vector<bvh::Reference> roots;
-    ALP_TRY(detail::write_subtree(input, root, 1, rows, writer, options, roots));
-    ALP_TRY(writer.flush());
+            // The root stands in one slot of nothing at all, which leaves it no way out but to keep it.
+            std::vector<bvh::Reference> roots;
+            ALP_TRY(detail::write_subtree(input, root, 1, rows, writer, options, roots));
+            ALP_TRY(writer.flush());
 
-    ASSERT(roots.size() == 1, "the root did not resolve to a single node");
-    return roots.front();
+            ASSERT(roots.size() == 1, "the root did not resolve to a single node");
+            return roots.front();
+        });
 }
 
 }

@@ -3,11 +3,14 @@
 #include <algorithm>
 #include <cstddef>
 #include <optional>
+#include <string>
 
+#include <fmt/format.h>
 #include <tl/expected.hpp>
 
 #include "error/Result.h"
 #include "error/try.h"
+#include "error/utils.h"
 #include "io/Error.h"
 
 #include "../../dag_builder/storage.h"
@@ -38,14 +41,20 @@ inline NodeHeader make_header(const dag::FlatNode &node) {
 [[nodiscard]]
 inline alp::Result<void, io::Error> flatten_dag(
     const octree::IndexedDagMetaStorage &dag, Storage &output, const FlattenOptions &options = {}) {
-    BatchWriter writer(output, options.max_batch_bytes);
+    return alp::run_with_context(
+        [&] {
+            return fmt::format("flattening a dag from {} to {}", dag.base_path().string(), output.directory().string());
+        },
+        [&] -> alp::Result<void, io::Error> {
+            BatchWriter writer(output, options.max_batch_bytes);
 
-    // The walk stops on the first failed write, leaving it to report.
-    ALP_TRY(dag::traverse_nodes(dag, [&](const dag::FlatNode &node) -> alp::Result<void, io::Error> {
-        ALP_TRY(writer.write_leaf(make_header(node), node.id));
-        return {};
-    }));
-    return writer.flush();
+            // The walk stops on the first failed write, leaving it to report.
+            ALP_TRY(dag::traverse_nodes(dag, [&](const dag::FlatNode &node) -> alp::Result<void, io::Error> {
+                ALP_TRY(writer.write_leaf(make_header(node), node.id));
+                return {};
+            }));
+            return writer.flush();
+        });
 }
 
 }

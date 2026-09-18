@@ -53,7 +53,7 @@ public:
 
         const auto result = this->save_index();
         if (!result) {
-            LOG_FAILURE(result.error());
+            LOG_FAILURE(result.error(), "closing a storage at {}", this->_directory.string());
         }
     }
 
@@ -63,13 +63,18 @@ public:
             .batch_count = this->_next.load(),
         };
 
-        ALP_TRY(io::write_to_path(index, this->get_index_path()));
+        ALP_TRY_CONTEXT(io::write_to_path(index, this->get_index_path()), fmt::format("saving an index to {}", this->get_index_path().string()));
         this->_dirty = false;
         return {};
     }
 
     uint32_t size() const {
         return this->_next.load();
+    }
+
+    // The directory the batches and the index are stored in.
+    const std::filesystem::path &directory() const {
+        return this->_directory;
     }
 
 protected:
