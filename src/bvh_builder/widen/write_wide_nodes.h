@@ -107,9 +107,7 @@ inline alp::Result<bvh::Reference, io::Error> write_wide_nodes(
     ASSERT(options.arity >= 2 && options.arity <= max_arity, "the arity does not fit a slot count");
 
     return alp::run_with_context(
-        [&] {
-            return fmt::format("writing wide nodes to {}", output.directory().string());
-        },
+        alp::make_context("writing wide nodes to {}", output.directory()),
         [&] -> alp::Result<bvh::Reference, io::Error> {
             bvh::BatchWriter writer(output, options.max_batch_bytes);
             SplitReader rows(splits);

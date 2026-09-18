@@ -257,7 +257,10 @@ inline alp::Result<ReferencedPolygonMask, ContentError> load_referenced_from_dat
 } // namespace detail
 
 inline alp::Result<ReferencedPolygonMask, ContentError> load_referenced_from_dataset(Dataset& mask_dataset) {
-    ALP_TRY_CONTEXT(ReferencedPolygonMask referenced_mask, detail::load_referenced_from_dataset(mask_dataset), fmt::format("reading a mask from {}", mask_dataset.name()));
+    ALP_TRY_CONTEXT(
+        ReferencedPolygonMask referenced_mask,
+        detail::load_referenced_from_dataset(mask_dataset),
+        fmt::format("reading a mask from {}", mask_dataset.name()));
     return referenced_mask;
 }
 
@@ -419,11 +422,9 @@ inline MeshMask extrude(
 }
 
 inline alp::Result<ReferencedPolygonMask, LoadError> load_referenced_from_path(const std::filesystem::path &path) {
-    const auto context = [&] {
-        return fmt::format("loading a mask from {}", path.string());
-    };
-    ALP_TRY_CONTEXT(Dataset dataset, Dataset::open_vector(path), context());
-    ALP_TRY_CONTEXT(ReferencedPolygonMask referenced_mask, detail::load_referenced_from_dataset(dataset), context());
+    const auto context = alp::make_context("loading a mask from {}", path);
+    ALP_TRY_CONTEXT(Dataset dataset, Dataset::open_vector(path), context);
+    ALP_TRY_CONTEXT(ReferencedPolygonMask referenced_mask, detail::load_referenced_from_dataset(dataset), context);
     return referenced_mask;
 }
 

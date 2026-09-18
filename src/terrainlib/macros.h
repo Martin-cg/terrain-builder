@@ -14,3 +14,6 @@
 
 // The number of arguments, up to 16.
 #define ALP_COUNT_ARGS(...) ALP_COUNT_ARGS_IMPL(__VA_ARGS__, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)
+
+// `x` forwarded as the value category it was declared with, like std::forward<decltype(x)>(x).
+#define ALP_FORWARD(x) static_cast<decltype(x) &&>(x)

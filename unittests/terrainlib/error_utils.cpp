@@ -27,6 +27,16 @@ std::string_view format_as(const FileError) {
     return "file not found";
 }
 
+// A value that counts how often it is formatted.
+struct Counted {
+    uint32_t *formats;
+};
+
+std::string_view format_as(const Counted counted) {
+    (*counted.formats)++;
+    return "counted";
+}
+
 } // namespace
 
 TEST_CASE("make_error creates an error with its code that originates at the location it is handed", "[error][utils]") {
@@ -139,10 +149,45 @@ TEST_CASE("to_expected turns an empty optional into an erased error from text", 
     CHECK(fmt::to_string(result.error()).contains("the mesh is missing"));
 }
 
-TEST_CASE("context adds a frame at the location it is handed to a failed result", "[error][utils]") {
+TEST_CASE("to_expected builds its message only for an empty optional", "[error][utils]") {
+    uint32_t calls = 0;
+    const auto make_message = [&calls]() {
+        calls++;
+        return std::string("looking up the mesh");
+    };
+
+    const alp::Result<int, FileError> present = alp::to_expected(std::optional<int>(3), FileError::NotFound, make_message);
+    CHECK(present.value() == 3);
+    CHECK(calls == 0);
+
+    const alp::Result<int, FileError> empty = alp::to_expected(std::optional<int>(), FileError::NotFound, make_message);
+    CHECK(calls == 1);
+    REQUIRE(!empty.has_value());
+    REQUIRE(empty.error().frames().size() == 1);
+    CHECK(empty.error().frames()[0].message == "looking up the mesh");
+}
+
+TEST_CASE("make_context formats its message only when asked", "[error][utils]") {
+    uint32_t formats = 0;
+    const Counted counted{.formats = &formats};
+
+    const auto context = alp::make_context("loading {}", counted);
+    CHECK(formats == 0);
+
+    CHECK(context() == "loading counted");
+    CHECK(formats == 1);
+}
+
+TEST_CASE("make_context keeps a temporary argument alive", "[error][utils]") {
+    const auto context = alp::make_context("loading {}", std::string("the configuration"));
+
+    CHECK(context() == "loading the configuration");
+}
+
+TEST_CASE("with_context adds a frame at the location it is handed to a failed result", "[error][utils]") {
     alp::Result<int, FileError> failed = alp::make_unexpected(FileError::NotFound);
     const std::source_location location = std::source_location::current();
-    const alp::Result<int, FileError> result = alp::context(std::move(failed), "loading the configuration", location);
+    const alp::Result<int, FileError> result = alp::with_context(std::move(failed), "loading the configuration", location);
 
     REQUIRE(!result.has_value());
     REQUIRE(result.error().frames().size() == 1);
@@ -150,8 +195,8 @@ TEST_CASE("context adds a frame at the location it is handed to a failed result"
     CHECK(is_same_location(result.error().frames()[0].location, location));
 }
 
-TEST_CASE("context leaves a succeeded result alone", "[error][utils]") {
-    const alp::Result<int, FileError> result = alp::context(alp::Result<int, FileError>(3), "loading the configuration");
+TEST_CASE("with_context leaves a succeeded result alone", "[error][utils]") {
+    const alp::Result<int, FileError> result = alp::with_context(alp::Result<int, FileError>(3), "loading the configuration");
 
     CHECK(result.value() == 3);
 }

@@ -126,9 +126,7 @@ inline alp::Result<frontier::Entry, io::Error> build(
 inline alp::Result<bvh::Reference, io::Error> build(
     const frontier::Storage &input, bvh::Storage &output, const Options &options) {
     return alp::run_with_context(
-        [&] {
-            return fmt::format("building a tree from {} to {}", input.directory().string(), output.directory().string());
-        },
+        alp::make_context("building a tree from {} to {}", input.directory(), output.directory()),
         [&] -> alp::Result<bvh::Reference, io::Error> {
             bvh::BatchWriter sink(output, options.max_batch_bytes);
 

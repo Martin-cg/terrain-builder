@@ -2,6 +2,7 @@
 
 // The whole error library in one include.
 
+#include "error/Context.h"
 #include "error/Result.h"
 #include "error/format.h"
 #include "error/try.h"

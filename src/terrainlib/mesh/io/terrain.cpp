@@ -39,22 +39,18 @@ Result<SimpleMesh> load_from_buffer(const std::span<const uint8_t> bytes, const 
 }
 
 Result<SimpleMesh> load_from_path(const std::filesystem::path &path, const LoadOptions & /* options */) {
-    const auto context = [&] {
-        return fmt::format("loading a terrain mesh from {}", path.string());
-    };
-    ALP_TRY_CONTEXT(const std::vector<uint8_t> &bytes, ::io::read_bytes_from_path(path), context());
-    ALP_TRY_CONTEXT(SimpleMesh mesh, detail::load_from_buffer(bytes), context());
+    const auto context = alp::make_context("loading a terrain mesh from {}", path);
+    ALP_TRY_CONTEXT(const std::vector<uint8_t> &bytes, ::io::read_bytes_from_path(path), context);
+    ALP_TRY_CONTEXT(SimpleMesh mesh, detail::load_from_buffer(bytes), context);
     return mesh;
 }
 
 Result<void> save_to_path(const SimpleMesh &mesh, const std::filesystem::path &path, const SaveOptions& options) {
     LOG_TRACE("Saving mesh as high precision terrain");
 
-    const auto context = [&] {
-        return fmt::format("saving a terrain mesh to {}", path.string());
-    };
-    ALP_TRY_CONTEXT(const std::vector<uint8_t> &bytes, detail::save_to_buffer(mesh, options), context());
-    ALP_TRY_CONTEXT(::io::write_bytes_to_path(bytes, path), context());
+    const auto context = alp::make_context("saving a terrain mesh to {}", path);
+    ALP_TRY_CONTEXT(const std::vector<uint8_t> &bytes, detail::save_to_buffer(mesh, options), context);
+    ALP_TRY_CONTEXT(::io::write_bytes_to_path(bytes, path), context);
     return {};
 }
 

@@ -42,9 +42,7 @@ inline NodeHeader make_header(const dag::FlatNode &node) {
 inline alp::Result<void, io::Error> flatten_dag(
     const octree::IndexedDagMetaStorage &dag, Storage &output, const FlattenOptions &options = {}) {
     return alp::run_with_context(
-        [&] {
-            return fmt::format("flattening a dag from {} to {}", dag.base_path().string(), output.directory().string());
-        },
+        alp::make_context("flattening a dag from {} to {}", dag.base_path(), output.directory()),
         [&] -> alp::Result<void, io::Error> {
             BatchWriter writer(output, options.max_batch_bytes);
 

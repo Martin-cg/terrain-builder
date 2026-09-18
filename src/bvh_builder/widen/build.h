@@ -28,9 +28,7 @@ inline alp::Result<bvh::Reference, io::Error> build(
     const bvh::Storage &input, const bvh::Reference &root, bvh::Storage &output,
     const std::filesystem::path &scratch, const Options &options) {
     return alp::run_with_context(
-        [&] {
-            return fmt::format("widening a tree from {} to {}", input.directory().string(), output.directory().string());
-        },
+        alp::make_context("widening a tree from {} to {}", input.directory(), output.directory()),
         [&] -> alp::Result<bvh::Reference, io::Error> {
             const auto max_resident_batches = static_cast<uint32_t>(std::max<size_t>(1, options.max_resident_bytes / options.max_batch_bytes));
 

@@ -12,6 +12,7 @@
 #include <tl/expected.hpp>
 
 #include "error/CodeStorage.h"
+#include "error/Context.h"
 #include "error/ErrorCode.h"
 #include "error/Trace.h"
 #include "type_utils.h"
@@ -61,10 +62,10 @@ public:
         : _code(std::move(other._code)),
           _trace(std::move(other._trace)) {}
 
-    // Adds a frame holding `message`.
+    // Adds a frame holding `context`.
     [[nodiscard]]
-    BasicError context(std::string message, const std::source_location location = std::source_location::current()) && {
-        this->_trace.push(Frame{.message = std::move(message), .location = location});
+    BasicError context(Context auto &&context, const std::source_location location = std::source_location::current()) && {
+        this->_trace.push(Frame{.message = detail::resolve_message(std::forward<decltype(context)>(context)), .location = location});
         return std::move(*this);
     }
 

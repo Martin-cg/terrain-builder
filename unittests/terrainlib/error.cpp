@@ -73,6 +73,10 @@ std::string_view format_as(const TrackedError &) {
     return "tracked";
 }
 
+// Whether a context can be added to an lvalue of E, which would leave the original behind.
+template <typename E>
+concept accepts_context_on_lvalue = requires(E &error) { error.context(std::string(), std::source_location()); };
+
 } // namespace
 
 TEST_CASE("An error without codes is erased", "[error]") {
@@ -140,9 +144,9 @@ TEST_CASE("An erased error holds a message and originates at the location it is 
 TEST_CASE("Context and propagate consume the error they are called on", "[error]") {
     using FileFailure = alp::Error<FileError>;
 
-    STATIC_REQUIRE(std::is_same_v<std::invoke_result_t<decltype(&FileFailure::context), FileFailure, std::string, std::source_location>, FileFailure>);
+    STATIC_REQUIRE(std::is_same_v<decltype(std::declval<FileFailure>().context(std::string(), std::source_location())), FileFailure>);
     STATIC_REQUIRE(std::is_same_v<std::invoke_result_t<decltype(&FileFailure::propagate), FileFailure, std::source_location>, FileFailure>);
-    STATIC_REQUIRE(!std::is_invocable_v<decltype(&FileFailure::context), FileFailure &, std::string, std::source_location>);
+    STATIC_REQUIRE(!accepts_context_on_lvalue<FileFailure>);
     STATIC_REQUIRE(!std::is_invocable_v<decltype(&FileFailure::propagate), FileFailure &, std::source_location>);
 }
 

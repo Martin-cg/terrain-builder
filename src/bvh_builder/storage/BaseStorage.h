@@ -53,7 +53,7 @@ public:
 
         const auto result = this->save_index();
         if (!result) {
-            LOG_FAILURE(result.error(), "closing a storage at {}", this->_directory.string());
+            LOG_FAILURE(result.error(), "closing a storage at {}", this->_directory);
         }
     }
 
@@ -63,7 +63,7 @@ public:
             .batch_count = this->_next.load(),
         };
 
-        ALP_TRY_CONTEXT(io::write_to_path(index, this->get_index_path()), fmt::format("saving an index to {}", this->get_index_path().string()));
+        ALP_TRY_CONTEXT(io::write_to_path(index, this->get_index_path()), fmt::format("saving an index to {}", this->get_index_path()));
         this->_dirty = false;
         return {};
     }

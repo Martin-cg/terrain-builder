@@ -24,7 +24,10 @@ template <typename T, CodecFor<T> Codec>
 tl::expected<IndexedStorage_<T, Codec>, io::Error> open_index(const std::filesystem::path &index_path) {
     LOG_TRACE("Opening storage index {}", index_path);
 
-    ALP_TRY_CONTEXT(disk::v1::IndexFile index_file, io::read_from_path<disk::v1::IndexFile>(index_path), fmt::format("opening an index from {}", index_path.string()));
+    ALP_TRY_CONTEXT(
+        disk::v1::IndexFile index_file,
+        io::read_from_path<disk::v1::IndexFile>(index_path),
+        fmt::format("opening an index from {}", index_path));
     LOG_TRACE("Successfully read storage index with {} entries.", index_file.map.size());
     auto index_map = std::move(index_file.map);
     const auto base_path = index_path.parent_path();

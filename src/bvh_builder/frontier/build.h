@@ -43,9 +43,7 @@ struct BuildOptions {
 [[nodiscard]]
 inline alp::Result<void, io::Error> build_from_leaves(const bvh::Storage &nodes, Storage &output, const BuildOptions &options = {}) {
     return alp::run_with_context(
-        [&] {
-            return fmt::format("building a frontier from {} to {}", nodes.directory().string(), output.directory().string());
-        },
+        alp::make_context("building a frontier from {} to {}", nodes.directory(), output.directory()),
         [&] -> alp::Result<void, io::Error> {
             BatchWriter writer(output, options.max_batch_bytes);
 

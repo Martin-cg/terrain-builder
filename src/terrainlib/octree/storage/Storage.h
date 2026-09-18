@@ -151,7 +151,7 @@ public:
         if (this->_index.map.has_value() && this->_index.dirty) {
             auto result = helpers::save_index_map(this->_index.map.value(), this->_inner.layout());
             if (!result.has_value()) {
-                LOG_FAILURE(result.error(), "closing a storage at {}", this->base_path().string());
+                LOG_FAILURE(result.error(), "closing a storage at {}", this->base_path());
             }
         }
     }

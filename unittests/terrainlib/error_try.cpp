@@ -109,6 +109,27 @@ TEST_CASE("ALP_TRY_CONTEXT builds its message only on failure", "[error][try]") 
     CHECK(messages == 2);
 }
 
+TEST_CASE("ALP_TRY_CONTEXT takes a lazy message and builds it only on failure", "[error][try]") {
+    uint32_t messages = 0;
+    const auto make_message = [&messages]() {
+        messages++;
+        return std::string("loading the configuration");
+    };
+    const auto forward = [&make_message](alp::Result<int, FileError> source) -> alp::Result<int, FileError> {
+        ALP_TRY_CONTEXT(const int value, std::move(source), make_message);
+        return value + 1;
+    };
+
+    CHECK(forward(3).value() == 4);
+    CHECK(messages == 0);
+
+    const alp::Result<int, FileError> result = forward(alp::make_unexpected(FileError::NotFound));
+    CHECK(messages == 1);
+    REQUIRE(!result.has_value());
+    REQUIRE(result.error().frames().size() == 1);
+    CHECK(result.error().frames()[0].message == "loading the configuration");
+}
+
 TEST_CASE("ALP_TRY hands a plain code to an enclosing function whose error is that code", "[error][try]") {
     const auto forward = [](tl::expected<int, FileError> source) -> tl::expected<int, FileError> {
         ALP_TRY(const int value, std::move(source));

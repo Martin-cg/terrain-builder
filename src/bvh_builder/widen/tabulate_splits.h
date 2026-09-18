@@ -251,9 +251,7 @@ inline alp::Result<void, io::Error> tabulate_splits(bvh::NodeCache &input, const
     ASSERT(options.arity >= 2 && options.arity <= max_arity);
 
     return alp::run_with_context(
-        [&] {
-            return fmt::format("tabulating splits for a tree at batch {} node {}", root.batch, root.node);
-        },
+        alp::make_context("tabulating splits for a tree at batch {} node {}", root.batch, root.node),
         [&] -> alp::Result<void, io::Error> {
             BatchWriter writer(splits, options.max_batch_bytes);
 
