@@ -7,10 +7,17 @@
 
 #include <glm/glm.hpp>
 
+#include "containers/SegmentedBuffer.h"
 #include "mesh/SimpleMesh.h"
 #include "mesh/View.h"
 
 namespace mesh {
+
+// Groups of triangles with the same vertices, each with at least two members in ascending index order, ordered by their second member.
+// Without ignore_orientation, triangles match only when one is a rotation of the other.
+SegmentedBuffer<uint32_t, uint32_t> find_duplicate_triangle_groups(
+    std::span<const glm::uvec3> triangles,
+    const bool ignore_orientation);
 
 template <typename T>
 std::vector<uint32_t> find_duplicate_triangles(const mesh::Simple_<3, T> &mesh, const bool ignore_orientation);

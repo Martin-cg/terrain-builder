@@ -1,3 +1,7 @@
+#include <cstdint>
+#include <utility>
+#include <vector>
+
 #include "../catch2_helpers.h"
 #include "containers/SegmentedBuffer.h"
 
@@ -300,4 +304,35 @@ TEST_CASE("SegmentedBuffer start_new_segment after the vector constructor append
     REQUIRE(buf.segment_count() == 2);
     CHECK(buf.segment_size(0) == 3);
     CHECK(buf.segment_size(1) == 1);
+}
+
+TEST_CASE("group_by_key keeps pair order per key and an empty segment for an unused key", "[containers][SegmentedBuffer]") {
+    const std::vector<std::pair<uint32_t, uint32_t>> pairs = {
+        {2, 30},
+        {0, 11},
+        {2, 12},
+        {3, 7},
+        {0, 13},
+        {2, 14},
+    };
+
+    const SegmentedBuffer<uint32_t, uint32_t> groups = group_by_key<uint32_t, uint32_t>(uint32_t{4}, pairs);
+
+    SegmentedBuffer<uint32_t, uint32_t> expected;
+    expected.push_new_segment(std::vector<uint32_t>{11, 13});
+    expected.push_new_segment(std::vector<uint32_t>{});
+    expected.push_new_segment(std::vector<uint32_t>{30, 12, 14});
+    expected.push_new_segment(std::vector<uint32_t>{7});
+    CHECK(groups == expected);
+}
+
+TEST_CASE("group_by_key without pairs gives empty segments", "[containers][SegmentedBuffer]") {
+    const std::vector<std::pair<uint32_t, uint32_t>> pairs;
+
+    const SegmentedBuffer<uint32_t, uint32_t> groups = group_by_key<uint32_t, uint32_t>(uint32_t{2}, pairs);
+
+    SegmentedBuffer<uint32_t, uint32_t> expected;
+    expected.push_new_segment(std::vector<uint32_t>{});
+    expected.push_new_segment(std::vector<uint32_t>{});
+    CHECK(groups == expected);
 }

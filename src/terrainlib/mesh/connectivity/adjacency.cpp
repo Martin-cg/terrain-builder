@@ -1,7 +1,9 @@
+#include <algorithm>
 #include <cstdint>
 #include <span>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include <glm/glm.hpp>
@@ -11,6 +13,8 @@
 #include "build_config.h"
 #include "containers/FixedVector.h"
 #include "containers/HybridVector.h"
+#include "containers/SegmentedBuffer.h"
+#include "enumerate.h"
 #include "mesh/connectivity/adjacency.h"
 #include "mesh/connectivity/edges.h"
 #include "mesh/connectivity/manifold.h"
@@ -64,6 +68,50 @@ std::unordered_map<glm::uvec2, HybridVector<uint32_t, 2>> create_edge_to_triangl
 }
 std::unordered_map<glm::uvec2, std::vector<uint32_t>> create_edge_to_triangle_mapping_non_manifold2(const std::span<const glm::uvec3> triangles) {
     return create_edge_to_triangle_mapping_impl<std::vector<uint32_t>>(triangles);
+}
+
+namespace {
+struct QueriedEdge {
+    uint32_t low;
+    uint32_t high;
+    uint32_t slot;
+
+    auto operator<=>(const QueriedEdge &) const = default;
+};
+} // namespace
+
+SegmentedBuffer<uint32_t, uint32_t> find_edge_neighbourhoods(const std::span<const glm::uvec3> triangles, const std::span<const uint32_t> queried) {
+    std::vector<QueriedEdge> queried_edges;
+    queried_edges.reserve(3 * queried.size());
+    for (const auto [slot, triangle_index] : enumerate<uint32_t>(queried)) {
+        for_each_halfedge(triangles.subspan(triangle_index, 1), [&](const glm::uvec2 edge) {
+            queried_edges.push_back({edge.x, edge.y, slot});
+        }, true);
+    }
+    std::ranges::sort(queried_edges);
+
+    const auto project_edge = [](const QueriedEdge &queried_edge) {
+        return std::pair(queried_edge.low, queried_edge.high);
+    };
+
+    std::vector<std::pair<uint32_t, uint32_t>> pairs;
+    std::vector<uint32_t> slots;
+    for (uint32_t triangle_index = 0; triangle_index < triangles.size(); triangle_index++) {
+        slots.clear();
+        for_each_halfedge(triangles.subspan(triangle_index, 1), [&](const glm::uvec2 edge) {
+            for (const QueriedEdge &hit : std::ranges::equal_range(queried_edges, std::pair(edge.x, edge.y), {}, project_edge)) {
+                slots.push_back(hit.slot);
+            }
+        }, true);
+
+        // A copy of a queried triangle shares all three of its edges.
+        dedup_by_sort(slots);
+        for (const uint32_t slot : slots) {
+            pairs.emplace_back(slot, triangle_index);
+        }
+    }
+
+    return group_by_key<uint32_t, uint32_t>(static_cast<uint32_t>(queried.size()), pairs);
 }
 
 std::vector<std::vector<uint32_t>> create_vertex_to_triangle_mapping(const std::span<const glm::uvec3> triangles) {

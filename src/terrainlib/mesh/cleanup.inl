@@ -5,7 +5,6 @@
 #include <numeric>
 #include <ranges>
 #include <span>
-#include <unordered_map>
 #include <vector>
 
 #include <glm/glm.hpp>
@@ -15,9 +14,6 @@
 #include "mesh/geometry.h"
 #include "mesh/normalize.h"
 #include "mesh/connectivity/adjacency.h"
-#include "mesh/connectivity/triangle_compare.h"
-#include "vector_utils.h"
-#include "containers/HybridVector.h"
 
 namespace mesh {
 
@@ -75,92 +71,50 @@ inline std::vector<uint32_t> find_duplicate_triangles_consider_orientation(const
     return find_duplicate_triangles_consider_orientation(std::span(triangles));
 }
 
-namespace detail {
-template <typename T>
-inline uint32_t identify_triangle_to_remove(
-    const uint32_t a, const uint32_t b,
-    const std::span<const glm::uvec3> triangles,
-    const std::span<const glm::vec<3, T>> positions,
-    std::vector<uint32_t> &neighbourhood,
-    const std::unordered_map<glm::uvec2, HybridVector<uint32_t, 2>> &edge_to_triangle) {
-    const glm::uvec3 triangle_a = triangles[a];
-    const glm::uvec3 triangle_b = triangles[b];
-
-    // Gather neighbourhood
-    neighbourhood.clear();
-    for (const glm::uvec2 edge : {
-             glm::uvec2(triangle_a.x, triangle_a.y),
-             glm::uvec2(triangle_a.y, triangle_a.z),
-             glm::uvec2(triangle_a.z, triangle_a.x)}) {
-        const auto it = edge_to_triangle.find(normalize_edge(edge));
-        DEBUG_ASSERT(it != edge_to_triangle.end());
-
-        const HybridVector<uint32_t, 2> &adjacent_triangles = it->second;
-        for (const uint32_t triangle_index : adjacent_triangles) {
-            neighbourhood.push_back(triangle_index);
-        }
-    }
-
-    // Remove duplicates
-    dedup_by_sort(neighbourhood);
-
-    // Calculate dominant normal
-    glm::dvec3 average_normal(0.0);
-    for (const uint32_t triangle_index : neighbourhood) {
-        const glm::uvec3 &triangle = triangles[triangle_index];
-        const glm::dvec3 scaled_normal = geometry::compute_normal(triangle, positions, false);
-        average_normal += scaled_normal;
-    }
-    average_normal = glm::normalize(average_normal);
-
-    // Identify triangle with most deviating normal
-    const glm::dvec3 normal_a = geometry::compute_normal(triangle_a, positions);
-    const glm::dvec3 normal_b = geometry::compute_normal(triangle_b, positions);
-    uint32_t triangle_to_remove = a;
-    if (glm::dot(normal_b, average_normal) <= glm::dot(normal_a, average_normal)) {
-        triangle_to_remove = b;
-    }
-    return triangle_to_remove;
-}
-} // namespace
-
 template <typename T>
 std::vector<uint32_t> find_duplicate_triangles_ignore_orientation(
     const std::span<const glm::uvec3> triangles,
     const std::span<const glm::vec<3, T>> positions) {
-    const auto edge_to_triangle = create_edge_to_triangle_mapping_non_manifold(triangles);
+    const SegmentedBuffer<uint32_t, uint32_t> groups = find_duplicate_triangle_groups(triangles, true);
 
-    std::vector<uint32_t> neighbourhood;
-    std::vector<uint32_t> triangles_to_remove;
-    for (const auto &[_, triangle_indices] : edge_to_triangle) {
-        const uint32_t num_triangles = triangle_indices.size();
-        DEBUG_ASSERT(triangle_indices.size() != 0);
+    std::vector<uint32_t> representatives;
+    representatives.reserve(groups.segment_count());
+    for (uint32_t group_index = 0; group_index < groups.segment_count(); group_index++) {
+        representatives.push_back(groups.segment(group_index).front());
+    }
+    const SegmentedBuffer<uint32_t, uint32_t> neighbourhoods = find_edge_neighbourhoods(triangles, representatives);
 
-        // Find duplicates
-        for (uint32_t i = 0; i < num_triangles; i++) {
-            for (uint32_t j = i + 1; j < num_triangles; j++) {
-                const uint32_t a = triangle_indices[i];
-                const uint32_t b = triangle_indices[j];
-                const bool are_equal = compare_equality_triangles_ignore_orientation(triangles[a], triangles[b]);
-                if (are_equal) {
-                    // Determine which triangle to remove
-                    const uint32_t triangle_to_remove = detail::identify_triangle_to_remove(
-                        a, b,
-                        triangles,
-                        positions,
-                        neighbourhood,
-                        edge_to_triangle);
-                    triangles_to_remove.push_back(triangle_to_remove);
-                    break;
-                }
+    std::vector<uint32_t> duplicates;
+    for (uint32_t group_index = 0; group_index < groups.segment_count(); group_index++) {
+        const std::span<const uint32_t> group = groups.segment(group_index);
+        const glm::uvec3 first = triangles[group.front()];
+
+        // Only the sign matters, so the area-weighted neighbourhood normal is never normalized.
+        const glm::vec<3, T> first_normal = geometry::compute_normal(first, positions, false);
+        T alignment = 0;
+        for (const uint32_t neighbour : neighbourhoods.segment(group_index)) {
+            alignment += glm::dot(first_normal, geometry::compute_normal(triangles[neighbour], positions, false));
+        }
+
+        // Copies share their vertices, so each faces either along the first or against it.
+        uint32_t kept = group.front();
+        if (alignment < 0) {
+            const glm::uvec3 first_rotation = normalize_triangle(first);
+            const auto flipped = std::ranges::find_if(group, [&](const uint32_t t) { return normalize_triangle(triangles[t]) != first_rotation; });
+            if (flipped != group.end()) {
+                kept = *flipped;
+            }
+        }
+
+        for (const uint32_t triangle_index : group) {
+            if (triangle_index != kept) {
+                duplicates.push_back(triangle_index);
             }
         }
     }
+    std::ranges::sort(duplicates);
 
-    // Remove duplicates from list
-    dedup_by_sort(triangles_to_remove);
-
-    return triangles_to_remove;
+    return duplicates;
 }
 
 template <typename T>
