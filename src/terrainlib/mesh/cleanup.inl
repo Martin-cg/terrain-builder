@@ -5,6 +5,7 @@
 #include <numeric>
 #include <ranges>
 #include <span>
+#include <type_traits>
 #include <vector>
 
 #include <glm/glm.hpp>
@@ -137,7 +138,7 @@ void remove_duplicate_triangles(
     }
 }
 template <typename T>
-void remove_duplicate_triangles_ignore_orientation(
+void remove_duplicate_triangles(
     std::vector<glm::uvec3> &triangles,
     const std::vector<glm::vec<3, T>> &positions,
     const bool ignore_orientation) {
@@ -153,7 +154,7 @@ template <typename T>
 void remove_duplicate_triangles_ignore_orientation(
     std::vector<glm::uvec3> &triangles,
     const std::vector<glm::vec<3, T>> &positions) {
-    remove_duplicate_triangles<T>(triangles, std::span<const glm::vec<3, T>>(positions));
+    remove_duplicate_triangles<T>(triangles, std::span<const glm::vec<3, T>>(positions), true);
 }
 template <typename T>
 void remove_duplicate_triangles_consider_orientation(mesh::Simple_<3, T> &mesh) {
@@ -192,7 +193,7 @@ size_t remove_isolated_vertices(mesh::Simple_<n_dims, T> &mesh) {
 template <glm::length_t n_dims, typename T>
 size_t remove_triangles_of_negligible_size(
     mesh::Simple_<n_dims, T> &mesh,
-    const T threshold_percentage_of_average) {
+    const std::type_identity_t<T> threshold_fraction_of_average) {
     const size_t triangle_count = mesh.triangles.size();
 
     std::vector<T> areas;
@@ -208,7 +209,7 @@ size_t remove_triangles_of_negligible_size(
     const size_t erased_count = std::erase_if(mesh.triangles,
         [&](const glm::uvec3 &tri) {
             const size_t idx = &tri - &mesh.triangles.front();
-            return areas[idx] < average_area * threshold_percentage_of_average;
+            return areas[idx] < average_area * threshold_fraction_of_average;
         });
     return erased_count;
 }

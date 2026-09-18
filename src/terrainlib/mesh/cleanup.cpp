@@ -67,7 +67,7 @@ std::vector<uint32_t> find_duplicate_triangles_consider_orientation(const std::s
 }
 
 void remove_duplicate_triangles_consider_orientation(std::vector<glm::uvec3> &triangles) {
-    remove_duplicate_triangles<double>(triangles, {}, false);
+    remove_duplicate_triangles<double>(triangles, std::span<const glm::dvec3>(), false);
 }
 
 void remove_degenerate_triangles(std::vector<glm::uvec3> &triangles) {
