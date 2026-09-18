@@ -366,7 +366,7 @@ TEST_CASE("mesh::clip_on_bounds benchmark", "[mesh][clip]") {
         mesh.texture = std::nullopt;
 
         const octree::Space space = octree::Space::earth();
-        const auto mesh_bounds = calculate_bounds(mesh);
+        const auto mesh_bounds = mesh::calculate_bounds(mesh);
         const octree::Id id = space.find_smallest_node_encompassing_bounds(mesh_bounds).value();
         const auto child_ids = id.children().value();
         std::vector<octree::Bounds> child_bounds;

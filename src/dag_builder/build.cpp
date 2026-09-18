@@ -16,6 +16,7 @@
 #include "clusterize.h"
 #include "compact.h"
 #include "encoded.h"
+#include "geometry/bounds.h"
 #include "geometry/geometry.h"
 #include "numeric/int_math.h"
 #include "log.h"

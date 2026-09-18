@@ -1,5 +1,6 @@
 #pragma once
 
+#include "geometry/bounds.h"
 #include "mask.h"
 #include "merge/NodeData.h"
 #include "merge/Result.h"
@@ -217,7 +218,7 @@ private:
 
         /*
         TODO: Advanced merging
-        const auto base_mesh_bounds = calculate_bounds(base_mesh);
+        const auto base_mesh_bounds = mesh::calculate_bounds(base_mesh);
         auto bounds = base_mesh_bounds;
         bounds.expand_by(new_mesh_bounds);
         const glm::dvec3 tangent_point = bounds.centre();

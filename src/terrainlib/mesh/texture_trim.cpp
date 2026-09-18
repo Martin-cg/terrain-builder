@@ -8,6 +8,7 @@
 #include <radix/geometry.h>
 #include <libassert/assert.hpp>
 
+#include "geometry/bounds.h"
 #include "log.h"
 #include "mesh/texture_trim.h"
 #include "range_utils.h"
@@ -43,7 +44,7 @@ TextureTrim compute_texture_trim(const cv::Mat &texture, const std::span<const g
         return detail::identity_trim(texture);
     }
 
-    const radix::geometry::Aabb2d uv_bounds = radix::geometry::find_bounds(std::span<const glm::dvec2>(uvs));
+    const radix::geometry::Aabb2d uv_bounds = geometry::calculate_bounds(uvs);
     return compute_texture_trim(texture, uv_bounds, padding);
 }
 
