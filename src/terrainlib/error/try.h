@@ -103,21 +103,15 @@ decltype(auto) take_value(R &&result) {
 // ALP_TRY(target, expr).
 #define ALP_TRY_2(target, expr) ALP_TRY_IMPL_BIND(ALP_UNIQUE_IDENT(_alp_try_result_), target, ::std::nullopt, expr)
 
-// Picks the macro for ALP_TRY by argument count.
-#define ALP_TRY_SELECT(_1, _2, NAME, ...) NAME
-
 // ALP_TRY_CONTEXT(expr, message).
 #define ALP_TRY_CONTEXT_2(expr, message) ALP_TRY_IMPL_DISCARD(ALP_UNIQUE_IDENT(_alp_try_result_), message, expr)
 
 // ALP_TRY_CONTEXT(target, expr, message).
 #define ALP_TRY_CONTEXT_3(target, expr, message) ALP_TRY_IMPL_BIND(ALP_UNIQUE_IDENT(_alp_try_result_), target, message, expr)
 
-// Picks the macro for ALP_TRY_CONTEXT by argument count; any other count fails to compile.
-#define ALP_TRY_CONTEXT_SELECT(_1, _2, _3, NAME, ...) NAME
-
 // Returns from the enclosing function if `expr` failed; ALP_TRY(target, expr) otherwise binds its value to `target`.
 // An expression with commas outside parentheses needs its own parentheses.
-#define ALP_TRY(...) ALP_TRY_SELECT(__VA_ARGS__, ALP_TRY_2, ALP_TRY_1)(__VA_ARGS__)
+#define ALP_TRY(...) ALP_CAT_IDENT(ALP_TRY_, ALP_COUNT_ARGS(__VA_ARGS__))(__VA_ARGS__)
 
 // ALP_TRY_CONTEXT(expr, message) or ALP_TRY_CONTEXT(target, expr, message).
-#define ALP_TRY_CONTEXT(...) ALP_TRY_CONTEXT_SELECT(__VA_ARGS__, ALP_TRY_CONTEXT_3, ALP_TRY_CONTEXT_2, ALP_TRY_CONTEXT_needs_2_or_3_arguments)(__VA_ARGS__)
+#define ALP_TRY_CONTEXT(...) ALP_CAT_IDENT(ALP_TRY_CONTEXT_, ALP_COUNT_ARGS(__VA_ARGS__))(__VA_ARGS__)
