@@ -14,6 +14,7 @@ endfunction()
 
 add_executable(unittests_terrainlib
     catch2_helpers.h
+    throwing_assertions.cpp
     opencv_helpers.h
 
     terrainlib/chunked_ring_buffer.cpp
@@ -78,6 +79,7 @@ atb_configure_test(unittests_terrainlib)
 if(TARGET tilebuilderlib)
     add_executable(unittests_tilebuilder
         catch2_helpers.h
+        throwing_assertions.cpp
         tilebuilder/alpine_raster_format.cpp
         tilebuilder/dataset_reading.cpp
         tilebuilder/depth_first_tile_traverser.cpp
@@ -94,6 +96,7 @@ endif()
 if(TARGET sfbuilderlib)
     add_executable(unittests_sfbuilder
         catch2_helpers.h
+        throwing_assertions.cpp
         sf_builder/mesh.cpp
         sf_builder/texture.cpp
     )
@@ -104,6 +107,7 @@ endif()
 if(TARGET dagbuilderlib)
     add_executable(unittests_dagbuilder
         catch2_helpers.h
+        throwing_assertions.cpp
         dag_builder/bake_cluster_texture.cpp
         dag_builder/correspondence.cpp
         dag_builder/reprojection.cpp
@@ -123,6 +127,7 @@ endif()
 if(TARGET bvhbuilderlib)
     add_executable(unittests_bvhbuilder
         catch2_helpers.h
+        throwing_assertions.cpp
         temp_directory.h
         bvh_builder/batch_cache.cpp
         bvh_builder/bounded_cache.cpp
@@ -148,6 +153,7 @@ endif()
 if(TARGET packerlib)
     add_executable(unittests_packer
         catch2_helpers.h
+        throwing_assertions.cpp
         packer/geometry/build.cpp
         packer/geometry/codec.cpp
         packer/geometry/format.cpp
@@ -161,6 +167,7 @@ endif()
 if(TARGET sfmergerlib)
     add_executable(unittests_sfmerger
         catch2_helpers.h
+        throwing_assertions.cpp
         sf_merger/sphere_projector.cpp
     )
     target_link_libraries(unittests_sfmerger PRIVATE sfmergerlib Catch2::Catch2WithMain)
