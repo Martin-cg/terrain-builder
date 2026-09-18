@@ -25,11 +25,16 @@
 #include <mutex>
 #include <stdexcept>
 
+#include <cpl_error.h>
+#include <fmt/format.h>
 #include <gdal_priv.h>
 #include <libassert/assert.hpp>
 #include <ogrsf_frmts.h>
 
 #include "ctb/Grid.hpp"
+#include "error/log.h"
+#include "error/try.h"
+#include "error/utils.h"
 #include "init.h"
 #include "log.h"
 #include "srs.h"
@@ -40,42 +45,40 @@ void GDALDatasetDeleter::operator()(GDALDataset *dataset) const {
     }
 }
 
-static GDALDataset *open_gdal_dataset(const std::filesystem::path &path, unsigned int flags) {
+static alp::Result<GDALDataset *, gdal::CplError> open_gdal_dataset(const std::filesystem::path &path, unsigned int flags) {
     initialize_gdal_once();
     const std::string path_str = path.string();
     static std::mutex gdal_open_mutex;
     const std::lock_guard lock(gdal_open_mutex);
-    return static_cast<GDALDataset *>(GDALOpenEx(path_str.c_str(), flags, nullptr, nullptr, nullptr));
+    // GDAL records why an open failed only with GDAL_OF_VERBOSE_ERROR, and a reset keeps an older error from standing in for it.
+    CPLErrorReset();
+    GDALDataset *dataset = static_cast<GDALDataset *>(GDALOpenEx(path_str.c_str(), flags | GDAL_OF_VERBOSE_ERROR, nullptr, nullptr, nullptr));
+    if (dataset == nullptr) {
+        return alp::make_unexpected(gdal::CplError::from_last_error(), fmt::format("opening the dataset {}", path_str));
+    }
+    return dataset;
 }
 
-std::optional<Dataset> Dataset::open_raster(std::filesystem::path path) {
-    if (GDALDataset *dataset = open_gdal_dataset(path, GDAL_OF_RASTER)) {
-        return std::optional<Dataset>(Dataset(path, dataset));
-    }
-    LOG_ERROR("Couldn't open raster dataset {}.\n", path);
-    return std::nullopt;
+alp::Result<Dataset, gdal::CplError> Dataset::open_raster(std::filesystem::path path) {
+    ALP_TRY(GDALDataset *dataset, open_gdal_dataset(path, GDAL_OF_RASTER));
+    return Dataset(path, dataset);
 }
-std::optional<Dataset> Dataset::open_vector(std::filesystem::path path) {
-    if (GDALDataset *dataset = open_gdal_dataset(path, GDAL_OF_VECTOR)) {
-        return std::optional<Dataset>(Dataset(path, dataset));
-    }
-    LOG_ERROR("Couldn't open vector dataset {}.\n", path);
-    return std::nullopt;
+alp::Result<Dataset, gdal::CplError> Dataset::open_vector(std::filesystem::path path) {
+    ALP_TRY(GDALDataset *dataset, open_gdal_dataset(path, GDAL_OF_VECTOR));
+    return Dataset(path, dataset);
 }
-std::optional<std::shared_ptr<Dataset>> Dataset::open_shared_raster(std::filesystem::path path) {
-    if (GDALDataset *dataset = open_gdal_dataset(path, GDAL_OF_RASTER)) {
-        return std::make_shared<Dataset>(Dataset(path, dataset));
-    }
-    LOG_ERROR("Couldn't open shared raster dataset {}.\n", path);
-    return std::nullopt;
+alp::Result<std::shared_ptr<Dataset>, gdal::CplError> Dataset::open_shared_raster(std::filesystem::path path) {
+    ALP_TRY(GDALDataset *dataset, open_gdal_dataset(path, GDAL_OF_RASTER));
+    return std::make_shared<Dataset>(Dataset(path, dataset));
 }
 
 Dataset::Dataset(std::filesystem::path path) {
-    if (GDALDataset *dataset = open_gdal_dataset(path, 0)) {
+    const alp::Result<GDALDataset *, gdal::CplError> result = open_gdal_dataset(path, 0);
+    if (result.has_value()) {
         m_path = path;
-        m_gdal_dataset.reset(dataset);
+        m_gdal_dataset.reset(result.value());
     } else {
-        LOG_ERROR("Failed to open dataset at path: {}\n", path.string());
+        LOG_FAILURE(result.error());
         throw std::runtime_error("Failed to open dataset at path: " + path.string());
     }
 }

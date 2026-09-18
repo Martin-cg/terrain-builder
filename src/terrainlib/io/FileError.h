@@ -13,7 +13,7 @@ namespace io {
 class FileError {
 public:
     explicit FileError(const std::error_code code, std::filesystem::path path) : _code(code), _path(std::move(path)) {
-        ASSERT(code);
+        DEBUG_ASSERT(code);
     }
 
     bool operator==(const FileError &) const = default;

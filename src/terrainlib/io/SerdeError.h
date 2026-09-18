@@ -11,7 +11,7 @@ namespace io {
 class SerdeError {
 public:
     explicit SerdeError(const std::errc code) : _code(code) {
-        ASSERT(code != std::errc{});
+        DEBUG_ASSERT(code != std::errc{});
     }
 
     bool operator==(const SerdeError &) const = default;

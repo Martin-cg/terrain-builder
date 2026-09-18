@@ -5,6 +5,7 @@
 
 #include "cli.h"
 #include "cut.h"
+#include "error/log.h"
 #include "log.h"
 #include "mask.h"
 #include "merge.h"
@@ -23,7 +24,7 @@ std::optional<MeshMask> load_mask_from_path(const std::filesystem::path& path) {
                 mask.mesh.vertex_count(), mask.mesh.face_count());
             return mask;
         } else {
-            LOG_ERROR("Failed to load mask: {}", result.error().description());
+            LOG_FAILURE(result.error(), "loading the mask");
         }
     } else {
         LOG_DEBUG("No mask file found at {}, proceeding without mask", path);

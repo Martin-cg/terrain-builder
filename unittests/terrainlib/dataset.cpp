@@ -21,8 +21,16 @@
 
 #include <catch2/catch_approx.hpp>
 #include <gdal_priv.h>
+#include <cpl_error.h>
+#include <fmt/format.h>
+
+#include <filesystem>
+#include <optional>
+#include <string>
 
 #include "Dataset.h"
+#include "error/format.h"
+#include "gdal/CplError.h"
 #include "ctb/GlobalGeodetic.hpp"
 #include "ctb/GlobalMercator.hpp"
 #include "ctb/types.hpp"
@@ -157,4 +165,35 @@ TEST_CASE("bbox width pixels") {
     const auto webmercator_adjusted_bounds = adjust_bounds(webmercator_bounds);
     CHECK(d_wgs84.widthInPixels(webmercator_adjusted_bounds, webmercator) == Approx(620.0 * 0.7));
     CHECK(d_wgs84.heightInPixels(webmercator_adjusted_bounds, webmercator) == Approx(350.0 * 0.5));
+}
+
+TEST_CASE("Opening a missing dataset fails, naming the path", "[dataset]") {
+    const std::filesystem::path path = ALP_TEST_DATA_DIR "/missing.tif";
+    std::optional<gdal::CplError> error;
+    std::string chain;
+
+    SECTION("raster") {
+        const auto result = Dataset::open_raster(path);
+        REQUIRE(!result.has_value());
+        error = result.error().code();
+        chain = fmt::format("{:#}", result.error());
+    }
+
+    SECTION("vector") {
+        const auto result = Dataset::open_vector(path);
+        REQUIRE(!result.has_value());
+        error = result.error().code();
+        chain = fmt::format("{:#}", result.error());
+    }
+
+    SECTION("shared raster") {
+        const auto result = Dataset::open_shared_raster(path);
+        REQUIRE(!result.has_value());
+        error = result.error().code();
+        chain = fmt::format("{:#}", result.error());
+    }
+
+    CHECK(chain.contains(path.string()));
+    CPLErrorReset();
+    CHECK(error->message() != gdal::CplError::from_last_error().message());
 }

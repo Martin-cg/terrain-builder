@@ -13,6 +13,7 @@
 #include <tbb/global_control.h>
 
 #include "Dataset.h"
+#include "error/log.h"
 #include "log.h"
 #include "srs.h"
 #include "terrainbuilder.h"
@@ -26,7 +27,7 @@
 OGRSpatialReference parse_srs(const std::string &user_input) {
     const auto result = srs::from_user_input(user_input);
     if (!result.has_value()) {
-        LOG_ERROR(result.error());
+        LOG_FAILURE(result.error());
         exit(1);
     }
     return result.value();

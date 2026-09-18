@@ -30,6 +30,7 @@ add_executable(unittests_terrainlib
     terrainlib/error_utils.cpp
     terrainlib/file_error.cpp
     terrainlib/fixed_vector.cpp
+    terrainlib/gdal_error.cpp
     terrainlib/geometry_frames.cpp
     terrainlib/grid.cpp
     terrainlib/hash_utils.cpp
@@ -71,6 +72,7 @@ add_executable(unittests_terrainlib
     terrainlib/range_utils.cpp
     terrainlib/spatial_lookup.cpp
     terrainlib/spsc_channel.cpp
+    terrainlib/srs.cpp
     terrainlib/string_utils.cpp
     terrainlib/texture_dilate_colors.cpp
     terrainlib/tiny_vector.cpp
@@ -153,6 +155,7 @@ endif()
 if(TARGET sfmergerlib)
     add_executable(unittests_sfmerger
         catch2_helpers.h
+        sf_merger/mask.cpp
         sf_merger/sphere_projector.cpp
     )
     target_link_libraries(unittests_sfmerger PRIVATE sfmergerlib Catch2::Catch2WithMain)

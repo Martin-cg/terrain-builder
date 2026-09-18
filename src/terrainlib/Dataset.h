@@ -25,6 +25,9 @@
 #include <filesystem>
 
 #include <radix/tile.h>
+
+#include "error/Result.h"
+#include "gdal/CplError.h"
 #include "log.h"
 
 class GDALDataset;
@@ -39,9 +42,9 @@ public:
     Dataset(std::filesystem::path path);
     Dataset(GDALDataset* dataset); // takes over ownership
     ~Dataset();
-    static std::optional<Dataset> open_raster(std::filesystem::path path);
-    static std::optional<Dataset> open_vector(std::filesystem::path path);
-    static std::optional<std::shared_ptr<Dataset>> open_shared_raster(std::filesystem::path path);
+    static alp::Result<Dataset, gdal::CplError> open_raster(std::filesystem::path path);
+    static alp::Result<Dataset, gdal::CplError> open_vector(std::filesystem::path path);
+    static alp::Result<std::shared_ptr<Dataset>, gdal::CplError> open_shared_raster(std::filesystem::path path);
     Dataset clone();
 
     Dataset(Dataset &&) noexcept = default;
