@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <stdexcept>
 
 #include <glm/common.hpp>
@@ -61,6 +62,28 @@ inline size_t mat_byte_size(const cv::Mat &mat) {
 
 inline glm::uvec2 get_texture_size(const cv::Mat &texture) {
     return {texture.cols, texture.rows};
+}
+
+// `texture` with its channels rearranged into RGBA, keeping its depth, or nothing when it is empty or is not grey, BGR or BGRA.
+inline std::optional<cv::Mat> convert_to_rgba(const cv::Mat &texture) {
+    if (texture.empty()) {
+        return std::nullopt;
+    }
+
+    cv::Mat rgba;
+    switch (texture.channels()) {
+    case 1:
+        cv::cvtColor(texture, rgba, cv::COLOR_GRAY2RGBA);
+        return rgba;
+    case 3:
+        cv::cvtColor(texture, rgba, cv::COLOR_BGR2RGBA);
+        return rgba;
+    case 4:
+        cv::cvtColor(texture, rgba, cv::COLOR_BGRA2RGBA);
+        return rgba;
+    default:
+        return std::nullopt;
+    }
 }
 
 inline void rescale_texture(const cv::Mat &source, cv::Mat &destination, const glm::uvec2 new_size) {

@@ -122,6 +122,26 @@ if(ALP_BUILD_DAG_BUILDER OR ALP_BUILD_DAG_CONVERT_DEBUG OR ALP_BUILD_BVH_BUILDER
     target_compile_definitions(metis INTERFACE IDXTYPEWIDTH=32 REALTYPEWIDTH=32)
 endif()
 
+if(ALP_BUILD_PACKER)
+    set(BASISU_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(BASISU_ZSTD ON CACHE BOOL "" FORCE)
+    alp_add_git_repository(basis_universal URL https://github.com/BinomialLLC/basis_universal.git COMMITISH v2_50)
+    set_target_properties(basisu PROPERTIES EXCLUDE_FROM_ALL TRUE)
+    target_include_directories(basisu_encoder SYSTEM INTERFACE ${basis_universal_SOURCE_DIR})
+
+    # Basis Universal bundles its own zstd, so its source is dropped for ours and only one copy of the symbols is linked.
+    # Its sources still include the bundled zstd.h, which is only safe because they use nothing outside zstd's stable API.
+    get_target_property(ALP_BASISU_ENCODER_SOURCES basisu_encoder SOURCES)
+    list(LENGTH ALP_BASISU_ENCODER_SOURCES ALP_BASISU_ENCODER_SOURCE_COUNT)
+    list(FILTER ALP_BASISU_ENCODER_SOURCES EXCLUDE REGEX "zstd/zstd\\.c$")
+    list(LENGTH ALP_BASISU_ENCODER_SOURCES ALP_BASISU_ENCODER_KEPT_SOURCE_COUNT)
+    if(ALP_BASISU_ENCODER_SOURCE_COUNT EQUAL ALP_BASISU_ENCODER_KEPT_SOURCE_COUNT)
+        message(FATAL_ERROR "[alp] basis_universal no longer builds zstd/zstd.c, so it may now link a second zstd")
+    endif()
+    set_target_properties(basisu_encoder PROPERTIES SOURCES "${ALP_BASISU_ENCODER_SOURCES}")
+    target_link_libraries(basisu_encoder PRIVATE zstd::libzstd_static)
+endif()
+
 if(ALP_BUILD_SF_BROWSER)
     set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
     set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)

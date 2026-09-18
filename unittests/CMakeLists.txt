@@ -161,6 +161,8 @@ if(TARGET packerlib)
         packer/geometry/format.cpp
         packer/geometry/serialize.cpp
         packer/quantize.cpp
+        packer/texture/basis.cpp
+        packer/texture/serialize.cpp
     )
     target_link_libraries(unittests_packer PUBLIC packerlib Catch2::Catch2WithMain)
     atb_configure_test(unittests_packer)

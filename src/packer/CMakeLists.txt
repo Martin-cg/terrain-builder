@@ -1,6 +1,8 @@
-add_library(packerlib INTERFACE)
-target_include_directories(packerlib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(packerlib INTERFACE bvhbuilderlib dagbuilderlib)
+add_library(packerlib
+    texture/basis.cpp
+)
+target_include_directories(packerlib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(packerlib PUBLIC bvhbuilderlib dagbuilderlib PRIVATE basisu_encoder)
 
 add_executable(packer
     cli.cpp
