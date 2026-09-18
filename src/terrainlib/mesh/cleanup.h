@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <span>
+#include <type_traits>
 #include <vector>
 
 #include <glm/glm.hpp>
@@ -60,7 +61,7 @@ void remove_duplicate_triangles(
     const std::span<const glm::vec<3, T>> positions,
     const bool ignore_orientation);
 template <typename T>
-void remove_duplicate_triangles_ignore_orientation(
+void remove_duplicate_triangles(
     std::vector<glm::uvec3> &triangles,
     const std::vector<glm::vec<3, T>> &positions,
     const bool ignore_orientation);
@@ -79,10 +80,10 @@ void remove_duplicate_triangles_consider_orientation(std::vector<glm::uvec3> &tr
 template <glm::length_t n_dims, typename T>
 size_t remove_isolated_vertices(SimpleMesh_<n_dims, T> &mesh);
 
-template <glm::length_t n_dims, typename T, typename Size = float>
+template <glm::length_t n_dims, typename T>
 size_t remove_triangles_of_negligible_size(
     SimpleMesh_<n_dims, T> &mesh,
-    const Size threshold_percentage_of_average);
+    const std::type_identity_t<T> threshold_fraction_of_average);
 
 void remove_degenerate_triangles(std::vector<glm::uvec3> &triangles);
 

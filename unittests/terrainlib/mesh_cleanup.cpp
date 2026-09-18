@@ -298,6 +298,22 @@ TEST_CASE("mesh::remove_duplicate_triangles", "[mesh][cleanup]") {
         CHECK(triangles[0] == glm::uvec3(0, 1, 2));
         CHECK(triangles[1] == glm::uvec3(0, 2, 1));
     }
+
+    SECTION("ignore orientation vector overload removes the flipped duplicate") {
+        std::vector<glm::uvec3> triangles = {
+            glm::uvec3(0, 1, 2),
+            glm::uvec3(0, 2, 1),
+        };
+        const std::vector<glm::dvec3> positions = {
+            glm::dvec3(0, 0, 0),
+            glm::dvec3(1, 0, 0),
+            glm::dvec3(0, 1, 0),
+        };
+
+        mesh::remove_duplicate_triangles_ignore_orientation(triangles, positions);
+
+        CHECK(triangles == std::vector<glm::uvec3>{glm::uvec3(0, 1, 2)});
+    }
 }
 
 TEST_CASE("mesh::remove_isolated_vertices", "[mesh][cleanup]") {
@@ -381,6 +397,15 @@ TEST_CASE("mesh::remove_triangles_of_negligible_size", "[mesh][cleanup]") {
 
         CHECK(removed == 0);
         CHECK(mesh.triangles == old_triangles);
+    }
+
+    SECTION("float threshold on a double mesh removes the tiny triangle") {
+        SimpleMesh mesh = make_mesh_with_one_tiny_and_one_large_triangle();
+
+        const size_t removed = mesh::remove_triangles_of_negligible_size(mesh, 0.5f);
+
+        CHECK(removed == 1);
+        CHECK(mesh.triangles == std::vector<glm::uvec3>{glm::uvec3(0, 1, 2)});
     }
 
     SECTION("mesh with similarly sized triangles remains unchanged for small threshold") {
