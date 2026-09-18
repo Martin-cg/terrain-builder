@@ -15,6 +15,8 @@
 #include <CGAL/Unique_hash_map.h>
 #pragma GCC diagnostic pop
 
+#include "error/try.h"
+#include "error/utils.h"
 #include "mesh/cgal.h"
 #include "mesh/convert.h"
 #include "mesh/validate.h"
@@ -24,10 +26,6 @@
 #include "mesh/connectivity/topology.h"
 
 namespace uv {
-
-std::string UnwrapError::description() const {
-    return CGAL::Surface_mesh_parameterization::get_error_message(this->code);
-}
 
 namespace {
 using CircleBorderParameterizer = CGAL::Surface_mesh_parameterization::Circular_border_uniform_parameterizer_3<cgal::Mesh>;
@@ -130,7 +128,7 @@ struct CgalMap {
     double aspect = 1.0;
 };
 
-tl::expected<CgalMap, UnwrapError> parameterize_mesh(cgal::Mesh &mesh, Algorithm algorithm, Border border) {
+alp::Result<CgalMap, UnwrapError> parameterize_mesh(cgal::Mesh &mesh, Algorithm algorithm, Border border) {
     const cgal::HalfedgeDescriptor bhd = CGAL::Polygon_mesh_processing::longest_border(mesh).first;
     DEBUG_ASSERT(bhd != boost::graph_traits<cgal::Mesh>::null_halfedge());
 
@@ -179,7 +177,7 @@ tl::expected<CgalMap, UnwrapError> parameterize_mesh(cgal::Mesh &mesh, Algorithm
     }
 
     if (result != CGAL::Surface_mesh_parameterization::OK) {
-        return tl::unexpected(UnwrapError(result));
+        return alp::make_unexpected(result);
     }
 
     const auto vertex_count = CGAL::num_vertices(mesh);
@@ -208,7 +206,7 @@ std::vector<glm::dvec2> decode_uv_map(const UvMap &map, size_t vertex_count) {
 }
 }
 
-tl::expected<Map, UnwrapError> unwrap(
+alp::Result<Map, UnwrapError> unwrap(
     const std::span<const glm::uvec3> triangles,
     const std::span<const glm::dvec3> positions,
     Algorithm algorithm,
@@ -218,11 +216,7 @@ tl::expected<Map, UnwrapError> unwrap(
     DEBUG_ASSERT(mesh::compute_topology(mesh).is_disk(true));
     
     cgal::Mesh cgal_mesh = convert::to_cgal_mesh(mesh);
-    auto result = parameterize_mesh(cgal_mesh, algorithm, border);
-    if (!result) {
-        return tl::unexpected(result.error());
-    }
-    const CgalMap &cgal_map = result.value();
+    ALP_TRY(const CgalMap &cgal_map, parameterize_mesh(cgal_mesh, algorithm, border));
     Uvs uvs = decode_uv_map(cgal_map.uvs, mesh.vertex_count());
     return Map{std::move(uvs), cgal_map.aspect};
 }

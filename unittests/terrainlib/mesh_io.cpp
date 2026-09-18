@@ -53,14 +53,14 @@ TEST_CASE("transcode roundtrip") {
     mesh.texture = cv::Mat3b(100, 100);
     cv::randu(*mesh.texture, cv::Scalar(0, 0, 0), cv::Scalar(256, 256, 256));
 
-    const tl::expected<mesh::Encoded, mesh::EncodeError> encode_result =
+    const alp::Result<mesh::Encoded, mesh::EncodeError> encode_result =
         mesh::encode(mesh, mesh::EncodeOptions{.texture_format = ".png"});
     if (!encode_result.has_value()) {
         FAIL(fmt::to_string(encode_result.error()));
     }
     const mesh::Encoded encoded = encode_result.value();
 
-    const tl::expected<mesh::Simple, mesh::DecodeError> decode_result =
+    const alp::Result<mesh::Simple, mesh::DecodeError> decode_result =
         mesh::decode(encoded, mesh::DecodeOptions{});
     if (!decode_result.has_value()) {
         FAIL(fmt::to_string(decode_result.error()));
@@ -72,6 +72,17 @@ TEST_CASE("transcode roundtrip") {
     CHECK(roundtrip_mesh.triangles == mesh.triangles);
     CHECK(roundtrip_mesh.texture.has_value());
     CHECK(mat_equals(*roundtrip_mesh.texture, *mesh.texture));
+}
+
+TEST_CASE("A failed decode originates in decode", "[mesh][encode]") {
+    mesh::Encoded encoded;
+    encoded.header.version = 2;
+
+    const alp::Result<mesh::Simple, mesh::DecodeError> result = mesh::decode(encoded);
+
+    REQUIRE(!result.has_value());
+    CHECK(result.error().holds(mesh::DecodeError::IncompatibleData));
+    CHECK(std::string_view(result.error().origin().file_name()).ends_with("mesh/encode.h"));
 }
 
 TEST_CASE("io roundtrip") {
