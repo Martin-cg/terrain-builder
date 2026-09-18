@@ -104,7 +104,7 @@ TEST_CASE("mesh::compute_vertex_count", "[mesh][connectivity][vertex_index_range
         CHECK(mesh::compute_vertex_count(triangles) == 0);
     }
 
-    SECTION("works without isolated vertices") {
+    SECTION("works without unused vertices") {
         const std::vector<glm::uvec3> triangles = {
             glm::uvec3(0, 2, 1),
             glm::uvec3(4, 3, 2),
@@ -113,7 +113,7 @@ TEST_CASE("mesh::compute_vertex_count", "[mesh][connectivity][vertex_index_range
         CHECK(mesh::compute_vertex_count(triangles) == 7);
     }
 
-    SECTION("works with isolated vertices") {
+    SECTION("works with unused vertices") {
         const std::vector<glm::uvec3> triangles = {
             glm::uvec3(0, 2, 1),
             glm::uvec3(7, 1, 6)};
@@ -445,7 +445,7 @@ TEST_CASE("mesh::is_consistently_oriented", "[mesh][connectivity][adjacency]") {
     }
 }
 
-TEST_CASE("mesh::find_isolated_vertices", "[mesh][connectivity][adjacency]") {
+TEST_CASE("mesh::find_unused_vertices", "[mesh][connectivity][adjacency]") {
     SECTION("returns vertices not referenced by any triangle") {
         const mesh::Simple mesh(
             {
@@ -461,7 +461,7 @@ TEST_CASE("mesh::find_isolated_vertices", "[mesh][connectivity][adjacency]") {
             }
         );
 
-        const auto actual = mesh::find_isolated_vertices(mesh);
+        const auto actual = mesh::find_unused_vertices(mesh);
 
         CHECK(actual == std::vector<uint32_t>{4, 5});
     }
@@ -471,7 +471,7 @@ TEST_CASE("mesh::find_isolated_vertices", "[mesh][connectivity][adjacency]") {
             glm::uvec3(0, 1, 2),
             glm::uvec3(2, 1, 3)};
 
-        const auto actual = mesh::find_isolated_vertices(triangles);
+        const auto actual = mesh::find_unused_vertices(triangles);
 
         CHECK(actual.empty());
     }

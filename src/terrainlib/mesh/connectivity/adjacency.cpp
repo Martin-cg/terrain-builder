@@ -150,10 +150,10 @@ std::vector<uint32_t> count_vertex_adjacent_triangles(const std::span<const glm:
     return adjacent_triangle_count;
 }
 
-std::vector<uint32_t> find_isolated_vertices(const std::span<const glm::uvec3> triangles) {
-    return find_isolated_vertices(triangles, vertex_buffer_size(triangles));
+std::vector<uint32_t> find_unused_vertices(const std::span<const glm::uvec3> triangles) {
+    return find_unused_vertices(triangles, vertex_buffer_size(triangles));
 }
-std::vector<uint32_t> find_isolated_vertices(const std::span<const glm::uvec3> triangles, const uint32_t vertex_count) {
+std::vector<uint32_t> find_unused_vertices(const std::span<const glm::uvec3> triangles, const uint32_t vertex_count) {
     DEBUG_ASSERT(vertex_count >= vertex_buffer_size(triangles));
 
     std::vector<bool> connected;
@@ -164,14 +164,14 @@ std::vector<uint32_t> find_isolated_vertices(const std::span<const glm::uvec3> t
         }
     }
 
-    std::vector<uint32_t> isolated;
+    std::vector<uint32_t> unused;
     for (uint32_t i = 0; i < vertex_count; i++) {
         if (!connected[i]) {
-            isolated.push_back(i);
+            unused.push_back(i);
         }
     }
 
-    return isolated;
+    return unused;
 }
 
 std::vector<std::vector<uint32_t>> build_vertex_adjacency(const std::span<const glm::uvec3> triangles) {

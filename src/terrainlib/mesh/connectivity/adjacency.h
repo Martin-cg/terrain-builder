@@ -66,11 +66,11 @@ std::vector<uint32_t> count_vertex_adjacent_triangles(const std::span<const glm:
 std::vector<uint32_t> count_vertex_adjacent_triangles(const std::span<const glm::uvec3> triangles, const uint32_t vertex_count);
 
 template <glm::length_t n_dims, typename T>
-std::vector<uint32_t> find_isolated_vertices(const mesh::Simple_<n_dims, T> &mesh);
+std::vector<uint32_t> find_unused_vertices(const mesh::Simple_<n_dims, T> &mesh);
 template <glm::length_t n_dims, typename T>
-std::vector<uint32_t> find_isolated_vertices(const mesh::View_<n_dims, T> &mesh);
-std::vector<uint32_t> find_isolated_vertices(const std::span<const glm::uvec3> triangles);
-std::vector<uint32_t> find_isolated_vertices(const std::span<const glm::uvec3> triangles, const uint32_t vertex_count);
+std::vector<uint32_t> find_unused_vertices(const mesh::View_<n_dims, T> &mesh);
+std::vector<uint32_t> find_unused_vertices(const std::span<const glm::uvec3> triangles);
+std::vector<uint32_t> find_unused_vertices(const std::span<const glm::uvec3> triangles, const uint32_t vertex_count);
 
 template <glm::length_t n_dims, typename T>
 std::vector<std::vector<uint32_t>> build_vertex_adjacency(const mesh::Simple_<n_dims, T> &mesh);
