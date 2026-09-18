@@ -22,6 +22,7 @@ struct LayoutWithoutBase {
 std::optional<LayoutWithoutBase> guess_layout_strategy(
     const std::filesystem::path &base_path,
     size_t max_files_to_check = 100);
+[[nodiscard]]
 tl::expected<void, io::Error> save_index_map(const IndexMap &index, const disk::Layout &layout);
 void update_index_map(IndexMap &index, const disk::Layout &layout);
 

@@ -35,23 +35,27 @@ public:
     RawStorage_(const RawStorage_ &) = delete;
     RawStorage_(RawStorage_ &&) = default;
     RawStorage_ &operator=(RawStorage_ &&) = default;
-    
+
+    [[nodiscard]]
     tl::expected<T, load_error> load(const Id &id) const {
         const auto path = this->path_for(id);
         ALP_TRY_CONTEXT(T node, Codec::load_from_path(path), fmt::format("loading node {}", id));
         return node;
     }
 
+    [[nodiscard]]
     tl::expected<void, save_error> save(const Id &id, const T &node) const {
         const auto path = this->path_for(id);
         ALP_TRY_CONTEXT(Codec::save_to_path(node, path), fmt::format("saving node {}", id));
         return {};
     }
 
+    [[nodiscard]]
     tl::expected<void, copy_error> copy_to(const Id &id, RawStorage_ &target) const {
         return target.copy_from(id, *this);
     }
 
+    [[nodiscard]]
     tl::expected<void, copy_error> copy_from(const Id &id, const RawStorage_ &source) {
         const auto context = alp::make_context("copying node {}", id);
         const auto source_path = source.path_for(id);

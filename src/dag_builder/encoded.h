@@ -165,6 +165,7 @@ auto serialize(Archive &archive, Clustering &clustering) {
     }
 }
 
+[[nodiscard]]
 inline tl::expected<void, ::io::Error>
 save_clustering(const Clustering &clustering,
                  const std::filesystem::path &path,
@@ -172,6 +173,7 @@ save_clustering(const Clustering &clustering,
     return ::io::write_to_path(clustering, path, make_dirs);
 }
 
+[[nodiscard]]
 inline tl::expected<Clustering, ::io::Error>
 load_clustering(const std::filesystem::path &path) {
     return ::io::read_from_path<Clustering>(path);

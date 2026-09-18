@@ -19,10 +19,12 @@ struct ZppBitsCodec {
     using load_error = io::Error;
     using save_error = io::Error;
 
+    [[nodiscard]]
     static tl::expected<value_type, load_error> load_from_path(const std::filesystem::path& path) {
         return io::read_from_path<value_type>(path);
     }
 
+    [[nodiscard]]
     static tl::expected<void, save_error> save_to_path(const value_type& value, const std::filesystem::path& path) {
         return io::write_to_path(value, path);
     }

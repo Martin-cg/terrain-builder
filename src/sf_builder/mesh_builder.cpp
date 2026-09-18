@@ -143,6 +143,7 @@ radix::geometry::Aabb3d extend_bounds_to_3d(radix::geometry::Aabb2d bounds2d) {
 }
 }
 
+[[nodiscard]]
 tl::expected<SimpleMesh, BuildMeshError> build_reference_mesh_tile(
     Dataset &dataset,
     const OGRSpatialReference &mesh_srs,

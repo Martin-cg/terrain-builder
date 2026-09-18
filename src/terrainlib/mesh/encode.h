@@ -55,6 +55,7 @@ struct EncodeOptions {
 };
 
 template <glm::length_t n_dims, typename T>
+[[nodiscard]]
 alp::Result<Encoded, EncodeError> encode(const Simple_<n_dims, T>& mesh, const EncodeOptions options = {}) {
     using Mesh = Simple_<n_dims, T>;
 
@@ -131,6 +132,7 @@ struct DecodeOptions {
 
 
 template <glm::length_t n_dims = 3, typename T = double>
+[[nodiscard]]
 alp::Result<Simple_<n_dims, T>, DecodeError> decode(const Encoded &encoded, const DecodeOptions = {}) {
     const uint32_t expected_component_type = component_type_id<T>();
     const Encoded::Header& header = encoded.header;

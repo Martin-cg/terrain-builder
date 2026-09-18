@@ -59,12 +59,14 @@ struct Map {
 inline constexpr Algorithm DEFAULT_ALGORITHM = Algorithm::TutteBarycentricMapping;
 inline constexpr Border DEFAULT_BORDER = Border::Circle;
 
+[[nodiscard]]
 alp::Result<Map, UnwrapError> unwrap(
     const std::span<const glm::uvec3> triangles,
     const std::span<const glm::dvec3> positions,
     Algorithm algorithm = DEFAULT_ALGORITHM,
     Border border = DEFAULT_BORDER);
 
+[[nodiscard]]
 inline alp::Result<Map, UnwrapError> unwrap(
     const std::vector<glm::uvec3>& triangles,
     const std::vector<glm::dvec3>& positions,
@@ -77,6 +79,7 @@ inline alp::Result<Map, UnwrapError> unwrap(
         border);
 }
 
+[[nodiscard]]
 inline alp::Result<Map, UnwrapError> unwrap(
     const mesh::View &mesh,
     Algorithm algorithm = DEFAULT_ALGORITHM,
@@ -88,6 +91,7 @@ inline alp::Result<Map, UnwrapError> unwrap(
         border);
 }
 
+[[nodiscard]]
 inline alp::Result<Map, UnwrapError> unwrap(
     const mesh::Simple &mesh,
     Algorithm algorithm = DEFAULT_ALGORITHM,

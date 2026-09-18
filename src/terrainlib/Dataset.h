@@ -42,8 +42,11 @@ public:
     Dataset(std::filesystem::path path);
     Dataset(GDALDataset* dataset); // takes over ownership
     ~Dataset();
+    [[nodiscard]]
     static alp::Result<Dataset, gdal::CplError> open_raster(std::filesystem::path path);
+    [[nodiscard]]
     static alp::Result<Dataset, gdal::CplError> open_vector(std::filesystem::path path);
+    [[nodiscard]]
     static alp::Result<std::shared_ptr<Dataset>, gdal::CplError> open_shared_raster(std::filesystem::path path);
     Dataset clone();
 

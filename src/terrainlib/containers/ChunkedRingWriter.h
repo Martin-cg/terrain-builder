@@ -69,6 +69,7 @@ private:
     };
 
     // Publishes the chunk in hand and rents the next one.
+    [[nodiscard]]
     tl::expected<void, typename Ring::StreamEnd> advance_chunk() {
         if (this->_stream->chunk.has_value()) {
             std::move(this->_stream->chunk).value().commit();

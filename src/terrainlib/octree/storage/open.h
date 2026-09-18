@@ -21,6 +21,7 @@ struct OpenOptions {
 };
 
 template <typename T = DefaultT, CodecFor<T> Codec = DefaultCodecFor<T>>
+[[nodiscard]]
 tl::expected<IndexedStorage_<T, Codec>, io::Error> open_index(const std::filesystem::path &index_path);
 template <typename T = DefaultT, CodecFor<T> Codec = DefaultCodecFor<T>>
 Storage_<T, Codec> open_folder(

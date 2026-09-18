@@ -17,6 +17,7 @@ enum class BuildMeshError {
 std::ostream &operator<<(std::ostream &os, BuildMeshError error);
 
 /// Builds a mesh from the given height dataset.
+[[nodiscard]]
 tl::expected<SimpleMesh, BuildMeshError> build_reference_mesh_patch(
     Dataset &dataset,
     const OGRSpatialReference &mesh_srs,

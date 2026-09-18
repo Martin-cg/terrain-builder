@@ -356,6 +356,7 @@ inline radix::geometry::Aabb3d encompassing_bounds_transfer(
     return encompassing_bounds_transfer(transform.get(), source_bounds, intermediate_points_edges, intermediate_points_faces);
 }
 
+[[nodiscard]]
 inline alp::Result<OGRSpatialReference, gdal::OgrError> from_epsg(const uint32_t epsg) {
     OGRSpatialReference srs;
     if (const OGRErr code = srs.importFromEPSG(epsg); code != OGRERR_NONE) {
@@ -365,6 +366,7 @@ inline alp::Result<OGRSpatialReference, gdal::OgrError> from_epsg(const uint32_t
     return srs;
 }
 
+[[nodiscard]]
 inline alp::Result<OGRSpatialReference, gdal::OgrError> from_user_input(const std::string &user_input) {
     OGRSpatialReference srs;
     if (const OGRErr code = srs.SetFromUserInput(user_input.c_str()); code != OGRERR_NONE) {

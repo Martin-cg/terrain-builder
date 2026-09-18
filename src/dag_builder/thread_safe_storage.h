@@ -33,6 +33,7 @@ public:
         return std::move(this->_storage);
     }
 
+    [[nodiscard]]
     tl::expected<value_type, load_error> load(const octree::Id &id) const {
         std::shared_lock lock(this->_mutex);
         return this->_storage.load(id);
@@ -47,11 +48,13 @@ public:
         return this->_storage.base_path();
     }
 
+    [[nodiscard]]
     tl::expected<void, save_error> save(const octree::Id &id, const value_type &value) const {
         std::unique_lock lock(this->_mutex);
         return this->_storage.save(id, value);
     }
 
+    [[nodiscard]]
     auto save_or_create_index() const {
         std::unique_lock lock(this->_mutex);
         return this->_storage.save_or_create_index();

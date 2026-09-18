@@ -156,6 +156,7 @@ public:
         }
     }
 
+    [[nodiscard]]
     tl::expected<value_type, load_error> load(const Id &id) const {
         if (const auto value_opt = this->_cache.get(id)) {
             return value_opt.value();
@@ -172,6 +173,7 @@ public:
         return result;
     }
 
+    [[nodiscard]]
     tl::expected<void, save_error> save(const Id &id, const value_type &value) {
         if (this->check_overwrite(id)) {
             LOG_ERROR_AND_EXIT("tried to overwrite value when not allowed");
@@ -185,6 +187,7 @@ public:
         return result;
     }
 
+    [[nodiscard]]
     tl::expected<void, copy_error> copy_from(const Id &id, const Storage_<T, Codec> &source) {
         if (!source._index.contains(id, true)) {
             return detail::make_index_miss(id, source._inner.layout());
@@ -202,6 +205,7 @@ public:
         return result;
     }
 
+    [[nodiscard]]
     tl::expected<void, copy_error> copy_to(const Id &id, Storage_<T, Codec> &target) const {
         return target.copy_from(id, *this);
     }
@@ -265,6 +269,7 @@ public:
         }
     }
 
+    [[nodiscard]]
     tl::expected<void, io::Error> save_or_create_index() {
         if (this->is_indexed() && !this->_index.dirty) {
             return {};

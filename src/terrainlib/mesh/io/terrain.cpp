@@ -15,11 +15,13 @@ namespace mesh::io::terrain {
 
 namespace detail {
 
+[[nodiscard]]
 Result<std::vector<uint8_t>> save_to_buffer(const SimpleMesh &mesh, const SaveOptions &options) {
     ALP_TRY(const mesh::Encoded &encoded, mesh::encode(mesh, mesh::EncodeOptions{.texture_format = options.texture_format}));
     return ::io::write_to_bytes(encoded);
 }
 
+[[nodiscard]]
 Result<SimpleMesh> load_from_buffer(const std::span<const uint8_t> bytes) {
     ALP_TRY(const mesh::Encoded &encoded, ::io::read_from_bytes<mesh::Encoded>(bytes));
     ALP_TRY(mesh::Simple decoded, mesh::decode(encoded));

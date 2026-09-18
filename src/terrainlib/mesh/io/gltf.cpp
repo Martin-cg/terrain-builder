@@ -234,6 +234,7 @@ static std::string image_ext_to_mime(std::string_view extension) {
 
 namespace detail {
 
+[[nodiscard]]
 alp::Result<RawMesh, GltfError> load_raw_from_path(const std::filesystem::path &path) {
     cgltf_options options = {};
     cgltf_data *data = NULL;
@@ -259,6 +260,7 @@ alp::Result<RawMesh, GltfError> load_raw_from_path(const std::filesystem::path &
     return RawMesh(data, cgltf_free);
 }
 
+[[nodiscard]]
 Result<SimpleMesh> load_from_raw(const RawMesh &raw, const LoadOptions& /* options */) {
     LOG_TRACE("Loading mesh from gltf data");
 

@@ -227,6 +227,7 @@ glm::dvec2 calculate_radius_range(const std::span<const SimpleMesh3d> meshes) {
 
 namespace detail {
 
+[[nodiscard]]
 inline alp::Result<ReferencedPolygonMask, ContentError> load_referenced_from_dataset(Dataset& mask_dataset) {
     GDALDataset *dataset = mask_dataset.gdalDataset();
 
@@ -256,6 +257,7 @@ inline alp::Result<ReferencedPolygonMask, ContentError> load_referenced_from_dat
 
 } // namespace detail
 
+[[nodiscard]]
 inline alp::Result<ReferencedPolygonMask, ContentError> load_referenced_from_dataset(Dataset& mask_dataset) {
     ALP_TRY_CONTEXT(
         ReferencedPolygonMask referenced_mask,
@@ -421,6 +423,7 @@ inline MeshMask extrude(
     return extrude(mask, padded_radius_range);
 }
 
+[[nodiscard]]
 inline alp::Result<ReferencedPolygonMask, LoadError> load_referenced_from_path(const std::filesystem::path &path) {
     const auto context = alp::make_context("loading a mask from {}", path);
     ALP_TRY_CONTEXT(Dataset dataset, Dataset::open_vector(path), context);
@@ -428,6 +431,7 @@ inline alp::Result<ReferencedPolygonMask, LoadError> load_referenced_from_path(c
     return referenced_mask;
 }
 
+[[nodiscard]]
 inline alp::Result<MeshMask, LoadError> load_from_path(const std::filesystem::path &path, const glm::dvec2& radius_range) {
     ALP_TRY(ReferencedPolygonMask ref_polygon_mask, load_referenced_from_path(path));
     SpherePolygonMask sphere_polygon_mask = project_onto_sphere(std::move(ref_polygon_mask), radius_range.x);

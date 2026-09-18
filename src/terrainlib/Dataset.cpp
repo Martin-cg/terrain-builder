@@ -45,6 +45,7 @@ void GDALDatasetDeleter::operator()(GDALDataset *dataset) const {
     }
 }
 
+[[nodiscard]]
 static alp::Result<GDALDataset *, gdal::CplError> open_gdal_dataset(const std::filesystem::path &path, unsigned int flags) {
     initialize_gdal_once();
     const std::string path_str = path.string();

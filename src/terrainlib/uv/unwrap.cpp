@@ -128,6 +128,7 @@ struct CgalMap {
     double aspect = 1.0;
 };
 
+[[nodiscard]]
 alp::Result<CgalMap, UnwrapError> parameterize_mesh(cgal::Mesh &mesh, Algorithm algorithm, Border border) {
     const cgal::HalfedgeDescriptor bhd = CGAL::Polygon_mesh_processing::longest_border(mesh).first;
     DEBUG_ASSERT(bhd != boost::graph_traits<cgal::Mesh>::null_halfedge());
