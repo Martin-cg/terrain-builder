@@ -217,6 +217,14 @@ TEST_CASE("geometry::build stores a position shared by two clusterings once", "[
     CHECK(std::ranges::count(page.positions, quantize_point({1.0, 0.0, 0.0})) == 1);
 }
 
+TEST_CASE("geometry::build builds an empty page from no clusters", "[geometry]") {
+    const Clustering clustering;
+
+    const geometry::Page page = geometry::build(std::span<const Clustering>(&clustering, 1));
+
+    CHECK(page == geometry::Page{});
+}
+
 TEST_CASE("geometry::build produces a page that survives encode and decode", "[geometry]") {
     Clustering clustering;
     clustering.positions = {{0.0, 0.0, 0.0}, {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {1.0, 1.0, 0.0}};

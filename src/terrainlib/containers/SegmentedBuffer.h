@@ -133,7 +133,9 @@ public:
 
     // Removes multiple segments, counted from the last one, and the elements they hold.
     void pop_segments(const segment_index count) {
-        // Emptying the buffer leaves it as construction does, with one segment nobody asked for.
+        DEBUG_ASSERT(count <= this->segment_count());
+
+        // Emptying the buffer leaves it as construction does.
         if (count == this->segment_count()) {
             this->reset();
             return;
@@ -144,9 +146,11 @@ public:
     }
 
     // Removes all empty segments while preserving the order of non-empty segments.
-    // If all segments are empty, the buffer is reset to one empty segment.
     void remove_empty_segments() {
         this->_offsets.remove_empty_segments();
+        if (this->_offsets.empty()) {
+            this->reset();
+        }
     }
 
     // Accesses an element using segment-relative indexing.
@@ -161,11 +165,15 @@ public:
 
     // Returns the total number of segments currently tracked.
     segment_index segment_count() const noexcept {
+        if (this->_is_first_segment_implicit) {
+            return 0;
+        }
         return this->_offsets.size();
     }
 
     // Returns the number of elements contained within a specific segment.
     index_type segment_size(const segment_index segment_index) const noexcept {
+        DEBUG_ASSERT(segment_index < this->segment_count());
         return this->_offsets.segment_size(segment_index);
     }
 
@@ -218,7 +226,7 @@ public:
 private:
     template <typename Self>
     static inline auto &get_impl(Self &self, const segment_index segment_index, const index_type element_index) {
-        DEBUG_ASSERT(segment_index < self._offsets.size());
+        DEBUG_ASSERT(segment_index < self.segment_count());
 
         const offset_range range = self._offsets.segment_range(segment_index);
         const index_type flat_index = range.begin + element_index;
@@ -229,7 +237,7 @@ private:
 
     template <typename Self>
     static inline auto get_segment_impl(Self &self, const segment_index segment_index) {
-        DEBUG_ASSERT(segment_index < self._offsets.size());
+        DEBUG_ASSERT(segment_index < self.segment_count());
 
         const offset_range range = self._offsets.segment_range(segment_index);
         const index_type length = range.end - range.begin;

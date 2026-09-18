@@ -4,9 +4,8 @@
 TEST_CASE("SegmentedBuffer default construction") {
     SegmentedBuffer<int> buf;
 
-    CHECK(buf.segment_count() == 1);
+    CHECK(buf.segment_count() == 0);
     CHECK(buf.total_size() == 0);
-    CHECK(buf.segment_size(0) == 0);
 }
 
 TEST_CASE("SegmentedBuffer construct from vector") {
@@ -198,9 +197,8 @@ TEST_CASE("SegmentedBuffer reset") {
 
     buf.reset();
 
-    REQUIRE(buf.segment_count() == 1);
+    REQUIRE(buf.segment_count() == 0);
     REQUIRE(buf.total_size() == 0);
-    REQUIRE(buf.segment_size(0) == 0);
 }
 
 TEST_CASE("SegmentedBuffer multiple segments with different sizes and last_segment") {
@@ -325,9 +323,8 @@ TEST_CASE("SegmentedBuffer popping every segment leaves it as constructed") {
 
     buf.pop_segments(buf.segment_count());
 
-    REQUIRE(buf.segment_count() == 1);
+    REQUIRE(buf.segment_count() == 0);
     CHECK(buf.total_size() == 0);
-    CHECK(buf.segment_size(0) == 0);
 }
 
 TEST_CASE("SegmentedBuffer pushes after popping every segment do not leave an empty one") {
@@ -351,6 +348,27 @@ TEST_CASE("SegmentedBuffer push_empty_segment adds a segment holding nothing") {
     REQUIRE(buf.segment_count() == 2);
     CHECK(buf.segment_size(1) == 0);
     CHECK(buf.total_size() == 2);
+}
+
+TEST_CASE("SegmentedBuffer removing every segment leaves it as constructed") {
+    SegmentedBuffer<int> buf;
+
+    buf.push_empty_segment();
+    buf.push_empty_segment();
+    buf.remove_empty_segments();
+    REQUIRE(buf.segment_count() == 0);
+
+    buf.push_to_last_segment(7);
+    REQUIRE(buf.segment_count() == 1);
+    CHECK(buf(0, 0) == 7);
+}
+
+TEST_CASE("SegmentedBuffer init without segments holds none") {
+    SegmentedBuffer<int> buf;
+
+    buf.init(std::span<const size_t>{});
+
+    CHECK(buf.segment_count() == 0);
 }
 
 TEST_CASE("SegmentedBuffer keeps empty segments when popping") {

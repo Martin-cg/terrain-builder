@@ -80,8 +80,6 @@ namespace detail {
         const PageVertices &vertices,
         const std::span<const uint32_t> position_ids) {
         ASSERT(position_ids.size() == vertices.positions.size());
-        // An empty SegmentedBuffer still reports one segment, which would read as an empty cluster.
-        ASSERT(!vertices.cluster_offsets.empty());
 
         PageMeshlets meshlets;
         uint32_t cluster_index = 0;
