@@ -14,6 +14,7 @@ endfunction()
 
 add_executable(unittests_terrainlib
     catch2_helpers.h
+    throwing_assertions.cpp
     opencv_helpers.h
 
     terrainlib/chunked_ring_buffer.cpp
@@ -95,6 +96,7 @@ atb_configure_test(unittests_terrainlib)
 if(TARGET tilebuilderlib)
     add_executable(unittests_tilebuilder
         catch2_helpers.h
+        throwing_assertions.cpp
         tilebuilder/alpine_raster_format.cpp
         tilebuilder/dataset_reading.cpp
         tilebuilder/depth_first_tile_traverser.cpp
@@ -111,6 +113,7 @@ endif()
 if(TARGET sfbuilderlib)
     add_executable(unittests_sfbuilder
         catch2_helpers.h
+        throwing_assertions.cpp
         sf_builder/mesh.cpp
         sf_builder/texture.cpp
         sf_builder/tile_provider.cpp
@@ -122,6 +125,7 @@ endif()
 if(TARGET dagbuilderlib)
     add_executable(unittests_dagbuilder
         catch2_helpers.h
+        throwing_assertions.cpp
         dag_builder/bake_cluster_texture.cpp
         dag_builder/correspondence.cpp
         dag_builder/reprojection.cpp
@@ -140,6 +144,7 @@ endif()
 if(TARGET sfmergerlib)
     add_executable(unittests_sfmerger
         catch2_helpers.h
+        throwing_assertions.cpp
         sf_merger/mask.cpp
         sf_merger/sphere_projector.cpp
     )
