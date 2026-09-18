@@ -261,7 +261,7 @@ TEST_CASE("Loading a mesh with an unsupported extension fails, naming the extens
     const mesh::io::Result<SimpleMesh> result = mesh::io::load_from_path("mesh.xyz");
 
     REQUIRE(!result.has_value());
-    CHECK(result.error().narrow<mesh::io::UnsupportedFormat>().has_value());
+    CHECK(result.error().holds<mesh::io::UnsupportedFormat>());
     CHECK(fmt::to_string(result.error()).contains(".xyz"));
 }
 
@@ -270,7 +270,7 @@ TEST_CASE("Saving a mesh with an unsupported extension fails, naming the extensi
     const mesh::io::Result<void> result = mesh::io::save_to_path(make_triangle(), directory.path() / "mesh.xyz");
 
     REQUIRE(!result.has_value());
-    CHECK(result.error().narrow<mesh::io::UnsupportedFormat>().has_value());
+    CHECK(result.error().holds<mesh::io::UnsupportedFormat>());
     CHECK(fmt::to_string(result.error()).contains(".xyz"));
 }
 
@@ -301,7 +301,7 @@ TEST_CASE("Loading a terrain file with truncated data fails with a serde error")
     const mesh::io::Result<SimpleMesh> result = mesh::io::load_from_path(path);
 
     REQUIRE(!result.has_value());
-    CHECK(result.error().narrow<io::SerdeError>().has_value());
+    CHECK(result.error().holds<io::SerdeError>());
 }
 
 TEST_CASE("Loading a glTF file without a mesh fails as unsupported") {
@@ -312,7 +312,7 @@ TEST_CASE("Loading a glTF file without a mesh fails as unsupported") {
     const mesh::io::Result<SimpleMesh> result = mesh::io::load_from_path(path);
 
     REQUIRE(!result.has_value());
-    CHECK(result.error().narrow<mesh::io::UnsupportedGltf>().has_value());
+    CHECK(result.error().holds<mesh::io::UnsupportedGltf>());
 }
 
 TEST_CASE("The mesh codec reports a missing file as a file error, naming the path") {

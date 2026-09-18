@@ -93,6 +93,13 @@ public:
         return this->_code.visit(std::forward<F>(f));
     }
 
+    // Whether this error holds a code of type E.
+    template <typename E> requires(accepts<E>)
+    [[nodiscard]]
+    bool holds() const {
+        return this->get_if<E>() != nullptr;
+    }
+
     // Whether this error holds `code`.
     template <typename E> requires(accepts<E> && std::equality_comparable<E>)
     [[nodiscard]]

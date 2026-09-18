@@ -72,7 +72,7 @@ TEST_CASE("Reading a value from a missing file fails with a file error") {
     const io::Result<std::vector<uint32_t>> result = io::read_from_path<std::vector<uint32_t>>(path);
 
     REQUIRE(!result.has_value());
-    CHECK(result.error().narrow<io::FileError>().has_value());
+    CHECK(result.error().holds<io::FileError>());
 }
 
 TEST_CASE("Reading a value from a file with truncated data fails with a serde error") {
@@ -83,7 +83,7 @@ TEST_CASE("Reading a value from a file with truncated data fails with a serde er
     const io::Result<std::vector<uint32_t>> result = io::read_from_path<std::vector<uint32_t>>(path);
 
     REQUIRE(!result.has_value());
-    CHECK(result.error().narrow<io::SerdeError>().has_value());
+    CHECK(result.error().holds<io::SerdeError>());
 }
 
 TEST_CASE("Writing and reading a value round-trips it") {

@@ -323,6 +323,27 @@ TEST_CASE("holds works in a set with an incomparable code", "[error]") {
     CHECK(!incomparable_error.holds(FileError::NotFound));
 }
 
+TEST_CASE("holds<E> is true for a code of type E and false for another code type", "[error]") {
+    const alp::Error<FileError, OffsetError> error(OffsetError{.offset = 7});
+
+    CHECK(error.holds<OffsetError>());
+    CHECK(!error.holds<FileError>());
+}
+
+TEST_CASE("holds<E> works for a code without equality", "[error]") {
+    const alp::Error<FileError, Incomparable> error(Incomparable{});
+
+    CHECK(error.holds<Incomparable>());
+    CHECK(!error.holds<FileError>());
+}
+
+TEST_CASE("holds<E> on an erased error checks the type of the code it was erased from", "[error]") {
+    const alp::Error<> erased = alp::make_error(OffsetError{.offset = 7});
+
+    CHECK(erased.holds<OffsetError>());
+    CHECK(!erased.holds<FileError>());
+}
+
 TEST_CASE("get_if points at the held code if it has that type, and is null otherwise", "[error]") {
     const alp::Error<FileError, OffsetError> error(OffsetError{.offset = 7});
 
