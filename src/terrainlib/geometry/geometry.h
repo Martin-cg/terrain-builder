@@ -24,14 +24,6 @@ using Triangle3d = radix::geometry::Triangle<3, double>;
 
 using Line3d = radix::geometry::Line<3, double>;
 
-// Grow bounds by the same distance on every side.
-template <glm::length_t n_dims, typename T>
-radix::geometry::Aabb<n_dims, T> pad_bounds_absolute(const radix::geometry::Aabb<n_dims, T> &bounds, const T padding);
-
-// Grow bounds by the given fraction of their size on every side.
-template <glm::length_t n_dims, typename T>
-radix::geometry::Aabb<n_dims, T> pad_bounds_relative(const radix::geometry::Aabb<n_dims, T> &bounds, const T fraction, const T min_padding = T(0));
-
 // Normalize a set of positions into the range of [-1,1] based on maximum extents of the bounding box.
 // Outputs are written as float coordinates.
 // Optionally outputs the computed AABB if out_bounds is provided.
