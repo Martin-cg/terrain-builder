@@ -4,6 +4,8 @@
 #define SPDLOG_FMT_EXTERNAL
 #define FMT_HEADER_ONLY
 #endif
+#include <atomic>
+
 #include "fmt_impls.h"
 #include "numeric/int_math.h"
 #include <fmt/core.h>
@@ -48,16 +50,15 @@ public:
 class LogBackoff {
 public:
     bool should_log() {
-        this->_count++;
-        return is_power_of_two(this->_count);
+        return is_power_of_two(this->_count.fetch_add(1) + 1);
     }
 
     uint64_t count() const {
-        return this->_count;
+        return this->_count.load();
     }
 
 private:
-    uint64_t _count = 0;
+    std::atomic<uint64_t> _count = 0;
 };
 
 // Logs on occurrence 1, 2, 4, 8, 16, ... per call site, with the occurrence count appended.
