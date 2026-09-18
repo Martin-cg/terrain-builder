@@ -17,6 +17,7 @@ add_executable(unittests_terrainlib
     throwing_assertions.cpp
     opencv_helpers.h
 
+    terrainlib/checked_cast.cpp
     terrainlib/chunked_ring_buffer.cpp
     terrainlib/convert.cpp
     terrainlib/cow.cpp
