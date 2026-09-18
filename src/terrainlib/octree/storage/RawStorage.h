@@ -3,8 +3,10 @@
 #include <filesystem>
 #include <system_error>
 
+#include <fmt/format.h>
 #include <tl/expected.hpp>
 
+#include "error/try.h"
 #include "octree/Id.h"
 #include "octree/disk/Layout.h"
 #include "octree/storage/codec/Codec.h"
@@ -31,12 +33,14 @@ public:
     
     tl::expected<T, load_error> load(const Id &id) const {
         const auto path = this->path_for(id);
-        return Codec::load_from_path(path);
+        ALP_TRY_CONTEXT(T node, Codec::load_from_path(path), fmt::format("loading node {}", id));
+        return node;
     }
 
     tl::expected<void, save_error> save(const Id &id, const T &node) const {
         const auto path = this->path_for(id);
-        return Codec::save_to_path(node, path);
+        ALP_TRY_CONTEXT(Codec::save_to_path(node, path), fmt::format("saving node {}", id));
+        return {};
     }
 
     tl::expected<void, CopyError> copy_to(const Id &id, RawStorage_ &target) const {

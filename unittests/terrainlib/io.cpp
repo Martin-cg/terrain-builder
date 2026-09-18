@@ -86,6 +86,23 @@ TEST_CASE("Reading a value from a file with truncated data fails with a serde er
     CHECK(result.error().holds<io::SerdeError>());
 }
 
+TEST_CASE("A failed read of a value names the file", "[io][serialize]") {
+    const TempDirectory directory("io_error_failed_read_path");
+    const std::filesystem::path path = directory.path() / "value.bin";
+
+    SECTION("missing file") {
+    }
+
+    SECTION("truncated data") {
+        REQUIRE(io::write_bytes_to_path(std::vector<uint8_t>{1}, path).has_value());
+    }
+
+    const io::Result<std::vector<uint32_t>> result = io::read_from_path<std::vector<uint32_t>>(path);
+
+    REQUIRE(!result.has_value());
+    CHECK(fmt::to_string(result.error()).contains(path.string()));
+}
+
 TEST_CASE("Writing and reading a value round-trips it") {
     const TempDirectory directory("io_error_value_round_trip");
     const std::filesystem::path path = directory.path() / "value.bin";

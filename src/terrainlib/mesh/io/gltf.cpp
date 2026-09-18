@@ -661,22 +661,23 @@ Result<void> save_to_path(
     }
 
     // ********************* Save the GLTF data to a file ********************* //
-    ALP_TRY_CONTEXT(::io::utils::create_parent_directories(path), path.string());
+    ALP_TRY(::io::utils::create_parent_directories(path));
     cgltf_options gltf_options = {};
     if (binary_output) {
         gltf_options.type = cgltf_file_type_glb;
     }
     const cgltf_result write_result = cgltf_write_file(&gltf_options, path.string().c_str(), &data);
     if (write_result != cgltf_result_success) {
-        return alp::make_unexpected(GltfError(write_result), path.string());
+        return alp::make_unexpected(GltfError(write_result), fmt::format("writing the glTF mesh to {}", path.string()));
     }
 
     return {};
 }
 
 Result<SimpleMesh> load_from_path(const std::filesystem::path &path, const LoadOptions &options) {
-    ALP_TRY_CONTEXT(const RawMesh &raw_mesh, load_raw_from_path(path), path.string());
-    return alp::context(load_from_raw(raw_mesh, options), path.string());
+    ALP_TRY_CONTEXT(const RawMesh &raw_mesh, load_raw_from_path(path), fmt::format("parsing the glTF mesh in {}", path.string()));
+    ALP_TRY_CONTEXT(SimpleMesh mesh, load_from_raw(raw_mesh, options), fmt::format("decoding the mesh in {}", path.string()));
+    return mesh;
 }
 
 } // namespace mesh::io::gltf

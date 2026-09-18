@@ -19,6 +19,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <string>
 #include <system_error>
 
 #include <opencv2/opencv.hpp>
@@ -312,4 +313,44 @@ TEST_CASE("Loading a glTF file without a mesh fails as unsupported") {
 
     REQUIRE(!result.has_value());
     CHECK(result.error().holds<mesh::io::UnsupportedGltf>());
+}
+
+TEST_CASE("A failed mesh load or save names the file", "[mesh][io]") {
+    const TempDirectory directory("mesh_io_failed_path");
+    const auto format_failure = [](const auto &result) {
+        REQUIRE(!result.has_value());
+        return fmt::to_string(result.error());
+    };
+    std::filesystem::path path;
+    std::string message;
+
+    SECTION("unsupported extension on load") {
+        path = directory.path() / "mesh.xyz";
+        message = format_failure(mesh::io::load_from_path(path));
+    }
+
+    SECTION("unsupported extension on save") {
+        path = directory.path() / "mesh.xyz";
+        message = format_failure(mesh::io::save_to_path(make_triangle(), path));
+    }
+
+    SECTION("missing glTF file") {
+        path = directory.path() / "missing.gltf";
+        message = format_failure(mesh::io::load_from_path(path));
+    }
+
+    SECTION("truncated terrain file") {
+        path = directory.path() / "mesh.terrain";
+        REQUIRE(mesh::io::save_to_path(make_triangle(), path).has_value());
+        std::filesystem::resize_file(path, std::filesystem::file_size(path) - 1);
+        message = format_failure(mesh::io::load_from_path(path));
+    }
+
+    SECTION("glTF file without a mesh") {
+        path = directory.path() / "empty.gltf";
+        std::ofstream(path) << R"({"asset":{"version":"2.0"}})";
+        message = format_failure(mesh::io::load_from_path(path));
+    }
+
+    CHECK(message.contains(path.string()));
 }
