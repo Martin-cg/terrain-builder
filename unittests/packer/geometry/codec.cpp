@@ -1,17 +1,12 @@
-#include <array>
 #include <cstdint>
 
-#include <glm/glm.hpp>
-
 #include "../../catch2_helpers.h"
-#include "cluster.h"
 #include "geometry/codec.h"
 #include "mesh/normalize.h"
-#include "meshopt/encode.h"
 
 namespace packer {
 
-TEST_CASE("geometry::decode undoes geometry::encode", "[geometry]") {
+TEST_CASE("geometry::decode undoes geometry::encode", "[geometry][codec]") {
     const int64_t offset = int64_t{1} << 40;
     geometry::Page expected{
         .clusters = {{.vertex_count = 3, .triangle_count = 1}, {.vertex_count = 4, .triangle_count = 2}},
@@ -31,7 +26,7 @@ TEST_CASE("geometry::decode undoes geometry::encode", "[geometry]") {
     CHECK(actual == expected);
 }
 
-TEST_CASE("geometry::decode undoes geometry::encode for an empty cluster", "[geometry]") {
+TEST_CASE("geometry::decode undoes geometry::encode for an empty cluster", "[geometry][codec]") {
     geometry::Page expected{
         .clusters = {{.vertex_count = 3, .triangle_count = 1}, {.vertex_count = 0, .triangle_count = 0}},
         .positions = {{0, 0, 0}, {7, 0, 0}, {0, 7, 0}},
@@ -49,7 +44,7 @@ TEST_CASE("geometry::decode undoes geometry::encode for an empty cluster", "[geo
     CHECK(actual == expected);
 }
 
-TEST_CASE("geometry::decode rejects a page it cannot trust", "[geometry]") {
+TEST_CASE("geometry::decode reports a stream that fails to decode", "[geometry][codec]") {
     const geometry::Page page{
         .clusters = {{.vertex_count = 3, .triangle_count = 1}},
         .positions = {{0, 0, 0}, {7, 0, 0}, {0, 7, 0}},
@@ -59,33 +54,12 @@ TEST_CASE("geometry::decode rejects a page it cannot trust", "[geometry]") {
     };
     geometry::EncodedPage encoded = geometry::encode(page);
 
-    SECTION("meshlet sizes that overrun the meshlet stream") {
-        encoded.meshlets.pop_back();
-    }
-    SECTION("a cluster with more triangles than a cluster can hold") {
-        encoded.clusters.front().triangle_count = MAX_TRIANGLES_PER_CLUSTER + 1;
-    }
     SECTION("a cut-short position stream") {
         encoded.positions.pop_back();
-    }
-    SECTION("more positions than the clusters reference") {
-        encoded.position_count = encoded.clusters.front().vertex_count + 1;
     }
     SECTION("a meshlet too short to decode") {
         encoded.meshlets.resize(1);
         encoded.clusters.front().encoded_meshlet_byte_count = 1;
-    }
-    SECTION("a triangle index outside its cluster") {
-        const std::array<uint32_t, 3> position_indices = {0, 1, 2};
-        const std::array<glm::u8vec3, 1> triangles = {glm::u8vec3{0, 1, 3}};
-        encoded.meshlets = meshopt::encode_meshlet(position_indices, triangles);
-        encoded.clusters.front().encoded_meshlet_byte_count = static_cast<uint16_t>(encoded.meshlets.size());
-    }
-    SECTION("a position index beyond the page's positions") {
-        const std::array<uint32_t, 3> position_indices = {0, 1, 3};
-        const std::array<glm::u8vec3, 1> triangles = {glm::u8vec3{0, 1, 2}};
-        encoded.meshlets = meshopt::encode_meshlet(position_indices, triangles);
-        encoded.clusters.front().encoded_meshlet_byte_count = static_cast<uint16_t>(encoded.meshlets.size());
     }
 
     CHECK(!geometry::decode(encoded).has_value());

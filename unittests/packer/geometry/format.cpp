@@ -15,12 +15,12 @@ constexpr double UV_STEP = 1.0 / UV_MAX;
 
 }
 
-TEST_CASE("geometry::quantize_uv spans the unit square", "[geometry]") {
+TEST_CASE("geometry::quantize_uv spans the unit square", "[geometry][format]") {
     CHECK(geometry::quantize_uv({0.0, 0.0}) == geometry::QuantizedUv{0, 0});
     CHECK(geometry::quantize_uv({1.0, 1.0}) == geometry::QuantizedUv{UV_MAX, UV_MAX});
 }
 
-TEST_CASE("geometry::quantize_uv round-trips within half a step", "[geometry]") {
+TEST_CASE("geometry::quantize_uv round-trips within half a step", "[geometry][format]") {
     for (uint32_t step = 0; step <= 64; step++) {
         const double value = step / 64.0;
         const glm::dvec2 restored = geometry::dequantize_uv(geometry::quantize_uv({value, 1.0 - value}));

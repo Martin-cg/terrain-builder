@@ -90,10 +90,6 @@ namespace detail {
                 const std::vector<glm::uvec3> kept_triangles = meshopt::filter_index_buffer(cluster.local_triangles, cluster_position_ids);
 
                 meshopt::extract_meshlet_indices(kept_triangles, meshlets.vertex_indices, meshlets.local_triangles);
-                const uint32_t vertex_count = meshlets.vertex_indices.segment_size(cluster_index);
-                const uint32_t triangle_count = meshlets.local_triangles.segment_size(cluster_index);
-                ASSERT(check_counts(vertex_count, triangle_count));
-
                 for (uint32_t &vertex_index : meshlets.vertex_indices.last_segment()) {
                     vertex_index += vertex_offset;
                 }

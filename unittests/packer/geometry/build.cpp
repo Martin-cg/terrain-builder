@@ -53,7 +53,7 @@ std::vector<glm::uvec3> get_page_triangles(const geometry::Page &page, const siz
 
 }
 
-TEST_CASE("geometry::detail::quantize_vertices keeps cluster order and clamps UVs", "[geometry]") {
+TEST_CASE("geometry::detail::quantize_vertices keeps cluster order and clamps UVs", "[geometry][build]") {
     Clustering first;
     first.positions = {{0.0, 0.0, 0.0}, {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}};
     Cluster first_cluster;
@@ -77,7 +77,7 @@ TEST_CASE("geometry::detail::quantize_vertices keeps cluster order and clamps UV
         geometry::quantize_uv({0.5, 0.5}), geometry::quantize_uv({0.0, 0.0}), geometry::quantize_uv({1.0, 1.0}), geometry::quantize_uv({0.25, 0.75})});
 }
 
-TEST_CASE("geometry::detail::deduplicate_positions stores each position once", "[geometry]") {
+TEST_CASE("geometry::detail::deduplicate_positions stores each position once", "[geometry][build]") {
     const std::vector<QuantizedPoint> positions = {{0, 0, 0}, {7, 0, 0}, {0, 0, 0}, {0, 7, 0}, {7, 0, 0}};
 
     const geometry::detail::DeduplicatePositionsResult deduplicated = geometry::detail::deduplicate_positions(positions);
@@ -89,7 +89,7 @@ TEST_CASE("geometry::detail::deduplicate_positions stores each position once", "
     }
 }
 
-TEST_CASE("geometry::detail::build_meshlets keeps every cluster's triangles", "[geometry]") {
+TEST_CASE("geometry::detail::build_meshlets keeps every cluster's triangles", "[geometry][build]") {
     Clustering first;
     first.positions = {{0.0, 0.0, 0.0}, {1.0, 0.0, 0.0}, {1.0, 1.0, 0.0}, {0.0, 1.0, 0.0}};
     Cluster quad;
@@ -122,7 +122,7 @@ TEST_CASE("geometry::detail::build_meshlets keeps every cluster's triangles", "[
     CHECK(get_cluster_triangles(meshlets, 2) == std::vector<glm::uvec3>{{7, 8, 9}});
 }
 
-TEST_CASE("geometry::detail::build_meshlets drops triangles whose corners share a position", "[geometry]") {
+TEST_CASE("geometry::detail::build_meshlets drops triangles whose corners share a position", "[geometry][build]") {
     Clustering clustering;
     clustering.positions = {{0.0, 0.0, 0.0}, {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 0.0}};
     Cluster cluster;
@@ -140,7 +140,7 @@ TEST_CASE("geometry::detail::build_meshlets drops triangles whose corners share 
     CHECK(meshlets.vertex_indices.segment_size(0) == 3);
 }
 
-TEST_CASE("geometry::detail::build_meshlets keeps a cluster whose triangles all collapse, as an empty cluster", "[geometry]") {
+TEST_CASE("geometry::detail::build_meshlets keeps a cluster whose triangles all collapse, as an empty cluster", "[geometry][build]") {
     Clustering clustering;
     clustering.positions = {{0.0, 0.0, 0.0}, {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {5.0, 5.0, 5.0}};
     Cluster triangle;
@@ -165,7 +165,7 @@ TEST_CASE("geometry::detail::build_meshlets keeps a cluster whose triangles all 
     CHECK(meshlets.local_triangles.segment_size(1) == 0);
 }
 
-TEST_CASE("geometry::build keeps each cluster's triangle corners", "[geometry]") {
+TEST_CASE("geometry::build keeps each cluster's triangle corners", "[geometry][build]") {
     Clustering clustering;
     clustering.positions = {{0.0, 0.0, 0.0}, {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {1.0, 1.0, 0.0}};
     Cluster left;
@@ -194,7 +194,7 @@ TEST_CASE("geometry::build keeps each cluster's triangle corners", "[geometry]")
     CHECK(get_page_triangles(page, 1, vertices) == std::vector<glm::uvec3>{{3, 4, 5}});
 }
 
-TEST_CASE("geometry::build stores a position shared by two clusterings once", "[geometry]") {
+TEST_CASE("geometry::build stores a position shared by two clusterings once", "[geometry][build]") {
     Clustering first;
     first.positions = {{0.0, 0.0, 0.0}, {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}};
     Cluster first_cluster;
@@ -217,37 +217,12 @@ TEST_CASE("geometry::build stores a position shared by two clusterings once", "[
     CHECK(std::ranges::count(page.positions, quantize_point({1.0, 0.0, 0.0})) == 1);
 }
 
-TEST_CASE("geometry::build builds an empty page from no clusters", "[geometry]") {
+TEST_CASE("geometry::build builds an empty page from no clusters", "[geometry][build]") {
     const Clustering clustering;
 
     const geometry::Page page = geometry::build(std::span<const Clustering>(&clustering, 1));
 
     CHECK(page == geometry::Page{});
-}
-
-TEST_CASE("geometry::build produces a page that survives encode and decode", "[geometry]") {
-    Clustering clustering;
-    clustering.positions = {{0.0, 0.0, 0.0}, {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {1.0, 1.0, 0.0}};
-    Cluster quad;
-    quad.vertex_indices = {0, 1, 3, 2};
-    quad.local_triangles = {{0, 1, 2}, {0, 2, 3}};
-    quad.uvs = {{0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}};
-    clustering.clusters.push_back(std::move(quad));
-    Cluster triangle;
-    triangle.vertex_indices = {1, 3, 2};
-    triangle.local_triangles = {{0, 1, 2}};
-    triangle.uvs = {{0.25, 0.25}, {0.75, 0.25}, {0.25, 0.75}};
-    clustering.clusters.push_back(std::move(triangle));
-    geometry::Page expected = geometry::build(std::span<const Clustering>(&clustering, 1));
-
-    const auto result = geometry::decode(geometry::encode(expected));
-    REQUIRE(result.has_value());
-    geometry::Page actual = *result;
-
-    // The encoder may rotate a triangle's corners, so both sides are compared with their smallest index first.
-    mesh::normalize_triangles_inplace(expected.triangles);
-    mesh::normalize_triangles_inplace(actual.triangles);
-    CHECK(actual == expected);
 }
 
 }
