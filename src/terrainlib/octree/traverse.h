@@ -4,7 +4,7 @@
 #include <queue>
 
 #include "octree/Id.h"
-#include "octree/Storage.h"
+#include "octree/IndexMap.h"
 #include "log.h"
 
 namespace octree {
@@ -20,7 +20,7 @@ constexpr bool always_refine(const Id &) {
 
 template <
     typename VisitFn,
-    typename RefineFn = std::function<bool(const Id &)>>
+    typename RefineFn = decltype(&always_refine)>
 void traverse(
     const IndexMap &index,
     VisitFn &&visit_fn,

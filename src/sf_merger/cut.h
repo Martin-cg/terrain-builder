@@ -10,6 +10,7 @@
 #include "octree/storage/IndexedStorage.h"
 #include "octree/storage/open.h"
 #include "octree/Space.h"
+#include "octree/Storage.h"
 #include "octree/traverse.h"
 #include "utils.h"
 #include "containers/Cow.h"

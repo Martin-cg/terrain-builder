@@ -11,6 +11,7 @@
 #include "octree/Id.h"
 #include "octree/NodeStatusOrMissing.h"
 #include "octree/Space.h"
+#include "octree/Storage.h"
 #include "octree/storage/IndexedStorage.h"
 #include "octree/storage/cache/Dummy.h"
 #include "octree/storage/cache/ICache.h"
