@@ -9,13 +9,13 @@
 #include <glm/gtx/norm.hpp>
 
 #include "Dataset.h"
+#include "error/try.h"
 #include "mesh/SimpleMesh.h"
 #include "mesh/cgal.h"
 #include "mesh/convert.h"
 #include "mesh/validate.h"
 #include "mesh/bounds.h"
 #include "srs.h"
-#include "try.h"
 #include "SphereProjector.h"
 
 #include <CGAL/Boolean_set_operations_2.h>
@@ -142,7 +142,7 @@ std::optional<PolygonWithHoles2> convert_polygon(const OGRPolygon &ogr_polygon) 
     const OGRLinearRing *outer_ring = ogr_polygon.getExteriorRing();
     DEBUG_ASSERT(outer_ring);
 
-    TRY(const Polygon2 outer, convert_ring(*outer_ring, true));
+    ALP_TRY(const Polygon2 outer, convert_ring(*outer_ring, true));
 
     PolygonWithHoles2 polygon(outer);
     const uint32_t num_holes = static_cast<uint32_t>(ogr_polygon.getNumInteriorRings());

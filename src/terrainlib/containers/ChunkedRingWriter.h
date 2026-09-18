@@ -10,7 +10,7 @@
 
 #include "containers/ChunkedRingBuffer.h"
 #include "containers/UniqueResource.h"
-#include "try.h"
+#include "error/try.h"
 
 // Fills a ring's chunks from a stream of elements, ending the stream on finish().
 // A writer that goes away before that aborts the stream.
@@ -27,7 +27,7 @@ public:
         std::span<const T> remaining = elements;
         while (!remaining.empty()) {
             if (this->_stream->unwritten.empty()) {
-                TRY(this->advance_chunk());
+                ALP_TRY(this->advance_chunk());
             }
 
             const size_t taken = std::min(this->_stream->unwritten.size(), remaining.size());
@@ -75,7 +75,7 @@ private:
             this->_stream->chunk.reset();
         }
 
-        TRY(this->_stream->chunk, this->_stream->ring->rent_for_writing());
+        ALP_TRY(this->_stream->chunk, this->_stream->ring->rent_for_writing());
         this->_stream->unwritten = this->_stream->chunk->span();
         return {};
     }
