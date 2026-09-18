@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <system_error>
 #include <glm/glm.hpp>
 #include <radix/geometry.h>
 
@@ -16,7 +17,10 @@ struct formatter<std::filesystem::path> {
 
     template <typename FormatContext>
     auto format(const std::filesystem::path &path, FormatContext &ctx) const {
-        return fmt::format_to(ctx.out(), "{}", std::filesystem::weakly_canonical(path).string());
+        // Formatting must not throw, so a path that cannot be made canonical is printed as given.
+        std::error_code code;
+        const std::filesystem::path canonical = std::filesystem::weakly_canonical(path, code);
+        return fmt::format_to(ctx.out(), "{}", code ? path.string() : canonical.string());
     }
 };
 
