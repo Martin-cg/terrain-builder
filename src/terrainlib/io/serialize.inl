@@ -34,7 +34,7 @@ alp::Result<T, SerdeError> read_from_bytes(const std::span<const uint8_t> bytes)
 template <typename T>
 Result<T> read_from_path(const std::filesystem::path &path) {
     ALP_TRY(const std::vector<uint8_t> &bytes, read_bytes_from_path(path));
-    ALP_TRY_CONTEXT(T value, read_from_bytes<T>(bytes), fmt::format("decoding {}", path.string()));
+    ALP_TRY_CONTEXT(T value, read_from_bytes<T>(bytes), fmt::format("decoding the data in {}", path.string()));
     return value;
 }
 

@@ -34,7 +34,7 @@ TEST_CASE("Reading a missing file reports that it does not exist, naming the pat
 
     REQUIRE(!result.has_value());
     CHECK(result.error().code() == std::errc::no_such_file_or_directory);
-    CHECK(fmt::format("{}", result.error()).contains(path.string()));
+    CHECK(fmt::format("{:#}", result.error()).contains(path.string()));
 }
 
 TEST_CASE("Reading a directory fails with a file error") {
@@ -52,7 +52,7 @@ TEST_CASE("Writing below a file fails with a file error, naming the directory it
     const alp::Result<void, io::FileError> result = io::write_bytes_to_path(std::vector<uint8_t>{1}, path);
 
     REQUIRE(!result.has_value());
-    CHECK(fmt::format("{}", result.error()).contains(blocker.string()));
+    CHECK(fmt::format("{:#}", result.error()).contains(blocker.string()));
 }
 
 TEST_CASE("Reading truncated bytes reports that the data ended early") {
@@ -100,7 +100,31 @@ TEST_CASE("A failed read of a value names the file", "[io][serialize]") {
     const io::Result<std::vector<uint32_t>> result = io::read_from_path<std::vector<uint32_t>>(path);
 
     REQUIRE(!result.has_value());
-    CHECK(fmt::to_string(result.error()).contains(path.string()));
+    CHECK(fmt::format("{:#}", result.error()).contains(path.string()));
+}
+
+TEST_CASE("A failed io operation names the operation", "[io][bytes]") {
+    const TempDirectory directory("io_error_operation");
+    std::string chain;
+    std::string operation;
+
+    SECTION("opening a missing file") {
+        const alp::Result<std::vector<uint8_t>, io::FileError> result = io::read_bytes_from_path(directory.path() / "missing.bin");
+        REQUIRE(!result.has_value());
+        chain = fmt::format("{:#}", result.error());
+        operation = "opening the file";
+    }
+
+    SECTION("creating the directories below a file") {
+        const std::filesystem::path blocker = directory.path() / "blocker";
+        REQUIRE(io::write_bytes_to_path(std::vector<uint8_t>{1}, blocker).has_value());
+        const alp::Result<void, io::FileError> result = io::write_bytes_to_path(std::vector<uint8_t>{1}, blocker / "child.bin");
+        REQUIRE(!result.has_value());
+        chain = fmt::format("{:#}", result.error());
+        operation = "creating the parent directories";
+    }
+
+    CHECK(chain.contains(operation));
 }
 
 TEST_CASE("Writing and reading a value round-trips it") {

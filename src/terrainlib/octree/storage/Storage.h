@@ -4,6 +4,7 @@
 #include <list>
 #include <memory>
 #include <optional>
+#include <source_location>
 #include <system_error>
 #include <unordered_map>
 #include <utility>
@@ -29,6 +30,12 @@
 namespace octree {
 
 namespace detail {
+// The error for node `id`, which the index does not contain, originating at the caller.
+inline tl::unexpected<alp::Error<io::FileError>> make_index_miss(const Id &id, const disk::Layout &layout, const std::source_location location = std::source_location::current()) {
+    const io::FileError error(std::make_error_code(std::errc::no_such_file_or_directory), layout.get_node_path(id));
+    return alp::make_unexpected(error, fmt::format("looking up node {} in the index", id), location);
+}
+
 struct MaybeIndex {
     std::optional<IndexMap> map;
     mutable bool dirty = false;
@@ -128,6 +135,7 @@ public:
     using codec_type = Codec;
     using load_error = alp::Error<io::FileError, typename Codec::load_error>;
     using save_error = typename Codec::save_error;
+    using copy_error = typename RawStorage_<T, Codec>::copy_error;
 
     explicit Storage_(RawStorage_<T, Codec> inner)
         : _inner(std::move(inner)) {}
@@ -154,9 +162,7 @@ public:
         }
 
         if (!this->_index.contains(id, true)) {
-            return alp::make_unexpected(
-                io::FileError(std::make_error_code(std::errc::no_such_file_or_directory), this->_inner.layout().get_node_path(id)),
-                fmt::format("looking up node {} in the index", id));
+            return detail::make_index_miss(id, this->_inner.layout());
         }
 
         const auto result = this->_inner.load(id);
@@ -179,9 +185,9 @@ public:
         return result;
     }
 
-    tl::expected<void, CopyError> copy_from(const Id &id, const Storage_<T, Codec> &source) {
+    tl::expected<void, copy_error> copy_from(const Id &id, const Storage_<T, Codec> &source) {
         if (!source._index.contains(id, true)) {
-            return tl::unexpected(CopyErrorKind::FileNotFound);
+            return detail::make_index_miss(id, source._inner.layout());
         }
 
         if (this->check_overwrite(id)) {
@@ -196,7 +202,7 @@ public:
         return result;
     }
 
-    tl::expected<void, CopyError> copy_to(const Id &id, Storage_<T, Codec> &target) const {
+    tl::expected<void, copy_error> copy_to(const Id &id, Storage_<T, Codec> &target) const {
         return target.copy_from(id, *this);
     }
 

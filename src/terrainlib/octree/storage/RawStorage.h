@@ -1,16 +1,20 @@
 #pragma once
 
 #include <filesystem>
+#include <string>
 #include <system_error>
 
 #include <fmt/format.h>
 #include <tl/expected.hpp>
 
+#include "error/Error.h"
 #include "error/try.h"
+#include "error/utils.h"
+#include "io/FileError.h"
+#include "io/utils.h"
 #include "octree/Id.h"
 #include "octree/disk/Layout.h"
 #include "octree/storage/codec/Codec.h"
-#include "octree/storage/CopyError.h"
 #include "octree/storage/defaults.h"
 
 namespace octree {
@@ -22,6 +26,7 @@ public:
     using codec_type = Codec;
     using load_error = typename Codec::load_error;
     using save_error = typename Codec::save_error;
+    using copy_error = alp::Error<io::FileError, load_error, save_error>;
 
     explicit RawStorage_(disk::Layout layout) noexcept : _layout(std::move(layout)) {}
 
@@ -43,47 +48,38 @@ public:
         return {};
     }
 
-    tl::expected<void, CopyError> copy_to(const Id &id, RawStorage_ &target) const {
+    tl::expected<void, copy_error> copy_to(const Id &id, RawStorage_ &target) const {
         return target.copy_from(id, *this);
     }
 
-    tl::expected<void, CopyError> copy_from(const Id &id, const RawStorage_ &source) {
-        if (!source.has(id)) {
-            return tl::unexpected(CopyErrorKind::FileNotFound);
-        }
-
+    tl::expected<void, copy_error> copy_from(const Id &id, const RawStorage_ &source) {
+        const std::string operation = fmt::format("copying node {}", id);
         const auto source_path = source.path_for(id);
         const auto target_path = this->path_for(id);
+        // Checked first so that a missing source leaves the target untouched.
+        if (!source.has(id)) {
+            return alp::make_unexpected(io::FileError(std::make_error_code(std::errc::no_such_file_or_directory), source_path), operation);
+        }
+
         if (source_path.extension() != target_path.extension()) {
             // TODO: should this error instead?
-            const auto load_result = source.load(id);
-            if (!load_result.has_value()) {
-                return tl::unexpected(CopyErrorKind::Read);
-            }
-            const value_type node = load_result.value();
-
-            const auto save_result = this->save(id, node);
-            if (!save_result.has_value()) {
-                return tl::unexpected(CopyErrorKind::Write);
-            }
+            ALP_TRY_CONTEXT(const T node, Codec::load_from_path(source_path), operation);
+            ALP_TRY_CONTEXT(Codec::save_to_path(node, target_path), operation);
             return {};
         }
 
-        std::error_code ec;
-        if (std::filesystem::remove(target_path, ec)) {
-            if (ec) {
-                return tl::unexpected(CopyErrorKind::RemoveOld);
-            }
+        // The return value only says whether there was a file to remove, so a failure shows in the code alone.
+        std::error_code code;
+        std::filesystem::remove(target_path, code);
+        if (code) {
+            return tl::make_unexpected(alp::make_error(io::FileError(code, target_path), "removing the old file").context(operation));
         }
 
-        std::filesystem::create_directories(target_path.parent_path(), ec);
-        if (ec) {
-            return tl::unexpected(CopyErrorKind::CreateDirectories);
-        }
+        ALP_TRY_CONTEXT(io::utils::create_parent_directories(target_path), operation);
 
-        std::filesystem::create_hard_link(source_path, target_path, ec);
-        if (ec) {
-            return tl::unexpected(CopyErrorKind::CreateLink);
+        std::filesystem::create_hard_link(source_path, target_path, code);
+        if (code) {
+            return tl::make_unexpected(alp::make_error(io::FileError(code, target_path), "linking the file").context(operation));
         }
 
         return {};

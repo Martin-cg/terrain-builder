@@ -20,7 +20,7 @@ alp::Result<void, FileError> write_bytes_to_path(const std::span<const uint8_t> 
     std::ofstream file(path, std::ios::binary);
     file.write(reinterpret_cast<const char *>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
     if (!file.good()) {
-        return alp::make_unexpected(FileError(std::make_error_code(std::errc::io_error), path));
+        return alp::make_unexpected(FileError(std::make_error_code(std::errc::io_error), path), "writing the file");
     }
 
     return {};
@@ -32,7 +32,7 @@ alp::Result<std::vector<uint8_t>, FileError> read_bytes_from_path(const std::fil
     std::error_code code;
     const std::uintmax_t size = std::filesystem::file_size(path, code);
     if (code) {
-        return alp::make_unexpected(FileError(code, path));
+        return alp::make_unexpected(FileError(code, path), "opening the file");
     }
 
     // A stream reports no reason for a failure, so it becomes a general io error.
@@ -40,7 +40,7 @@ alp::Result<std::vector<uint8_t>, FileError> read_bytes_from_path(const std::fil
     std::ifstream file(path, std::ios::binary);
     file.read(reinterpret_cast<char *>(buffer.data()), static_cast<std::streamsize>(buffer.size()));
     if (!file.good()) {
-        return alp::make_unexpected(FileError(std::make_error_code(std::errc::io_error), path));
+        return alp::make_unexpected(FileError(std::make_error_code(std::errc::io_error), path), "reading the file");
     }
 
     return buffer;
