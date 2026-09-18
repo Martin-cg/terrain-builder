@@ -219,7 +219,7 @@ tl::expected<SimpleMesh, BuildMeshError> build_reference_mesh_patch(
     LOG_TRACE("Transforming mesh into output srs");
     SimpleMesh target_mesh = transform_mesh(std::move(clipped_mesh), clip_srs, mesh_srs);
     
-    mesh::remove_isolated_vertices(target_mesh); // TODO: is this still required?
+    mesh::remove_unused_vertices(target_mesh); // TODO: is this still required?
     mesh::validate(target_mesh);
     return target_mesh;
 }

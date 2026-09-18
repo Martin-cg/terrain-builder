@@ -54,29 +54,7 @@ SimpleMesh make_orientation_flipped_duplicate_mesh() {
     return mesh;
 }
 
-SimpleMesh make_mesh_with_isolated_vertices() {
-    SimpleMesh mesh;
-    mesh.positions = {
-        glm::dvec3(0, 0, 0), // 0 used
-        glm::dvec3(1, 0, 0), // 1 used
-        glm::dvec3(0, 1, 0), // 2 used
-        glm::dvec3(5, 5, 5), // 3 isolated
-        glm::dvec3(6, 6, 6), // 4 isolated
-    };
-    mesh.uvs = {
-        glm::dvec2(0, 0),
-        glm::dvec2(1, 0),
-        glm::dvec2(0, 1),
-        glm::dvec2(5, 5),
-        glm::dvec2(6, 6),
-    };
-    mesh.triangles = {
-        glm::uvec3(0, 1, 2),
-    };
-    return mesh;
-}
-
-SimpleMesh make_mesh_with_no_isolated_vertices() {
+SimpleMesh make_mesh_with_no_unused_vertices() {
     SimpleMesh mesh;
     mesh.positions = {
         glm::dvec3(0, 0, 0),
@@ -316,44 +294,176 @@ TEST_CASE("mesh::remove_duplicate_triangles", "[mesh][cleanup]") {
     }
 }
 
-TEST_CASE("mesh::remove_isolated_vertices", "[mesh][cleanup]") {
-    SECTION("mesh without isolated vertices stays unchanged") {
-        SimpleMesh mesh = make_mesh_with_no_isolated_vertices();
-        const auto old_positions = mesh.positions;
-        const auto old_triangles = mesh.triangles;
+TEST_CASE("mesh::remove_unused_vertices with listed vertices", "[mesh][cleanup]") {
+    SECTION("an empty list leaves the mesh unchanged") {
+        SimpleMesh mesh;
+        mesh.positions = {
+            glm::dvec3(0, 0, 0),
+            glm::dvec3(1, 0, 0),
+            glm::dvec3(0, 1, 0),
+        };
+        mesh.uvs = {
+            glm::dvec2(0, 0),
+            glm::dvec2(1, 0),
+            glm::dvec2(0, 1),
+        };
+        mesh.triangles = {
+            glm::uvec3(0, 1, 2),
+        };
+        const std::vector<glm::dvec3> old_positions = mesh.positions;
+        const std::vector<glm::dvec2> old_uvs = mesh.uvs;
+        const std::vector<glm::uvec3> old_triangles = mesh.triangles;
 
-        const size_t removed = mesh::remove_isolated_vertices(mesh);
+        mesh::remove_unused_vertices(mesh, std::vector<uint32_t>{});
 
-        CHECK(removed == 0);
         CHECK(mesh.positions == old_positions);
+        CHECK(mesh.uvs == old_uvs);
         CHECK(mesh.triangles == old_triangles);
     }
 
-    SECTION("isolated vertices are removed and triangles remain valid") {
-        SimpleMesh mesh = make_mesh_with_isolated_vertices();
+    SECTION("removing the last vertices leaves the triangles unchanged") {
+        SimpleMesh mesh;
+        mesh.positions = {
+            glm::dvec3(0, 0, 0), // 0
+            glm::dvec3(1, 0, 0), // 1
+            glm::dvec3(0, 1, 0), // 2
+            glm::dvec3(5, 5, 5), // 3 removed
+            glm::dvec3(6, 6, 6), // 4 removed
+        };
+        mesh.uvs = {
+            glm::dvec2(0, 0),
+            glm::dvec2(1, 0),
+            glm::dvec2(0, 1),
+            glm::dvec2(5, 5),
+            glm::dvec2(6, 6),
+        };
+        mesh.triangles = {
+            glm::uvec3(0, 1, 2),
+        };
+        const std::vector<glm::uvec3> old_triangles = mesh.triangles;
 
-        const size_t removed = mesh::remove_isolated_vertices(mesh);
+        mesh::remove_unused_vertices(mesh, std::vector<uint32_t>{3, 4});
 
-        CHECK(removed == 2);
-        REQUIRE(mesh.positions.size() == 3);
-        REQUIRE(mesh.uvs.size() == 3);
-        REQUIRE(mesh.triangles.size() == 1);
-
-        CHECK(mesh.triangles[0] == glm::uvec3(0, 1, 2));
-        CHECK(mesh.positions[0] == glm::dvec3(0, 0, 0));
-        CHECK(mesh.positions[1] == glm::dvec3(1, 0, 0));
-        CHECK(mesh.positions[2] == glm::dvec3(0, 1, 0));
+        CHECK(mesh.positions == std::vector<glm::dvec3>{
+            glm::dvec3(0, 0, 0),
+            glm::dvec3(1, 0, 0),
+            glm::dvec3(0, 1, 0),
+        });
+        CHECK(mesh.uvs == std::vector<glm::dvec2>{
+            glm::dvec2(0, 0),
+            glm::dvec2(1, 0),
+            glm::dvec2(0, 1),
+        });
+        CHECK(mesh.triangles == old_triangles);
     }
 
-    SECTION("all vertices can become isolated after triangle removal by caller") {
-        SimpleMesh mesh = make_unique_triangle_mesh();
-        mesh.triangles.clear();
+    SECTION("removing every vertex of a mesh without triangles empties it") {
+        SimpleMesh mesh;
+        mesh.positions = {
+            glm::dvec3(0, 0, 0),
+            glm::dvec3(1, 0, 0),
+            glm::dvec3(0, 1, 0),
+        };
+        mesh.uvs = {
+            glm::dvec2(0, 0),
+            glm::dvec2(1, 0),
+            glm::dvec2(0, 1),
+        };
 
-        const size_t removed = mesh::remove_isolated_vertices(mesh);
+        mesh::remove_unused_vertices(mesh, std::vector<uint32_t>{0, 1, 2});
 
-        CHECK(removed == 3);
         CHECK(mesh.positions.empty());
+        CHECK(mesh.uvs.empty());
         CHECK(mesh.triangles.empty());
+    }
+
+    SECTION("removing vertices in the middle keeps the rest in order and renumbers the triangles") {
+        SimpleMesh mesh;
+        mesh.positions = {
+            glm::dvec3(0, 0, 0), // 0
+            glm::dvec3(5, 5, 5), // 1 removed
+            glm::dvec3(1, 0, 0), // 2
+            glm::dvec3(6, 6, 6), // 3 removed
+            glm::dvec3(0, 1, 0), // 4
+            glm::dvec3(1, 1, 0), // 5
+        };
+        mesh.uvs = {
+            glm::dvec2(0, 0),
+            glm::dvec2(5, 5),
+            glm::dvec2(1, 0),
+            glm::dvec2(6, 6),
+            glm::dvec2(0, 1),
+            glm::dvec2(1, 1),
+        };
+        mesh.triangles = {
+            glm::uvec3(0, 2, 4),
+            glm::uvec3(2, 5, 4),
+        };
+
+        mesh::remove_unused_vertices(mesh, std::vector<uint32_t>{1, 3});
+
+        CHECK(mesh.positions == std::vector<glm::dvec3>{
+            glm::dvec3(0, 0, 0),
+            glm::dvec3(1, 0, 0),
+            glm::dvec3(0, 1, 0),
+            glm::dvec3(1, 1, 0),
+        });
+        CHECK(mesh.uvs == std::vector<glm::dvec2>{
+            glm::dvec2(0, 0),
+            glm::dvec2(1, 0),
+            glm::dvec2(0, 1),
+            glm::dvec2(1, 1),
+        });
+        CHECK(mesh.triangles == std::vector<glm::uvec3>{
+            glm::uvec3(0, 1, 2),
+            glm::uvec3(1, 3, 2),
+        });
+    }
+}
+
+TEST_CASE("mesh::remove_unused_vertices", "[mesh][cleanup]") {
+    SECTION("unused vertices in the middle are removed and the rest keep their order") {
+        SimpleMesh mesh;
+        mesh.positions = {
+            glm::dvec3(0, 0, 0), // 0
+            glm::dvec3(5, 5, 5), // 1 unused
+            glm::dvec3(1, 0, 0), // 2
+            glm::dvec3(6, 6, 6), // 3 unused
+            glm::dvec3(0, 1, 0), // 4
+            glm::dvec3(1, 1, 0), // 5
+        };
+        mesh.uvs = {
+            glm::dvec2(0, 0),
+            glm::dvec2(5, 5),
+            glm::dvec2(1, 0),
+            glm::dvec2(6, 6),
+            glm::dvec2(0, 1),
+            glm::dvec2(1, 1),
+        };
+        mesh.triangles = {
+            glm::uvec3(0, 2, 4),
+            glm::uvec3(2, 5, 4),
+        };
+
+        const size_t removed = mesh::remove_unused_vertices(mesh);
+
+        CHECK(removed == 2);
+        CHECK(mesh.positions == std::vector<glm::dvec3>{
+            glm::dvec3(0, 0, 0),
+            glm::dvec3(1, 0, 0),
+            glm::dvec3(0, 1, 0),
+            glm::dvec3(1, 1, 0),
+        });
+        CHECK(mesh.uvs == std::vector<glm::dvec2>{
+            glm::dvec2(0, 0),
+            glm::dvec2(1, 0),
+            glm::dvec2(0, 1),
+            glm::dvec2(1, 1),
+        });
+        CHECK(mesh.triangles == std::vector<glm::uvec3>{
+            glm::uvec3(0, 1, 2),
+            glm::uvec3(1, 3, 2),
+        });
     }
 }
 
@@ -369,7 +479,7 @@ TEST_CASE("mesh::remove_degenerate_triangles", "[mesh][cleanup]") {
     }
 
     SECTION("mesh with no degenerate triangles stays unchanged") {
-        SimpleMesh mesh = make_mesh_with_no_isolated_vertices();
+        SimpleMesh mesh = make_mesh_with_no_unused_vertices();
         const auto old_triangles = mesh.triangles;
 
         mesh::remove_degenerate_triangles(mesh.triangles);
@@ -409,7 +519,7 @@ TEST_CASE("mesh::remove_triangles_of_negligible_size", "[mesh][cleanup]") {
     }
 
     SECTION("mesh with similarly sized triangles remains unchanged for small threshold") {
-        SimpleMesh mesh = make_mesh_with_no_isolated_vertices();
+        SimpleMesh mesh = make_mesh_with_no_unused_vertices();
         const auto old_triangles = mesh.triangles;
 
         const size_t removed = mesh::remove_triangles_of_negligible_size(mesh, 0.01);

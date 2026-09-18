@@ -116,12 +116,12 @@ inline constexpr void flip_triangle_orientation(glm::uvec3 &triangle) {
 }
 
 template <glm::length_t n_dims, typename T>
-std::vector<uint32_t> find_isolated_vertices(const mesh::Simple_<n_dims, T> &mesh) {
-    return find_isolated_vertices(mesh.triangles, mesh.vertex_count());
+std::vector<uint32_t> find_unused_vertices(const mesh::Simple_<n_dims, T> &mesh) {
+    return find_unused_vertices(mesh.triangles, mesh.vertex_count());
 }
 template <glm::length_t n_dims, typename T>
-std::vector<uint32_t> find_isolated_vertices(const mesh::View_<n_dims, T> &mesh) {
-    return find_isolated_vertices(mesh.triangles, mesh.vertex_count());
+std::vector<uint32_t> find_unused_vertices(const mesh::View_<n_dims, T> &mesh) {
+    return find_unused_vertices(mesh.triangles, mesh.vertex_count());
 }
 
 template <glm::length_t n_dims, typename T>

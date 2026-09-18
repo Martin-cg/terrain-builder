@@ -104,7 +104,7 @@ void validate_impl_geometry(const mesh::View_<n_dims, T> &mesh) {
     static_assert(n_dims >= 2, "Geometry checks require n_dims >= 2");
 
 #ifndef NDEBUG
-    DEBUG_ASSERT(find_isolated_vertices(mesh).empty());
+    DEBUG_ASSERT(find_unused_vertices(mesh).empty());
 
     /*
     While this check makes sense on its own

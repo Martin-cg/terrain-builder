@@ -51,7 +51,7 @@ TEST_CASE("DAG simplification preserves point-touching mesh components") {
     const Clustering clustering = clusterize(std::move(input));
     const Clustering simplified = simplify(clustering);
     SimpleMesh result = clustering_to_mesh(simplified);
-    mesh::remove_isolated_vertices(result);
+    mesh::remove_unused_vertices(result);
 
     REQUIRE_FALSE(result.is_empty());
     CHECK(mesh::count_connected_components(result) == 2);

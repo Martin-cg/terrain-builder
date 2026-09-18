@@ -77,8 +77,11 @@ template <typename T>
 void remove_duplicate_triangles_consider_orientation(mesh::Simple_<3, T> &mesh);
 void remove_duplicate_triangles_consider_orientation(std::vector<glm::uvec3> &triangles);
 
+// Removes the listed vertices, which no triangle may use, keeping the remaining vertices in order and renumbering the triangles.
 template <glm::length_t n_dims, typename T>
-size_t remove_isolated_vertices(SimpleMesh_<n_dims, T> &mesh);
+void remove_unused_vertices(mesh::Simple_<n_dims, T> &mesh, std::span<const uint32_t> sorted_vertices);
+template <glm::length_t n_dims, typename T>
+size_t remove_unused_vertices(SimpleMesh_<n_dims, T> &mesh);
 
 template <glm::length_t n_dims, typename T>
 size_t remove_triangles_of_negligible_size(
