@@ -32,7 +32,6 @@
 #include "mesh/io.h"
 #include "mesh/io/error.h"
 #include "mesh/encode.h"
-#include "octree/storage/codec/MeshCodec.h"
 
 TEST_CASE("transcode roundtrip") {
     mesh::Simple mesh;
@@ -313,13 +312,4 @@ TEST_CASE("Loading a glTF file without a mesh fails as unsupported") {
 
     REQUIRE(!result.has_value());
     CHECK(result.error().holds<mesh::io::UnsupportedGltf>());
-}
-
-TEST_CASE("The mesh codec reports a missing file as a file error, naming the path") {
-    const mesh::io::Error error = octree::MeshCodec::file_not_found("some/node.terrain");
-
-    const io::FileError *file_error = error.get_if<io::FileError>();
-    REQUIRE(file_error != nullptr);
-    CHECK(*file_error == std::errc::no_such_file_or_directory);
-    CHECK(fmt::to_string(error).contains("some/node.terrain"));
 }

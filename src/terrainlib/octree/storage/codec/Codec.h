@@ -21,9 +21,6 @@ concept CodecFor =
         { Codec::save_to_path(value, path) }
             -> std::same_as<tl::expected<void, typename Codec::save_error>>;
 
-        { Codec::file_not_found(path) }
-            -> std::same_as<typename Codec::load_error>;
-
         { Codec::supported_extensions() } -> std::ranges::range;
 
         requires std::convertible_to<

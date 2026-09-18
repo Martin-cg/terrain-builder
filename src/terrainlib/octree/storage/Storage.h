@@ -4,11 +4,14 @@
 #include <list>
 #include <memory>
 #include <optional>
+#include <system_error>
 #include <unordered_map>
 #include <utility>
 
 #include <tl/expected.hpp>
 
+#include "error/utils.h"
+#include "io/Error.h"
 #include "log.h"
 #include "mesh/io.h"
 #include "octree/Id.h"
@@ -122,7 +125,7 @@ class Storage_ {
 public:
     using value_type = T;
     using codec_type = Codec;
-    using load_error = typename Codec::load_error;
+    using load_error = alp::Error<io::FileError, typename Codec::load_error>;
     using save_error = typename Codec::save_error;
 
     explicit Storage_(RawStorage_<T, Codec> inner)
@@ -150,7 +153,9 @@ public:
         }
 
         if (!this->_index.contains(id, true)) {
-            return tl::unexpected(Codec::file_not_found(this->_inner.layout().get_node_path(id)));
+            return alp::make_unexpected(
+                io::FileError(std::make_error_code(std::errc::no_such_file_or_directory), this->_inner.layout().get_node_path(id)),
+                fmt::format("looking up node {} in the index", id));
         }
 
         const auto result = this->_inner.load(id);
