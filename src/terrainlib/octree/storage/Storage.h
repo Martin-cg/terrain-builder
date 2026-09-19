@@ -31,7 +31,7 @@ namespace octree {
 namespace detail {
 // The error for node `id`, which the index does not contain, originating at the caller.
 inline std::unexpected<alp::Error<io::FileError>> make_index_miss(const Id &id, const disk::Layout &layout, const std::source_location location = std::source_location::current()) {
-    const io::FileError error(std::make_error_code(std::errc::no_such_file_or_directory), layout.get_node_path(id));
+    const io::FileError error = io::make_file_not_found(layout.get_node_path(id));
     return alp::make_unexpected(error, fmt::format("looking up node {} in the index", id), location);
 }
 

@@ -62,7 +62,7 @@ public:
         const auto target_path = this->path_for(id);
         // Checked first so that a missing source leaves the target untouched.
         if (!source.has(id)) {
-            return alp::make_unexpected(io::FileError(std::make_error_code(std::errc::no_such_file_or_directory), source_path), context);
+            return alp::make_unexpected(io::make_file_not_found(source_path), context);
         }
 
         if (source_path.extension() != target_path.extension()) {

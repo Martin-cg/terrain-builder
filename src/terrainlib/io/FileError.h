@@ -38,6 +38,12 @@ private:
     std::filesystem::path _path;
 };
 
+// Creates a file not found error for `path`.
+[[nodiscard]]
+inline FileError make_file_not_found(std::filesystem::path path) {
+    return FileError(std::make_error_code(std::errc::no_such_file_or_directory), std::move(path));
+}
+
 } // namespace io
 
 template <>
