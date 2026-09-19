@@ -12,7 +12,7 @@ template <typename T, typename E>
 using BasicResult = std::expected<T, E>;
 
 // A value, or an error with codes of type Es; with no Es, an erased error.
-template <typename T, ErrorCodes... Es>
+template <typename T, typename... Es>
 using Result = BasicResult<T, Error<Es...>>;
 
 } // namespace alp
