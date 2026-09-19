@@ -50,6 +50,12 @@ public:
         : _code(std::move(code)),
           _trace(location) {}
 
+    // Creates an error with `code` that originates at `location`, with `context` as what was being done there.
+    template <OneOf<Es...> E>
+    BasicError(E code, Context auto &&context, const std::source_location location = std::source_location::current())
+        : _code(std::move(code)),
+          _trace(location, detail::resolve_message(std::forward<decltype(context)>(context))) {}
+
     // Creates an erased error from `message`.
     explicit BasicError(std::string message, const std::source_location location = std::source_location::current())
         requires(is_erased)
@@ -115,7 +121,7 @@ public:
         return this->_trace.origin();
     }
 
-    // The frames added after the origin, innermost first.
+    // The points the error was at, innermost first, starting at the origin.
     [[nodiscard]]
     std::span<const Frame> frames() const {
         return this->_trace.frames();

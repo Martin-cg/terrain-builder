@@ -63,12 +63,12 @@ TEST_CASE("make_error creates an erased error from text that originates at the l
     CHECK(is_same_location(error.origin(), location));
 }
 
-TEST_CASE("make_unexpected creates an error with its code and no frames", "[error][utils]") {
+TEST_CASE("make_unexpected creates an error with its code and only its origin", "[error][utils]") {
     const alp::Result<int, FileError> result = alp::make_unexpected(FileError::NotFound);
 
     REQUIRE(!result.has_value());
     CHECK(result.error().code() == FileError::NotFound);
-    CHECK(result.error().frames().empty());
+    CHECK(result.error().frames().size() == 1);
 }
 
 TEST_CASE("make_unexpected adds a message as the first context", "[error][utils]") {
@@ -105,9 +105,9 @@ TEST_CASE("propagate adds a frame without a message at the location it is handed
     const alp::Result<int, FileError> result = alp::propagate(alp::make_error(FileError::NotFound), location);
 
     REQUIRE(!result.has_value());
-    REQUIRE(result.error().frames().size() == 1);
-    CHECK(result.error().frames()[0].message == std::nullopt);
-    CHECK(is_same_location(result.error().frames()[0].location, location));
+    REQUIRE(result.error().frames().size() == 2);
+    CHECK(result.error().frames()[1].message == std::nullopt);
+    CHECK(is_same_location(result.error().frames()[1].location, location));
 }
 
 TEST_CASE("propagate passes a const error on and leaves it unchanged", "[error][utils]") {
@@ -115,8 +115,8 @@ TEST_CASE("propagate passes a const error on and leaves it unchanged", "[error][
     const alp::Result<int, FileError> result = alp::propagate(error);
 
     REQUIRE(!result.has_value());
-    CHECK(result.error().frames().size() == 1);
-    CHECK(error.frames().empty());
+    CHECK(result.error().frames().size() == 2);
+    CHECK(error.frames().size() == 1);
 }
 
 TEST_CASE("to_expected passes a value through", "[error][utils]") {
@@ -190,9 +190,9 @@ TEST_CASE("with_context adds a frame at the location it is handed to a failed re
     const alp::Result<int, FileError> result = alp::with_context(std::move(failed), "loading the configuration", location);
 
     REQUIRE(!result.has_value());
-    REQUIRE(result.error().frames().size() == 1);
-    CHECK(result.error().frames()[0].message == "loading the configuration");
-    CHECK(is_same_location(result.error().frames()[0].location, location));
+    REQUIRE(result.error().frames().size() == 2);
+    CHECK(result.error().frames()[1].message == "loading the configuration");
+    CHECK(is_same_location(result.error().frames()[1].location, location));
 }
 
 TEST_CASE("with_context leaves a succeeded result alone", "[error][utils]") {
@@ -215,8 +215,8 @@ TEST_CASE("with_context builds its message only for a failed result", "[error][u
     const alp::Result<int, FileError> failed = alp::with_context(alp::Result<int, FileError>(alp::make_unexpected(FileError::NotFound)), make_message);
     CHECK(calls == 1);
     REQUIRE(!failed.has_value());
-    REQUIRE(failed.error().frames().size() == 1);
-    CHECK(failed.error().frames()[0].message == "loading the configuration");
+    REQUIRE(failed.error().frames().size() == 2);
+    CHECK(failed.error().frames()[1].message == "loading the configuration");
 }
 
 TEST_CASE("A body run with a context that fails gets the context", "[error][utils]") {
@@ -235,8 +235,8 @@ TEST_CASE("A body run with a context that fails gets the context", "[error][util
 
     REQUIRE(!result->has_value());
     CHECK(result->error().code() == FileError::NotFound);
-    REQUIRE(result->error().frames().size() == 1);
-    CHECK(result->error().frames()[0].message == "loading the configuration");
+    REQUIRE(result->error().frames().size() == 2);
+    CHECK(result->error().frames()[1].message == "loading the configuration");
 }
 
 TEST_CASE("A body run with a context that succeeds passes its value through, never building the message", "[error][utils]") {
@@ -265,6 +265,6 @@ TEST_CASE("A body run with a context records the context at the location it is h
         location);
 
     REQUIRE(!result.has_value());
-    REQUIRE(result.error().frames().size() == 1);
-    CHECK(is_same_location(result.error().frames()[0].location, location));
+    REQUIRE(result.error().frames().size() == 2);
+    CHECK(is_same_location(result.error().frames()[1].location, location));
 }

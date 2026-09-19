@@ -27,7 +27,7 @@ Error<E> make_error(E code, const std::source_location location = std::source_lo
 template <ErrorCode E>
 [[nodiscard]]
 Error<E> make_error(E code, Context auto &&context, const std::source_location location = std::source_location::current()) {
-    return make_error(std::move(code), location).context(std::forward<decltype(context)>(context), location);
+    return Error<E>(std::move(code), std::forward<decltype(context)>(context), location);
 }
 
 // Creates an erased error from `message` that originates at the caller.

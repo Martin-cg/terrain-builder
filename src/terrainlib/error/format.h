@@ -1,12 +1,9 @@
 #pragma once
 
 #include <cstdint>
-#include <ranges>
 #include <source_location>
 #include <span>
 #include <string>
-#include <string_view>
-#include <vector>
 
 #include <fmt/format.h>
 
@@ -14,8 +11,8 @@
 #include "error/Error.h"
 #include "error/ErrorCode.h"
 #include "error/Trace.h"
+#include "span_utils.h"
 
-// Formats an error as its outermost message with {}, as all of its messages on one line with {:#}, or as a report of its causes and its trace with {:?}.
 template <alp::ErrorCode... Es>
 struct fmt::formatter<alp::BasicError<Es...>> {
     constexpr fmt::format_parse_context::iterator parse(fmt::format_parse_context &context) {
@@ -36,62 +33,59 @@ struct fmt::formatter<alp::BasicError<Es...>> {
     fmt::format_context::iterator format(const alp::BasicError<Es...> &error, fmt::format_context &context) const {
         const std::span<const alp::Frame> frames = error.frames();
         const std::string cause = error._code.message();
+        fmt::format_context::iterator output = context.out();
 
-        std::vector<std::string_view> messages;
-        for (const alp::Frame &frame : frames | std::views::reverse) {
-            if (frame.message.has_value()) {
-                messages.push_back(*frame.message);
-            }
-        }
-        messages.push_back(cause);
+        const auto [origin, outer_frames] = split_first(frames).value();
 
-        fmt::format_context::iterator output = fmt::format_to(context.out(), "{}", messages.front());
-        if (this->_form == Form::Message) {
-            return output;
-        }
-        if (this->_form == Form::Chain) {
-            for (const std::string_view message : messages | std::views::drop(1)) {
-                output = fmt::format_to(output, ": {}", message);
-            }
-            return output;
-        }
+        switch (this->_form) {
+        case Form::Message:
+            return fmt::format_to(output, "{}", cause);
 
-        const std::span<const std::string_view> causes = std::span(messages).subspan(1);
-        if (!causes.empty()) {
-            // Numbering a single cause reads as a list that lost its other entries, so it stays plain.
-            const bool is_numbered = causes.size() > 1;
-            output = fmt::format_to(output, "\n\nCaused by:");
-            for (const auto [index, message] : enumerate<uint32_t>(causes)) {
-                if (is_numbered) {
-                    output = fmt::format_to(output, "\n{:>5}: {}", index, message);
-                } else {
-                    output = fmt::format_to(output, "\n    {}", message);
+        case Form::Chain:
+            output = fmt::format_to(output, "{}", cause);
+            for (const alp::Frame &frame : frames) {
+                if (frame.message.has_value()) {
+                    output = fmt::format_to(output, ": {}", *frame.message);
                 }
             }
-        }
+            return output;
 
-        output = fmt::format_to(output, "\n\nTrace:");
-        for (const alp::Frame &frame : frames | std::views::reverse) {
-            output = write_location(output, frame.location);
+        case Form::Report:
+            if (origin->message.has_value()) {
+                output = fmt::format_to(output, "{}\n    ", *origin->message);
+            }
+            output = fmt::format_to(output, "{}\n    {}", format_location(origin->location), cause);
+            if (outer_frames.empty()) {
+                return output;
+            }
+            output = fmt::format_to(output, "\n\nTrace:");
+            for (const auto [number, frame] : enumerate<uint32_t>(outer_frames)) {
+                output = fmt::format_to(output, "\n    {}: ", number);
+                if (frame.message.has_value()) {
+                    output = fmt::format_to(output, "{}\n       ", *frame.message);
+                }
+                output = fmt::format_to(output, "{}", format_location(frame.location));
+            }
+            return output;
         }
-        return write_location(output, error.origin());
+        return output;
     }
 
 private:
     // How an error was asked to format.
     enum class Form {
-        // Its outermost message.
+        // The cause message
         Message,
 
-        // All of its messages on one line, outermost first.
+        // Its cause and all of its messages on one line, innermost first.
         Chain,
 
-        // Its outermost message, the causes below it, and the trace.
+        // Every place it was, innermost first, each with what was being done there and the cause at the origin.
         Report,
     };
 
-    static fmt::format_context::iterator write_location(fmt::format_context::iterator output, const std::source_location location) {
-        return fmt::format_to(output, "\n    at {}:{} in {}", location.file_name(), location.line(), location.function_name());
+    static std::string format_location(const std::source_location location) {
+        return fmt::format("at {}:{} in {}", location.file_name(), location.line(), location.function_name());
     }
 
     Form _form = Form::Message;

@@ -154,18 +154,18 @@ TEST_CASE("Context adds a frame at the location it is handed", "[error]") {
     const std::source_location location = std::source_location::current();
     const auto error = alp::make_error(FileError::NotFound).context("reading the configuration", location);
 
-    REQUIRE(error.frames().size() == 1);
-    CHECK(error.frames()[0].message == "reading the configuration");
-    CHECK(is_same_location(error.frames()[0].location, location));
+    REQUIRE(error.frames().size() == 2);
+    CHECK(error.frames()[1].message == "reading the configuration");
+    CHECK(is_same_location(error.frames()[1].location, location));
 }
 
 TEST_CASE("Propagate adds a frame without a message at the location it is handed", "[error]") {
     const std::source_location location = std::source_location::current();
     const auto error = alp::make_error(FileError::NotFound).propagate(location);
 
-    REQUIRE(error.frames().size() == 1);
-    CHECK(error.frames()[0].message == std::nullopt);
-    CHECK(is_same_location(error.frames()[0].location, location));
+    REQUIRE(error.frames().size() == 2);
+    CHECK(error.frames()[1].message == std::nullopt);
+    CHECK(is_same_location(error.frames()[1].location, location));
 }
 
 TEST_CASE("Context adds its frames in the order it is called", "[error]") {
@@ -173,17 +173,17 @@ TEST_CASE("Context adds its frames in the order it is called", "[error]") {
                            .context("inner")
                            .context("outer");
 
-    REQUIRE(error.frames().size() == 2);
-    CHECK(error.frames()[0].message == "inner");
-    CHECK(error.frames()[1].message == "outer");
+    REQUIRE(error.frames().size() == 3);
+    CHECK(error.frames()[1].message == "inner");
+    CHECK(error.frames()[2].message == "outer");
 }
 
 TEST_CASE("An error widens into a set, keeping its frames", "[error]") {
     const alp::Error<FileError, ParseError> widened = alp::make_error(FileError::NotFound).context("opening app.cfg");
 
     CHECK(widened.holds(FileError::NotFound));
-    REQUIRE(widened.frames().size() == 1);
-    CHECK(widened.frames()[0].message == "opening app.cfg");
+    REQUIRE(widened.frames().size() == 2);
+    CHECK(widened.frames()[1].message == "opening app.cfg");
 }
 
 TEST_CASE("A const error widens into a set and stays as it was", "[error]") {
@@ -191,17 +191,17 @@ TEST_CASE("A const error widens into a set and stays as it was", "[error]") {
     const alp::Error<FileError, ParseError> widened = error;
 
     CHECK(widened.holds(FileError::NotFound));
-    CHECK(widened.frames().size() == 1);
+    CHECK(widened.frames().size() == 2);
     CHECK(error.code() == FileError::NotFound);
-    CHECK(error.frames().size() == 1);
+    CHECK(error.frames().size() == 2);
 }
 
 TEST_CASE("Erasure keeps the code the error holds and its frames", "[error]") {
     const alp::Error<> erased = alp::Error<FileError, ParseError>(ParseError::BadDigit).context("parsing the header");
 
     CHECK(erased.holds(ParseError::BadDigit));
-    REQUIRE(erased.frames().size() == 1);
-    CHECK(erased.frames()[0].message == "parsing the header");
+    REQUIRE(erased.frames().size() == 2);
+    CHECK(erased.frames()[1].message == "parsing the header");
 }
 
 TEST_CASE("Erasing an error moves its code instead of copying it", "[error]") {
@@ -235,8 +235,8 @@ TEST_CASE("narrow gives the error with only the code it holds, keeping its frame
 
     REQUIRE(result.has_value());
     CHECK(result->code() == FileError::NotFound);
-    REQUIRE(result->frames().size() == 1);
-    CHECK(result->frames()[0].message == "opening app.cfg");
+    REQUIRE(result->frames().size() == 2);
+    CHECK(result->frames()[1].message == "opening app.cfg");
 }
 
 TEST_CASE("narrow hands the error back when it holds another code", "[error]") {
@@ -244,7 +244,7 @@ TEST_CASE("narrow hands the error back when it holds another code", "[error]") {
 
     REQUIRE(!result.has_value());
     CHECK(result.error().holds(ParseError::BadDigit));
-    CHECK(result.error().frames().size() == 1);
+    CHECK(result.error().frames().size() == 2);
 }
 
 TEST_CASE("narrow on a const error leaves it as it was", "[error]") {
@@ -252,9 +252,9 @@ TEST_CASE("narrow on a const error leaves it as it was", "[error]") {
     const auto result = error.narrow<FileError>();
 
     REQUIRE(result.has_value());
-    CHECK(result->frames().size() == 1);
+    CHECK(result->frames().size() == 2);
     CHECK(error.holds(FileError::NotFound));
-    CHECK(error.frames().size() == 1);
+    CHECK(error.frames().size() == 2);
 }
 
 TEST_CASE("narrow to several codes keeps those it names", "[error]") {
@@ -274,7 +274,7 @@ TEST_CASE("narrow to a set gives the error with only that set's codes, keeping i
 
     REQUIRE(result.has_value());
     CHECK(result->holds(ParseError::BadDigit));
-    CHECK(result->frames().size() == 1);
+    CHECK(result->frames().size() == 2);
 }
 
 TEST_CASE("narrow to a set hands the error back when it holds a code outside the set", "[error]") {
@@ -284,7 +284,7 @@ TEST_CASE("narrow to a set hands the error back when it holds a code outside the
 
     REQUIRE(!result.has_value());
     CHECK(result.error().holds(OffsetError{.offset = 7}));
-    CHECK(result.error().frames().size() == 1);
+    CHECK(result.error().frames().size() == 2);
 }
 
 TEST_CASE("narrow on an erased error gives the error with the code it was erased from, keeping its frames", "[error]") {
@@ -292,8 +292,8 @@ TEST_CASE("narrow on an erased error gives the error with the code it was erased
 
     REQUIRE(result.has_value());
     CHECK(result->code() == FileError::NotFound);
-    REQUIRE(result->frames().size() == 1);
-    CHECK(result->frames()[0].message == "opening app.cfg");
+    REQUIRE(result->frames().size() == 2);
+    CHECK(result->frames()[1].message == "opening app.cfg");
 }
 
 TEST_CASE("narrow on an erased error hands it back when it holds another code", "[error]") {
@@ -301,7 +301,7 @@ TEST_CASE("narrow on an erased error hands it back when it holds another code", 
 
     REQUIRE(!result.has_value());
     CHECK(result.error().holds(ParseError::BadDigit));
-    CHECK(result.error().frames().size() == 1);
+    CHECK(result.error().frames().size() == 2);
 }
 
 TEST_CASE("An error with a move-only code narrows to its code", "[error]") {

@@ -9,7 +9,7 @@
 
 namespace alp {
 
-// A point an error passed through after it originated: where it was propagated or was given context.
+// A point an error was at: where it originated, was propagated or was given context.
 struct Frame {
     // What was being done at this point, absent where the error was only propagated.
     std::optional<std::string> message = std::nullopt;
@@ -18,11 +18,18 @@ struct Frame {
     std::source_location location;
 };
 
-// Where an error originated and the frames it collected after that.
+// The points an error was at, starting where it originated.
 class Trace {
 public:
-    // Starts a trace for an error that originates at `origin`, with no frames yet.
-    explicit Trace(const std::source_location origin) : _origin(origin) {}
+    // Starts a trace for an error that originates at `origin`.
+    explicit Trace(const std::source_location origin) {
+        this->_frames.push_back(Frame{.location = origin});
+    }
+
+    // Starts a trace for an error that originates at `origin` with `message` as what was being done there.
+    Trace(const std::source_location origin, std::string message) {
+        this->_frames.push_back(Frame{.message = std::move(message), .location = origin});
+    }
 
     void push(Frame frame) {
         this->_frames.push_back(std::move(frame));
@@ -31,17 +38,16 @@ public:
     // Where the error originated.
     [[nodiscard]]
     std::source_location origin() const {
-        return this->_origin;
+        return this->_frames.front().location;
     }
 
-    // The frames added after the origin, innermost first.
+    // The points the error was at, innermost first, starting at the origin.
     [[nodiscard]]
     std::span<const Frame> frames() const {
         return this->_frames;
     }
 
 private:
-    std::source_location _origin;
     std::vector<Frame> _frames;
 };
 
