@@ -15,15 +15,15 @@ enum class EncodeError {
 inline std::string_view format_as(const EncodeError error) {
     switch (error) {
     case EncodeError::PositionEncode:
-        return "Position encoding failed";
+        return "encoding the positions failed";
     case EncodeError::UvEncode:
-        return "UV encoding failed";
+        return "encoding the UVs failed";
     case EncodeError::TriangleEncode:
-        return "Triangle encoding failed";
+        return "encoding the triangles failed";
     case EncodeError::TextureEncode:
-        return "Texture encoding failed";
+        return "encoding the texture failed";
     default:
-        return "Unknown EncodeError";
+        return "an unknown encoding failure";
     }
 }
 
@@ -39,17 +39,17 @@ enum class DecodeError {
 inline std::string_view format_as(const DecodeError error) {
     switch (error) {
     case DecodeError::IncompatibleData:
-        return "Incompatible data";
+        return "the data is incompatible";
     case DecodeError::PositionDecode:
-        return "Position decoding failed";
+        return "decoding the positions failed";
     case DecodeError::UvDecode:
-        return "UV decoding failed";
+        return "decoding the UVs failed";
     case DecodeError::TriangleDecode:
-        return "Triangle decoding failed";
+        return "decoding the triangles failed";
     case DecodeError::TextureDecode:
-        return "Texture decoding failed";
+        return "decoding the texture failed";
     default:
-        return "Unknown DecodeError";
+        return "an unknown decoding failure";
     }
 }
 
