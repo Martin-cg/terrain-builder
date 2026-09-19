@@ -5,6 +5,7 @@
 
 #include "error/try.h"
 #include "error/utils.h"
+#include "io/SerdeError.h"
 #include "io/bytes.h"
 #include "type_utils.h"
 
