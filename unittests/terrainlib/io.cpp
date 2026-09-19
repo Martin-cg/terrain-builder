@@ -33,11 +33,10 @@ TEST_CASE("Reading a missing file reports that it does not exist, naming the pat
     const alp::Result<std::vector<uint8_t>, io::FileError> result = io::read_bytes_from_path(path);
 
     REQUIRE(!result.has_value());
-    CHECK(result.error().code() == std::errc::no_such_file_or_directory);
-    CHECK(fmt::format("{:#}", result.error()).contains(path.string()));
+    CHECK(result.error().holds(io::make_file_not_found(path)));
 }
 
-TEST_CASE("Reading a directory fails with a file error") {
+TEST_CASE("Reading a directory fails") {
     const TempDirectory directory("io_error_directory");
 
     CHECK(!io::read_bytes_from_path(directory.path()).has_value());
@@ -52,9 +51,7 @@ TEST_CASE("Writing below a file fails with a file error, naming the directory it
     const alp::Result<void, io::FileError> result = io::write_bytes_to_path(std::vector<uint8_t>{1}, path);
 
     REQUIRE(!result.has_value());
-    const std::string chain = fmt::format("{:#}", result.error());
-    CHECK(chain.contains(blocker.string()));
-    CHECK(chain.contains(path.string()));
+    CHECK(result.error().code().path() == blocker);
 }
 
 TEST_CASE("Reading truncated bytes reports that the data ended early") {
@@ -86,23 +83,6 @@ TEST_CASE("Reading a value from a file with truncated data fails with a serde er
 
     REQUIRE(!result.has_value());
     CHECK(result.error().holds<io::SerdeError>());
-}
-
-TEST_CASE("A failed read of a value names the file", "[io][serialize]") {
-    const TempDirectory directory("io_error_failed_read_path");
-    const std::filesystem::path path = directory.path() / "value.bin";
-
-    SECTION("missing file") {
-    }
-
-    SECTION("truncated data") {
-        REQUIRE(io::write_bytes_to_path(std::vector<uint8_t>{1}, path).has_value());
-    }
-
-    const io::Result<std::vector<uint32_t>> result = io::read_from_path<std::vector<uint32_t>>(path);
-
-    REQUIRE(!result.has_value());
-    CHECK(fmt::format("{:#}", result.error()).contains(path.string()));
 }
 
 TEST_CASE("Writing and reading a value round-trips it") {

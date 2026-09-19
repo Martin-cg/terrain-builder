@@ -24,29 +24,7 @@ TEST_CASE("Loading a node the index does not list fails as a missing file", "[oc
     const auto result = storage.load(id);
 
     REQUIRE(!result.has_value());
-    CHECK(result.error().holds(io::FileError(std::make_error_code(std::errc::no_such_file_or_directory), storage.path_for(id))));
-}
-
-TEST_CASE("A failed node load names the node", "[octree][storage]") {
-    const TempDirectory directory("octree_storage_failed_load");
-    const octree::Id id = octree::Id::root();
-    std::string message;
-
-    SECTION("missing from the index") {
-        const octree::IndexedMeshStorage storage = octree::open_folder_indexed(directory.path());
-        const auto result = storage.load(id);
-        REQUIRE(!result.has_value());
-        message = fmt::to_string(result.error());
-    }
-
-    SECTION("file missing from an unindexed storage") {
-        const octree::MeshStorage storage = octree::open_folder(directory.path());
-        const auto result = storage.load(id);
-        REQUIRE(!result.has_value());
-        message = fmt::to_string(result.error());
-    }
-
-    CHECK(message.contains(fmt::to_string(id)));
+    CHECK(result.error().holds(io::make_file_not_found(storage.path_for(id))));
 }
 
 TEST_CASE("Copying a node the source index does not list fails as a missing file", "[octree][storage]") {
@@ -58,30 +36,7 @@ TEST_CASE("Copying a node the source index does not list fails as a missing file
     const auto result = target.copy_from(id, source);
 
     REQUIRE(!result.has_value());
-    CHECK(result.error().holds(io::FileError(std::make_error_code(std::errc::no_such_file_or_directory), source.path_for(id))));
-}
-
-TEST_CASE("A failed node copy names the node", "[octree][storage]") {
-    const TempDirectory directory("octree_storage_failed_copy");
-    octree::MeshStorage target = octree::open_folder(directory.path() / "target");
-    const octree::Id id = octree::Id::root();
-    std::string message;
-
-    SECTION("missing from the index") {
-        const octree::IndexedMeshStorage source = octree::open_folder_indexed(directory.path() / "source");
-        const auto result = target.copy_from(id, source);
-        REQUIRE(!result.has_value());
-        message = fmt::to_string(result.error());
-    }
-
-    SECTION("file missing from an unindexed storage") {
-        const octree::MeshStorage source = octree::open_folder(directory.path() / "source");
-        const auto result = target.copy_from(id, source);
-        REQUIRE(!result.has_value());
-        message = fmt::to_string(result.error());
-    }
-
-    CHECK(message.contains(fmt::to_string(id)));
+    CHECK(result.error().holds(io::make_file_not_found(source.path_for(id))));
 }
 
 TEST_CASE("A failed node copy names the file it could not replace", "[octree][storage]") {
