@@ -40,7 +40,7 @@ int main(int argc, char **argv) {
 
     const alp::Result<void> result = run(args);
     if (!result.has_value()) {
-        LOG_FAILURE(result.error());
+        LOG_UNEXPECTED(result.error());
         return EXIT_FAILURE;
     }
 

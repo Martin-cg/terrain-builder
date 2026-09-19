@@ -7,6 +7,7 @@
 #include <fmt/format.h>
 #include <tl/expected.hpp>
 
+#include "error/log.h"
 #include "error/try.h"
 #include "io/serialize.h"
 #include "log.h"
@@ -93,7 +94,7 @@ Storage_<T, Codec> open_folder(
     IndexMap map;
     helpers::update_index_map(map, layout);
     if (!map.empty()) {
-        helpers::save_index_map(map, layout);
+        LOG_UNEXPECTED_OF(helpers::save_index_map(map, layout));
     }
     return Storage_<T, Codec>(RawStorage_<T, Codec>(std::move(layout)), std::move(map));
 }

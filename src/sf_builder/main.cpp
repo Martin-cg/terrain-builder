@@ -27,7 +27,7 @@
 OGRSpatialReference parse_srs(const std::string &user_input) {
     const auto result = srs::from_user_input(user_input);
     if (!result.has_value()) {
-        LOG_FAILURE(result.error());
+        LOG_UNEXPECTED(result.error());
         exit(1);
     }
     return result.value();

@@ -31,6 +31,7 @@
 #include "srs.h"
 
 #include "ProgressIndicator.h"
+#include "error/log.h"
 #include "log.h"
 #include "mesh/SimpleMesh.h"
 #include "mesh/io.h"
@@ -303,7 +304,7 @@ void build_all_patches(
         if (mesh_result.has_value()) {
             const auto mesh = std::move(mesh_result.value());
             mesh::validate(mesh);
-            storage.save(node, mesh);
+            LOG_UNEXPECTED_OF(storage.save(node, mesh));
         }
 
         progress.task_finished();
@@ -313,6 +314,6 @@ void build_all_patches(
     logger->set_level(original_level);
 
     progress_thread.join();
-    storage.save_or_create_index();
+    LOG_UNEXPECTED_OF(storage.save_or_create_index());
 }
 }

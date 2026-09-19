@@ -24,7 +24,7 @@ std::optional<MeshMask> load_mask_from_path(const std::filesystem::path& path) {
                 mask.mesh.vertex_count(), mask.mesh.face_count());
             return mask;
         } else {
-            LOG_FAILURE(result.error());
+            LOG_UNEXPECTED(result.error());
         }
     } else {
         LOG_DEBUG("No mask file found at {}, proceeding without mask", path);

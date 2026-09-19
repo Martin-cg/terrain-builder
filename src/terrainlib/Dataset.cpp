@@ -79,7 +79,7 @@ Dataset::Dataset(std::filesystem::path path) {
         m_path = path;
         m_gdal_dataset.reset(result.value());
     } else {
-        LOG_FAILURE(result.error());
+        LOG_UNEXPECTED(result.error());
         throw std::runtime_error("Failed to open dataset at path: " + path.string());
     }
 }

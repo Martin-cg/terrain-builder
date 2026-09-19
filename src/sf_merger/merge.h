@@ -5,6 +5,7 @@
 
 #include "NodeLoader.h"
 #include "NodeWriter.h"
+#include "error/log.h"
 #include "mask.h"
 #include "merge/NodeData.h"
 #include "merge/Result.h"
@@ -177,5 +178,5 @@ inline void merge_datasets(
         merger.merge_root();
     }
 
-    output_dataset.save_or_create_index();
+    LOG_UNEXPECTED_OF(output_dataset.save_or_create_index());
 }

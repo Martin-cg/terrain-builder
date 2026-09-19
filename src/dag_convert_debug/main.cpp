@@ -51,7 +51,7 @@ alp::Result<void> export_storage(const cli::Args &args) {
 
         const auto load_result = input_storage.load(id);
         if (!load_result.has_value()) {
-            LOG_FAILURE(load_result.error());
+            LOG_UNEXPECTED(load_result.error());
             progress.task_finished();
             continue;
         }
@@ -60,7 +60,7 @@ alp::Result<void> export_storage(const cli::Args &args) {
 
         const auto save_result = output_storage.save(id, mesh);
         if (!save_result.has_value()) {
-            LOG_FAILURE(save_result.error());
+            LOG_UNEXPECTED(save_result.error());
             progress.task_finished();
             continue;
         }
@@ -94,7 +94,7 @@ int main(int argc, char **argv) {
 
     const alp::Result<void> result = run(args);
     if (!result.has_value()) {
-        LOG_FAILURE(result.error());
+        LOG_UNEXPECTED(result.error());
         return EXIT_FAILURE;
     }
 

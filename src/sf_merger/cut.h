@@ -3,6 +3,7 @@
 #include <libassert/assert.hpp>
 
 #include "mesh/SimpleMesh.h"
+#include "error/log.h"
 #include "log.h"
 #include "mask.h"
 #include "octree/Id.h"
@@ -114,7 +115,7 @@ inline void cut_dataset(
     const bool keep_inside) {
     Context ctx(input, output, octree::Space::earth(), keep_inside);
     cut_node(ctx, octree::Id::root(), mask);
-    output.save_or_create_index();
+    LOG_UNEXPECTED_OF(output.save_or_create_index());
 }
 
 inline void cut_dataset(

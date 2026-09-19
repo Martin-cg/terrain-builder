@@ -56,7 +56,7 @@ std::optional<Clustering> load_and_clusterize_mesh(
     if (!result) {
         const ::io::FileError *file_error = result.error().get_if<::io::FileError>();
         if (file_error == nullptr || *file_error != std::errc::no_such_file_or_directory) {
-            LOG_FAILURE(result.error());
+            LOG_UNEXPECTED(result.error());
         }
         return std::nullopt;
     }
@@ -211,7 +211,7 @@ dag::ClusterBatch load_and_simplify_dag_nodes(
         // Load dag node clusters
         auto dag_node = ctx.output_storage.load(id);
         if (!dag_node) {
-            LOG_FAILURE(dag_node.error());
+            LOG_UNEXPECTED(dag_node.error());
             continue;
         }
         auto &[metadata, clustering] = dag_node.value();
@@ -551,11 +551,11 @@ std::unordered_set<octree::Id> build_level(
             const auto save_result = ctx.output_storage.save(target, *result);
             if (save_result) {
                 if (debug_storage) {
-                    debug_storage->save(target, clustering_to_mesh(result->clustering));
+                    LOG_UNEXPECTED_OF(debug_storage->save(target, clustering_to_mesh(result->clustering)));
                 }
                 saved_ids.push_back(target);
             } else {
-                LOG_FAILURE(save_result.error());
+                LOG_UNEXPECTED(save_result.error());
             }
         }
         progress.task_finished();
@@ -620,7 +620,7 @@ void build_levels(
 
         // Persist per level so a finished level can be read back before the whole run completes
         if (const auto result = ctx.output_storage.save_or_create_index(); !result.has_value()) {
-            LOG_FAILURE(result.error(), "building level {}", level);
+            LOG_UNEXPECTED(result.error(), "building level {}", level);
         }
     }
 

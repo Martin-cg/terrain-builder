@@ -53,7 +53,7 @@ public:
 
         const auto result = this->save_index();
         if (!result) {
-            LOG_FAILURE(result.error(), "closing a storage at {}", this->_directory);
+            LOG_UNEXPECTED(result.error(), "closing a storage at {}", this->_directory);
         }
     }
 

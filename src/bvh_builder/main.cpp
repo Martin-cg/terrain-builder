@@ -103,7 +103,7 @@ int main(int argc, char **argv) {
     try {
         const alp::Result<void> result = build_bvh(args);
         if (!result.has_value()) {
-            LOG_FAILURE(result.error());
+            LOG_UNEXPECTED(result.error());
             return EXIT_FAILURE;
         }
         return EXIT_SUCCESS;
