@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>
+#include <expected>
 #include <memory>
 #include <optional>
 #include <source_location>
@@ -10,7 +11,6 @@
 #include <utility>
 
 #include <fmt/format.h>
-#include <tl/expected.hpp>
 
 #include "../tracked.h"
 #include "error/Error.h"
@@ -225,9 +225,9 @@ TEST_CASE("An error with a move-only code widens into a set", "[error]") {
 }
 
 TEST_CASE("narrow returns the narrowed error or the error it was called on", "[error]") {
-    STATIC_REQUIRE(std::is_same_v<decltype(std::declval<alp::Error<FileError, ParseError>>().narrow<FileError>()), tl::expected<alp::Error<FileError>, alp::Error<FileError, ParseError>>>);
-    STATIC_REQUIRE(std::is_same_v<decltype(std::declval<alp::Error<FileError, ParseError, OffsetError>>().narrow<alp::Error<FileError, ParseError>>()), tl::expected<alp::Error<FileError, ParseError>, alp::Error<FileError, ParseError, OffsetError>>>);
-    STATIC_REQUIRE(std::is_same_v<decltype(std::declval<alp::Error<>>().narrow<FileError>()), tl::expected<alp::Error<FileError>, alp::Error<>>>);
+    STATIC_REQUIRE(std::is_same_v<decltype(std::declval<alp::Error<FileError, ParseError>>().narrow<FileError>()), std::expected<alp::Error<FileError>, alp::Error<FileError, ParseError>>>);
+    STATIC_REQUIRE(std::is_same_v<decltype(std::declval<alp::Error<FileError, ParseError, OffsetError>>().narrow<alp::Error<FileError, ParseError>>()), std::expected<alp::Error<FileError, ParseError>, alp::Error<FileError, ParseError, OffsetError>>>);
+    STATIC_REQUIRE(std::is_same_v<decltype(std::declval<alp::Error<>>().narrow<FileError>()), std::expected<alp::Error<FileError>, alp::Error<>>>);
 }
 
 TEST_CASE("narrow gives the error with only the code it holds, keeping its frames", "[error]") {

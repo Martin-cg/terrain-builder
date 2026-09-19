@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>
+#include <expected>
 #include <optional>
 #include <source_location>
 #include <string>
@@ -9,7 +10,6 @@
 #include <utility>
 
 #include <fmt/format.h>
-#include <tl/expected.hpp>
 
 #include "error/Error.h"
 #include "error/Result.h"
@@ -97,7 +97,7 @@ TEST_CASE("make_unexpected creates an erased error from a message that originate
 }
 
 TEST_CASE("propagate passes an error on as the same type", "[error][utils]") {
-    STATIC_REQUIRE(std::is_same_v<decltype(alp::propagate(std::declval<alp::Error<FileError>>())), tl::unexpected<alp::Error<FileError>>>);
+    STATIC_REQUIRE(std::is_same_v<decltype(alp::propagate(std::declval<alp::Error<FileError>>())), std::unexpected<alp::Error<FileError>>>);
 }
 
 TEST_CASE("propagate adds a frame without a message at the location it is handed", "[error][utils]") {

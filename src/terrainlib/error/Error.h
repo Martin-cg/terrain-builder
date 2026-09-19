@@ -1,6 +1,7 @@
 #pragma once
 
 #include <concepts>
+#include <expected>
 #include <optional>
 #include <source_location>
 #include <span>
@@ -9,7 +10,6 @@
 #include <utility>
 
 #include <fmt/format.h>
-#include <tl/expected.hpp>
 
 #include "error/CodeStorage.h"
 #include "error/Context.h"
@@ -124,7 +124,7 @@ public:
     // This error with only the codes Fs if it holds one of them, otherwise this error unchanged; a set among Fs stands for its codes.
     template <ErrorCodes... Fs, typename Self> requires(narrows_to<Fs...>)
     [[nodiscard]]
-    tl::expected<Error<Fs...>, BasicError> narrow(this Self &&self) {
+    std::expected<Error<Fs...>, BasicError> narrow(this Self &&self) {
         return Error<Fs...>::narrow_from(std::forward<Self>(self));
     }
 
@@ -136,10 +136,10 @@ private:
 
     // Narrows `error` to the codes Es if it holds one of them, otherwise hands it back unchanged.
     template <typename Source>
-    static tl::expected<BasicError, std::remove_cvref_t<Source>> narrow_from(Source &&error) {
+    static std::expected<BasicError, std::remove_cvref_t<Source>> narrow_from(Source &&error) {
         std::optional<CodeStorage<Es...>> code_result = std::forward<Source>(error)._code.template narrow<Es...>();
         if (!code_result.has_value()) {
-            return tl::make_unexpected(std::forward<Source>(error));
+            return std::unexpected(std::forward<Source>(error));
         }
         return BasicError(std::move(*code_result), std::forward<Source>(error)._trace);
     }

@@ -1,3 +1,4 @@
+#include <expected>
 #include <memory>
 #include <optional>
 #include <filesystem>
@@ -6,7 +7,6 @@
 #include <unordered_set>
 
 #include <fmt/format.h>
-#include <tl/expected.hpp>
 
 #include "octree/storage/helpers.h"
 #include "error/try.h"
@@ -92,7 +92,7 @@ std::optional<LayoutWithoutBase> guess_layout_strategy(
     return std::nullopt;
 }
 
-tl::expected<void, io::Error> save_index_map(const IndexMap& index, const disk::Layout& layout) {
+std::expected<void, io::Error> save_index_map(const IndexMap& index, const disk::Layout& layout) {
     const auto index_path = layout.base_path() / disk::v1::index_file_name();
     LOG_TRACE("Saving octree storage index to {}", index_path);
 

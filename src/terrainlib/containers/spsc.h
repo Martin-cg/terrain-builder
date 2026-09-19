@@ -5,6 +5,7 @@
 #include <bit>
 #include <cstddef>
 #include <cstdint>
+#include <expected>
 #include <memory>
 #include <optional>
 #include <span>
@@ -12,7 +13,6 @@
 #include <utility>
 
 #include <libassert/assert.hpp>
-#include <tl/expected.hpp>
 
 #include "containers/FixedArray.h"
 #include "containers/UniqueResource.h"
@@ -163,7 +163,7 @@ public:
 
     // Blocks while the ring is full. A batch larger than the ring is published in pieces.
     [[nodiscard]]
-    tl::expected<void, Disconnected> push_batch(const std::span<const T> values) {
+    std::expected<void, Disconnected> push_batch(const std::span<const T> values) {
         DEBUG_ASSERT(this->_state.is_held(), "the sender was already closed");
         detail::State<T> &state = *this->_state.get();
 
@@ -172,7 +172,7 @@ public:
         while (!remaining.empty()) {
             const detail::Cursor head = state.wait_for_space(position);
             if (head.has_ended()) {
-                return tl::make_unexpected(Disconnected{});
+                return std::unexpected(Disconnected{});
             }
 
             const size_t free = state.capacity - (position - head.count());
@@ -190,7 +190,7 @@ public:
 
     // Publishes one value immediately, so a loop of these pays a wakeup per element.
     [[nodiscard]]
-    tl::expected<void, Disconnected> push(const T value) {
+    std::expected<void, Disconnected> push(const T value) {
         return this->push_batch(std::span<const T>(&value, 1));
     }
 

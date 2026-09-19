@@ -1,13 +1,12 @@
 #pragma once
 
 #include <concepts>
+#include <expected>
 #include <optional>
 #include <source_location>
 #include <string>
 #include <type_traits>
 #include <utility>
-
-#include <tl/expected.hpp>
 
 #include "error/Error.h"
 #include "error/ErrorCode.h"
@@ -28,7 +27,7 @@ struct PendingCode {
     template <typename Target>
         requires(!is_specialization_of_v<Target, BasicError> && std::is_convertible_v<const E &, Target>)
     operator Target() const {
-        // Declared for every message so that tl::expected sees the conversion, and rejected on use so that the reason is readable.
+        // Declared for every message so that std::expected sees the conversion, and rejected on use so that the reason is readable.
         static_assert(std::same_as<M, std::nullopt_t>, "ALP_TRY_CONTEXT needs a function returning an alp::Result: a plain expected has no place for the message");
         return this->code;
     }
@@ -61,12 +60,12 @@ auto make_residual(R &&result, M message, const std::source_location location) {
             } else {
                 error = std::move(error).propagate(location);
             }
-            return tl::make_unexpected(std::move(error));
+            return std::unexpected(std::move(error));
         } else if constexpr (ErrorCode<Failure>) {
-            return tl::make_unexpected(PendingCode<Failure, M>{.code = std::forward<R>(result).error(), .message = std::move(message), .location = location});
+            return std::unexpected(PendingCode<Failure, M>{.code = std::forward<R>(result).error(), .message = std::move(message), .location = location});
         } else {
             static_assert(!has_message, "ALP_TRY_CONTEXT needs an Error or a plain code: any other error has no place for the message");
-            return tl::make_unexpected(std::forward<R>(result).error());
+            return std::unexpected(std::forward<R>(result).error());
         }
     }
 }

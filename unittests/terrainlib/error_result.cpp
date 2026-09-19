@@ -1,9 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include <expected>
 #include <string_view>
 #include <type_traits>
-
-#include <tl/expected.hpp>
 
 #include "error/Error.h"
 #include "error/Result.h"
@@ -30,16 +29,16 @@ std::string_view format_as(const ParseError) {
 } // namespace
 
 TEST_CASE("A result holds the error of its codes, with a nested set expanded", "[error][Result]") {
-    STATIC_REQUIRE(std::is_same_v<alp::Result<int, FileError>, tl::expected<int, alp::BasicError<FileError>>>);
-    STATIC_REQUIRE(std::is_same_v<alp::Result<int, alp::Error<FileError>, ParseError>, tl::expected<int, alp::BasicError<FileError, ParseError>>>);
+    STATIC_REQUIRE(std::is_same_v<alp::Result<int, FileError>, std::expected<int, alp::BasicError<FileError>>>);
+    STATIC_REQUIRE(std::is_same_v<alp::Result<int, alp::Error<FileError>, ParseError>, std::expected<int, alp::BasicError<FileError, ParseError>>>);
 }
 
 TEST_CASE("A result converts from a result whose error converts, but not from a plain code", "[error][Result]") {
     STATIC_REQUIRE(std::is_convertible_v<alp::Result<int, FileError>, alp::Result<int>>);
     STATIC_REQUIRE(std::is_convertible_v<alp::Result<int, FileError>, alp::Result<int, FileError, ParseError>>);
     STATIC_REQUIRE(!std::is_convertible_v<alp::Result<int>, alp::Result<int, FileError>>);
-    STATIC_REQUIRE(!std::is_convertible_v<tl::unexpected<FileError>, alp::Result<int, FileError>>);
-    STATIC_REQUIRE(!std::is_convertible_v<tl::expected<int, FileError>, alp::Result<int, FileError>>);
+    STATIC_REQUIRE(!std::is_convertible_v<std::unexpected<FileError>, alp::Result<int, FileError>>);
+    STATIC_REQUIRE(!std::is_convertible_v<std::expected<int, FileError>, alp::Result<int, FileError>>);
 }
 
 TEST_CASE("A typed result converts to an erased result", "[error][Result]") {

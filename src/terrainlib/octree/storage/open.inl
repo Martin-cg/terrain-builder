@@ -1,11 +1,11 @@
 #include <algorithm>
+#include <expected>
 #include <filesystem>
 #include <memory>
 #include <unordered_set>
 #include <vector>
 
 #include <fmt/format.h>
-#include <tl/expected.hpp>
 
 #include "error/log.h"
 #include "error/try.h"
@@ -22,7 +22,7 @@
 namespace octree {
 
 template <typename T, CodecFor<T> Codec>
-tl::expected<IndexedStorage_<T, Codec>, io::Error> open_index(const std::filesystem::path &index_path) {
+std::expected<IndexedStorage_<T, Codec>, io::Error> open_index(const std::filesystem::path &index_path) {
     LOG_TRACE("Opening storage index {}", index_path);
 
     ALP_TRY_CONTEXT(

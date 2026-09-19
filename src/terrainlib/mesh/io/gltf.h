@@ -1,11 +1,11 @@
 #pragma once
 
+#include <expected>
 #include <filesystem>
 #include <vector>
 #include <memory>
 
 #include <cgltf_write.h>
-#include <tl/expected.hpp>
 
 #include "mesh/SimpleMesh.h"
 #include "mesh/io/error.h"

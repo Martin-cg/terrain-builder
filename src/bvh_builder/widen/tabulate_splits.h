@@ -4,6 +4,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <expected>
 #include <limits>
 #include <span>
 #include <utility>
@@ -11,7 +12,6 @@
 
 #include <fmt/format.h>
 #include <libassert/assert.hpp>
-#include <tl/expected.hpp>
 
 #include "array_utils.h"
 #include "io/Error.h"

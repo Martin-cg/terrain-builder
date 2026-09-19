@@ -47,7 +47,7 @@ public:
         Storage_<T, Codec>::update_index();
     }
     [[nodiscard]]
-    tl::expected<void, io::Error> save_index() const {
+    std::expected<void, io::Error> save_index() const {
         if (!this->is_index_dirty()) {
             return {};
         }

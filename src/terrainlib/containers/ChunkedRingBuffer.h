@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <expected>
 #include <span>
 #include <atomic>
 #include <algorithm>
@@ -10,7 +11,6 @@
 #include <utility>
 
 #include <libassert/assert.hpp>
-#include <tl/expected.hpp>
 
 #include "containers/FixedArray.h"
 #include "containers/UniqueResource.h"
@@ -294,15 +294,15 @@ public:
 
     // Blocks until the ring has room. Reports how the stream ended once it has.
     [[nodiscard]]
-    tl::expected<WriteLease, StreamEnd> rent_for_writing() {
+    std::expected<WriteLease, StreamEnd> rent_for_writing() {
         while (true) {
             const uint32_t seen = this->_writable_epoch.load(std::memory_order_acquire);
-            tl::expected<WriteLease, RentError> result = this->try_rent_for_writing();
+            std::expected<WriteLease, RentError> result = this->try_rent_for_writing();
             if (result.has_value()) {
                 return std::move(result).value();
             }
             if (result.error() != RentError::WouldBlock) {
-                return tl::make_unexpected(get_stream_end(result.error()));
+                return std::unexpected(get_stream_end(result.error()));
             }
             this->_writable_epoch.wait(seen, std::memory_order_acquire);
         }
@@ -310,30 +310,30 @@ public:
 
     // Blocks until the next chunk can be read. Reports how the stream ended once it has.
     [[nodiscard]]
-    tl::expected<ReadLease, StreamEnd> rent_for_reading() {
+    std::expected<ReadLease, StreamEnd> rent_for_reading() {
         while (true) {
             const uint32_t seen = this->_readable_epoch.load(std::memory_order_acquire);
-            tl::expected<ReadLease, RentError> result = this->try_rent_for_reading();
+            std::expected<ReadLease, RentError> result = this->try_rent_for_reading();
             if (result.has_value()) {
                 return std::move(result).value();
             }
             if (result.error() != RentError::WouldBlock) {
-                return tl::make_unexpected(get_stream_end(result.error()));
+                return std::unexpected(get_stream_end(result.error()));
             }
             this->_readable_epoch.wait(seen, std::memory_order_acquire);
         }
     }
 
     [[nodiscard]]
-    tl::expected<WriteLease, RentError> try_rent_for_writing() {
+    std::expected<WriteLease, RentError> try_rent_for_writing() {
         size_t chunk_index = this->_next_write_chunk.load(std::memory_order_relaxed);
         while (true) {
             const StreamState state = this->_stream_state.load(std::memory_order_acquire);
             if (state != StreamState::Running) {
-                return tl::make_unexpected(get_rent_error(state));
+                return std::unexpected(get_rent_error(state));
             }
             if (!this->is_slot_free(chunk_index)) {
-                return tl::make_unexpected(RentError::WouldBlock);
+                return std::unexpected(RentError::WouldBlock);
             }
             if (this->_next_write_chunk.compare_exchange_weak(chunk_index, chunk_index + 1, std::memory_order_relaxed)) {
                 return this->make_write_lease(chunk_index);
@@ -361,21 +361,21 @@ public:
     }
 
     [[nodiscard]]
-    tl::expected<ReadLease, RentError> try_rent_for_reading() {
+    std::expected<ReadLease, RentError> try_rent_for_reading() {
         size_t chunk_index = this->_next_read_chunk.load(std::memory_order_relaxed);
         while (true) {
             const size_t written = this->_next_written_chunk.load(std::memory_order_acquire);
             const StreamState state = this->_stream_state.load(std::memory_order_acquire);
             const bool ended = state != StreamState::Running;
             if (ended && chunk_index >= this->_final_chunk_count) {
-                return tl::make_unexpected(get_rent_error(state));
+                return std::unexpected(get_rent_error(state));
             }
 
             // A chunk can be read once the one after it exists, or once the stream ends on it.
             const bool has_halo = written >= chunk_index + 2;
             const bool is_last = ended && chunk_index + 1 == this->_final_chunk_count && written >= chunk_index + 1;
             if (!has_halo && !is_last) {
-                return tl::make_unexpected(RentError::WouldBlock);
+                return std::unexpected(RentError::WouldBlock);
             }
             if (this->_next_read_chunk.compare_exchange_weak(chunk_index, chunk_index + 1, std::memory_order_relaxed)) {
                 return this->make_read_lease(chunk_index);

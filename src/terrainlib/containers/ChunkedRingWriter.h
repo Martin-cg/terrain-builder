@@ -2,11 +2,10 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <expected>
 #include <optional>
 #include <span>
 #include <utility>
-
-#include <tl/expected.hpp>
 
 #include "containers/ChunkedRingBuffer.h"
 #include "containers/UniqueResource.h"
@@ -23,7 +22,7 @@ public:
 
     // Reports how the stream ended if it did, leaving the rest of `elements` unwritten.
     [[nodiscard]]
-    tl::expected<void, typename Ring::StreamEnd> write(const std::span<const T> elements) {
+    std::expected<void, typename Ring::StreamEnd> write(const std::span<const T> elements) {
         std::span<const T> remaining = elements;
         while (!remaining.empty()) {
             if (this->_stream->unwritten.empty()) {
@@ -70,7 +69,7 @@ private:
 
     // Publishes the chunk in hand and rents the next one.
     [[nodiscard]]
-    tl::expected<void, typename Ring::StreamEnd> advance_chunk() {
+    std::expected<void, typename Ring::StreamEnd> advance_chunk() {
         if (this->_stream->chunk.has_value()) {
             std::move(this->_stream->chunk).value().commit();
             this->_stream->chunk.reset();

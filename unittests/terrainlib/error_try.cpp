@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>
+#include <expected>
 #include <memory>
 #include <optional>
 #include <source_location>
@@ -10,7 +11,6 @@
 #include <vector>
 
 #include <fmt/format.h>
-#include <tl/expected.hpp>
 
 #include "../tracked.h"
 #include "error/Error.h"
@@ -131,27 +131,27 @@ TEST_CASE("ALP_TRY_CONTEXT takes a lazy message and builds it only on failure", 
 }
 
 TEST_CASE("ALP_TRY hands a plain code to an enclosing function whose error is that code", "[error][try]") {
-    const auto forward = [](tl::expected<int, FileError> source) -> tl::expected<int, FileError> {
+    const auto forward = [](std::expected<int, FileError> source) -> std::expected<int, FileError> {
         ALP_TRY(const int value, std::move(source));
         return value + 1;
     };
     CHECK(forward(3).value() == 4);
 
-    const tl::expected<int, FileError> result = forward(tl::make_unexpected(FileError::NotFound));
+    const std::expected<int, FileError> result = forward(std::unexpected(FileError::NotFound));
     REQUIRE(!result.has_value());
     CHECK(result.error() == FileError::NotFound);
 }
 
 TEST_CASE("ALP_TRY turns a plain code into an error that originates at its line for an enclosing function that returns an Error", "[error][try]") {
     std::source_location before;
-    const auto forward = [&before](tl::expected<int, FileError> source) -> alp::Result<int, FileError> {
+    const auto forward = [&before](std::expected<int, FileError> source) -> alp::Result<int, FileError> {
         before = std::source_location::current();
         ALP_TRY(const int value, std::move(source));
         return value + 1;
     };
     CHECK(forward(3).value() == 4);
 
-    const alp::Result<int, FileError> result = forward(tl::make_unexpected(FileError::NotFound));
+    const alp::Result<int, FileError> result = forward(std::unexpected(FileError::NotFound));
     REQUIRE(!result.has_value());
     CHECK(result.error().code() == FileError::NotFound);
     CHECK(result.error().frames().empty());
@@ -160,12 +160,12 @@ TEST_CASE("ALP_TRY turns a plain code into an error that originates at its line 
 
 TEST_CASE("ALP_TRY_CONTEXT adds its message to a plain code as the first context", "[error][try]") {
     std::source_location before;
-    const auto forward = [&before](tl::expected<int, FileError> source) -> alp::Result<int, FileError> {
+    const auto forward = [&before](std::expected<int, FileError> source) -> alp::Result<int, FileError> {
         before = std::source_location::current();
         ALP_TRY_CONTEXT(const int value, std::move(source), "reading app.cfg");
         return value + 1;
     };
-    const alp::Result<int, FileError> result = forward(tl::make_unexpected(FileError::NotFound));
+    const alp::Result<int, FileError> result = forward(std::unexpected(FileError::NotFound));
 
     REQUIRE(!result.has_value());
     REQUIRE(result.error().frames().size() == 1);
@@ -175,13 +175,13 @@ TEST_CASE("ALP_TRY_CONTEXT adds its message to a plain code as the first context
 }
 
 TEST_CASE("ALP_TRY passes any other error through unchanged", "[error][try]") {
-    const auto forward = [](tl::expected<int, std::string> source) -> tl::expected<int, std::string> {
+    const auto forward = [](std::expected<int, std::string> source) -> std::expected<int, std::string> {
         ALP_TRY(const int value, std::move(source));
         return value + 1;
     };
     CHECK(forward(3).value() == 4);
 
-    const tl::expected<int, std::string> result = forward(tl::make_unexpected(std::string("broken")));
+    const std::expected<int, std::string> result = forward(std::unexpected(std::string("broken")));
     REQUIRE(!result.has_value());
     CHECK(result.error() == "broken");
 }

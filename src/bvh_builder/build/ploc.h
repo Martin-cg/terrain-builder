@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <expected>
 #include <filesystem>
 #include <iterator>
 #include <limits>
@@ -14,7 +15,6 @@
 
 #include <fmt/format.h>
 #include <libassert/assert.hpp>
-#include <tl/expected.hpp>
 
 #include "containers/ChunkedRingBuffer.h"
 #include "containers/ChunkedRingWriter.h"
@@ -312,7 +312,7 @@ inline WorkerResult run_consumer(
 
     uint64_t merges = 0;
     while (true) {
-        const tl::expected<EntryRing::ReadLease, EntryRing::StreamEnd> lease_result = ring.rent_for_reading();
+        const std::expected<EntryRing::ReadLease, EntryRing::StreamEnd> lease_result = ring.rent_for_reading();
         if (!lease_result.has_value()) {
             if (lease_result.error() == EntryRing::StreamEnd::Aborted) {
                 return alp::make_unexpected(Cancelled{});

@@ -43,7 +43,7 @@ void write_final_chunk(Buffer &buffer, const size_t index, const size_t size) {
 
 // Writes chunk `index` without ever blocking, so a ring that refuses it fails the test.
 void try_write_chunk(Buffer &buffer, const size_t index) {
-    tl::expected<Buffer::WriteLease, Buffer::RentError> lease = buffer.try_rent_for_writing();
+    std::expected<Buffer::WriteLease, Buffer::RentError> lease = buffer.try_rent_for_writing();
     REQUIRE(lease.has_value());
 
     fill_chunk(lease->span(), index, lease->span().size());
@@ -253,9 +253,9 @@ TEST_CASE("ChunkedRingBuffer holds back a chunk whose successor is still being w
     write_chunk(buffer, 0);
 
     // Two leases outstanding, and the later one completes the stream first.
-    tl::expected<Buffer::WriteLease, Buffer::RentError> first = buffer.try_rent_for_writing();
+    std::expected<Buffer::WriteLease, Buffer::RentError> first = buffer.try_rent_for_writing();
     REQUIRE(first.has_value());
-    tl::expected<Buffer::WriteLease, Buffer::RentError> second = buffer.try_rent_for_writing();
+    std::expected<Buffer::WriteLease, Buffer::RentError> second = buffer.try_rent_for_writing();
     REQUIRE(second.has_value());
     REQUIRE(first->chunk_index() == 1);
     REQUIRE(second->chunk_index() == 2);
@@ -264,7 +264,7 @@ TEST_CASE("ChunkedRingBuffer holds back a chunk whose successor is still being w
     std::move(*second).commit_final(4);
 
     // Chunk 0's right halo is chunk 1, which nobody has written yet.
-    const tl::expected<Buffer::ReadLease, Buffer::RentError> refused = buffer.try_rent_for_reading();
+    const std::expected<Buffer::ReadLease, Buffer::RentError> refused = buffer.try_rent_for_reading();
     REQUIRE(!refused.has_value());
     CHECK(refused.error() == Buffer::RentError::WouldBlock);
 

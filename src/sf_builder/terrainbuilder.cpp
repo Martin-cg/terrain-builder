@@ -1,6 +1,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdlib>
+#include <expected>
 #include <filesystem>
 #include <functional>
 #include <iomanip>
@@ -18,7 +19,6 @@
 #include <ogr_spatialref.h>
 #include <opencv2/core/mat.hpp>
 #include <radix/geometry.h>
-#include <tl/expected.hpp>
 
 #include <tbb/concurrent_vector.h>
 #include <tbb/enumerable_thread_specific.h>
@@ -72,7 +72,7 @@ std::optional<SimpleMesh> build_patch(
     std::chrono::high_resolution_clock::time_point start;
     start = std::chrono::high_resolution_clock::now();
     LOG_INFO("Building mesh...");
-    tl::expected<SimpleMesh, BuildMeshError> mesh_result = build_reference_mesh_patch(
+    std::expected<SimpleMesh, BuildMeshError> mesh_result = build_reference_mesh_patch(
         dataset,
         mesh_srs,
         target_bounds_srs, target_bounds,

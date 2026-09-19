@@ -1,11 +1,11 @@
 #pragma once
 
+#include <expected>
 #include <filesystem>
 #include <string>
 #include <system_error>
 
 #include <fmt/format.h>
-#include <tl/expected.hpp>
 
 #include "error/Error.h"
 #include "error/try.h"
@@ -37,26 +37,26 @@ public:
     RawStorage_ &operator=(RawStorage_ &&) = default;
 
     [[nodiscard]]
-    tl::expected<T, load_error> load(const Id &id) const {
+    std::expected<T, load_error> load(const Id &id) const {
         const auto path = this->path_for(id);
         ALP_TRY_CONTEXT(T node, Codec::load_from_path(path), fmt::format("loading node {}", id));
         return node;
     }
 
     [[nodiscard]]
-    tl::expected<void, save_error> save(const Id &id, const T &node) const {
+    std::expected<void, save_error> save(const Id &id, const T &node) const {
         const auto path = this->path_for(id);
         ALP_TRY_CONTEXT(Codec::save_to_path(node, path), fmt::format("saving node {}", id));
         return {};
     }
 
     [[nodiscard]]
-    tl::expected<void, copy_error> copy_to(const Id &id, RawStorage_ &target) const {
+    std::expected<void, copy_error> copy_to(const Id &id, RawStorage_ &target) const {
         return target.copy_from(id, *this);
     }
 
     [[nodiscard]]
-    tl::expected<void, copy_error> copy_from(const Id &id, const RawStorage_ &source) {
+    std::expected<void, copy_error> copy_from(const Id &id, const RawStorage_ &source) {
         const auto context = alp::make_context("copying node {}", id);
         const auto source_path = source.path_for(id);
         const auto target_path = this->path_for(id);
@@ -76,7 +76,7 @@ public:
         std::error_code code;
         std::filesystem::remove(target_path, code);
         if (code) {
-            return tl::make_unexpected(
+            return std::unexpected(
                 alp::make_error(io::FileError(code, target_path), fmt::format("removing a node file at {}", target_path))
                     .context(context));
         }
@@ -85,7 +85,7 @@ public:
 
         std::filesystem::create_hard_link(source_path, target_path, code);
         if (code) {
-            return tl::make_unexpected(
+            return std::unexpected(
                 alp::make_error(io::FileError(code, target_path), fmt::format("linking a node file from {} to {}", source_path, target_path))
                     .context(context));
         }

@@ -144,7 +144,7 @@ radix::geometry::Aabb3d extend_bounds_to_3d(radix::geometry::Aabb2d bounds2d) {
 }
 
 [[nodiscard]]
-tl::expected<SimpleMesh, BuildMeshError> build_reference_mesh_tile(
+std::expected<SimpleMesh, BuildMeshError> build_reference_mesh_tile(
     Dataset &dataset,
     const OGRSpatialReference &mesh_srs,
     const OGRSpatialReference &tile_srs, const radix::tile::SrsBounds &tile_bounds,
@@ -152,7 +152,7 @@ tl::expected<SimpleMesh, BuildMeshError> build_reference_mesh_tile(
     return build_reference_mesh_patch(dataset, mesh_srs, tile_srs, extend_bounds_to_3d(tile_bounds), texture_srs, texture_bounds);
 }
 
-tl::expected<SimpleMesh, BuildMeshError> build_reference_mesh_patch(
+std::expected<SimpleMesh, BuildMeshError> build_reference_mesh_patch(
     Dataset &dataset,
     const OGRSpatialReference &mesh_srs,
     const OGRSpatialReference &clip_srs, const radix::geometry::Aabb3d &clip_bounds,
@@ -175,7 +175,7 @@ tl::expected<SimpleMesh, BuildMeshError> build_reference_mesh_patch(
     LOG_TRACE("Reading pixels [({}, {})-({}, {})] from dataset", pixel_bounds.min.x, pixel_bounds.min.y, pixel_bounds.max.x, pixel_bounds.max.y);
     const std::optional<raster::HeightMap> read_result = reader.read_data_in_pixel_bounds_clamped(pixel_bounds);
     if (!read_result.has_value() || read_result->size() == 0) {
-        return tl::unexpected(BuildMeshError::OutOfBounds);
+        return std::unexpected(BuildMeshError::OutOfBounds);
     }
     const raster::HeightMap height_map = read_result.value();
 
@@ -194,14 +194,14 @@ tl::expected<SimpleMesh, BuildMeshError> build_reference_mesh_patch(
     SimpleMesh mesh_in_source_srs = meshify(source_points, valid_mask);
     // Check if we even have any valid vertices. Can happen if all of the region is padding.
     if (mesh_in_source_srs.vertex_count() == 0 || mesh_in_source_srs.face_count() == 0) {
-        return tl::unexpected(BuildMeshError::EmptyRegion);
+        return std::unexpected(BuildMeshError::EmptyRegion);
     }
 
     // Fast check if all vertices will be clipped
     const radix::geometry::Aabb3d actual_source_bounds = calculate_bounds(mesh_in_source_srs);
     const radix::geometry::Aabb3d approx_clip_bounds = srs::encompassing_bounds_transfer(source_srs, clip_srs, actual_source_bounds);
     if (!radix::geometry::intersect(approx_clip_bounds, clip_bounds)) {
-        return tl::unexpected(BuildMeshError::EmptyRegion);
+        return std::unexpected(BuildMeshError::EmptyRegion);
     }
 
     LOG_TRACE("Clipping mesh based on target bounds");
@@ -209,7 +209,7 @@ tl::expected<SimpleMesh, BuildMeshError> build_reference_mesh_patch(
     SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh_in_clip_srs, clip_bounds);
     // Check if there are any vertices left
     if (clipped_mesh.vertex_count() == 0 || clipped_mesh.face_count() == 0) {
-        return tl::unexpected(BuildMeshError::EmptyRegion);
+        return std::unexpected(BuildMeshError::EmptyRegion);
     }
 
     // TODO: move this to another function?

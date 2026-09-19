@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <expected>
 #include <span>
 #include <utility>
 #include <vector>
@@ -10,7 +11,6 @@
 
 #include <fmt/format.h>
 #include <libassert/assert.hpp>
-#include <tl/expected.hpp>
 
 #include "enumerate.h"
 #include "io/Error.h"

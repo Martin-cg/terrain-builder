@@ -19,6 +19,7 @@
 #pragma once
 
 #include <cstddef>
+#include <expected>
 #include <memory>
 #include <string>
 #include <type_traits>
@@ -32,7 +33,6 @@
 #include <glm/glm.hpp>
 #include <ogr_spatialref.h>
 #include <radix/geometry.h>
-#include <tl/expected.hpp>
 #include <radix/tile.h>
 
 #include "error/Result.h"

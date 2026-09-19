@@ -1,5 +1,6 @@
 #pragma once
 
+#include <expected>
 #include <filesystem>
 #include <list>
 #include <memory>
@@ -8,8 +9,6 @@
 #include <system_error>
 #include <unordered_map>
 #include <utility>
-
-#include <tl/expected.hpp>
 
 #include "error/log.h"
 #include "error/utils.h"
@@ -31,7 +30,7 @@ namespace octree {
 
 namespace detail {
 // The error for node `id`, which the index does not contain, originating at the caller.
-inline tl::unexpected<alp::Error<io::FileError>> make_index_miss(const Id &id, const disk::Layout &layout, const std::source_location location = std::source_location::current()) {
+inline std::unexpected<alp::Error<io::FileError>> make_index_miss(const Id &id, const disk::Layout &layout, const std::source_location location = std::source_location::current()) {
     const io::FileError error(std::make_error_code(std::errc::no_such_file_or_directory), layout.get_node_path(id));
     return alp::make_unexpected(error, fmt::format("looking up node {} in the index", id), location);
 }
@@ -157,7 +156,7 @@ public:
     }
 
     [[nodiscard]]
-    tl::expected<value_type, load_error> load(const Id &id) const {
+    std::expected<value_type, load_error> load(const Id &id) const {
         if (const auto value_opt = this->_cache.get(id)) {
             return value_opt.value();
         }
@@ -174,7 +173,7 @@ public:
     }
 
     [[nodiscard]]
-    tl::expected<void, save_error> save(const Id &id, const value_type &value) {
+    std::expected<void, save_error> save(const Id &id, const value_type &value) {
         if (this->check_overwrite(id)) {
             LOG_ERROR_AND_EXIT("tried to overwrite value when not allowed");
         }
@@ -188,7 +187,7 @@ public:
     }
 
     [[nodiscard]]
-    tl::expected<void, copy_error> copy_from(const Id &id, const Storage_<T, Codec> &source) {
+    std::expected<void, copy_error> copy_from(const Id &id, const Storage_<T, Codec> &source) {
         if (!source._index.contains(id, true)) {
             return detail::make_index_miss(id, source._inner.layout());
         }
@@ -206,7 +205,7 @@ public:
     }
 
     [[nodiscard]]
-    tl::expected<void, copy_error> copy_to(const Id &id, Storage_<T, Codec> &target) const {
+    std::expected<void, copy_error> copy_to(const Id &id, Storage_<T, Codec> &target) const {
         return target.copy_from(id, *this);
     }
 
@@ -270,7 +269,7 @@ public:
     }
 
     [[nodiscard]]
-    tl::expected<void, io::Error> save_or_create_index() {
+    std::expected<void, io::Error> save_or_create_index() {
         if (this->is_indexed() && !this->_index.dirty) {
             return {};
         }

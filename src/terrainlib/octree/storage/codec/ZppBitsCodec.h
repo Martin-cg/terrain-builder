@@ -1,11 +1,10 @@
 #pragma once
 
+#include <expected>
 #include <filesystem>
 #include <optional>
 #include <string_view>
 #include <vector>
-
-#include <tl/expected.hpp>
 
 #include "Codec.h"
 #include "io/serialize.h"
@@ -20,12 +19,12 @@ struct ZppBitsCodec {
     using save_error = io::Error;
 
     [[nodiscard]]
-    static tl::expected<value_type, load_error> load_from_path(const std::filesystem::path& path) {
+    static std::expected<value_type, load_error> load_from_path(const std::filesystem::path& path) {
         return io::read_from_path<value_type>(path);
     }
 
     [[nodiscard]]
-    static tl::expected<void, save_error> save_to_path(const value_type& value, const std::filesystem::path& path) {
+    static std::expected<void, save_error> save_to_path(const value_type& value, const std::filesystem::path& path) {
         return io::write_to_path(value, path);
     }
 

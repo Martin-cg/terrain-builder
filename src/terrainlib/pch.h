@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <expected>
 #include <filesystem>
 #include <functional>
 #include <memory>
@@ -34,7 +35,6 @@
 #include <opencv2/opencv.hpp>
 #include <radix/geometry.h>
 #include <spdlog/spdlog.h>
-#include <tl/expected.hpp>
 #include <zpp_bits.h>
 
 // Internal headers
