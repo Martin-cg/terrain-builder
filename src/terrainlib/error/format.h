@@ -85,7 +85,7 @@ private:
     };
 
     static std::string format_location(const std::source_location location) {
-        return fmt::format("at {}:{} in {}", location.file_name(), location.line(), location.function_name());
+        return fmt::format("at {}:{}:{} in {}", location.file_name(), location.line(), location.column(), location.function_name());
     }
 
     Form _form = Form::Message;
