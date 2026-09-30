@@ -286,7 +286,17 @@ int run(std::span<char *> args) {
 
     Log::init(log_level);
 
-    Dataset dataset(dataset_path.string());
+    alp::Result<Dataset, gdal::CplError> dataset_result = Dataset::open_raster(dataset_path);
+    if (!dataset_result.has_value()) {
+        LOG_UNEXPECTED(dataset_result.error());
+        return 1;
+    }
+    Dataset dataset = std::move(dataset_result).value();
+    const auto geo_transform_result = dataset.geo_transform();
+    if (!geo_transform_result.has_value()) {
+        LOG_UNEXPECTED(geo_transform_result.error());
+        return 1;
+    }
     log_dataset_overview(dataset);
     OGRSpatialReference mesh_srs = parse_srs(mesh_srs_input);
     OGRSpatialReference texture_srs = srs::webmercator();
@@ -313,7 +323,7 @@ int run(std::span<char *> args) {
             target_tile_scheme,
             target_srs);
 
-        terrainbuilder::build_and_save_patch(
+        const auto result = terrainbuilder::build_and_save_patch(
             dataset,
             target_srs,
             target_bounds,
@@ -321,6 +331,10 @@ int run(std::span<char *> args) {
             tile_provider.get(),
             mesh_srs,
             output_path);
+        if (!result.has_value()) {
+            LOG_UNEXPECTED(result.error());
+            return 1;
+        }
     }
 
     if (*batch) {
@@ -333,7 +347,7 @@ int run(std::span<char *> args) {
         const auto maybe_s = actual_num_threads == 1 ? "" : "s";
         LOG_INFO("Using {} thread{} for batch processing.", actual_num_threads, maybe_s);
 
-        terrainbuilder::build_all_patches(
+        const auto result = terrainbuilder::build_all_patches(
             dataset,
             target_level,
             texture_srs,
@@ -342,6 +356,10 @@ int run(std::span<char *> args) {
             output_base_path,
             output_format,
             overwrite_existing);
+        if (!result.has_value()) {
+            LOG_UNEXPECTED(result.error());
+            return 1;
+        }
     }
 
     return 0;

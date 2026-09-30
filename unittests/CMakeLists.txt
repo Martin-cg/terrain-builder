@@ -108,6 +108,7 @@ if(TARGET sfbuilderlib)
         catch2_helpers.h
         sf_builder/mesh.cpp
         sf_builder/texture.cpp
+        sf_builder/tile_provider.cpp
     )
     target_link_libraries(unittests_sfbuilder PRIVATE sfbuilderlib Catch2::Catch2WithMain)
     atb_configure_test(unittests_sfbuilder)

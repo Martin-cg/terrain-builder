@@ -24,10 +24,15 @@
 #include <set>
 
 #include "../catch2_helpers.h"
+#include "../result_helpers.h"
+#include "../temp_directory.h"
 #include "Dataset.h"
 #include "ctb/GlobalMercator.hpp"
 #include "ctb/Grid.hpp"
+#include "error/utils.h"
+#include "io/bytes.h"
 #include "srs.h"
+#include "texture/io.h"
 
 #include "mesh/SimpleMesh.h"
 #include "texture_assembler.h"
@@ -47,12 +52,15 @@ public:
         : available_tiles(available_tiles) {
     }
 
-    virtual std::optional<cv::Mat> get_tile(const radix::tile::Id tile) const override {
-        if (this->available_tiles.find(tile) != this->available_tiles.end()) {
-            return cv::Mat();
-        } else {
-            return std::nullopt;
+    virtual bool has_tile(const radix::tile::Id tile) const override {
+        return this->available_tiles.find(tile) != this->available_tiles.end();
+    }
+
+    virtual alp::Result<cv::Mat, TileError> get_tile(const radix::tile::Id tile) const override {
+        if (!this->has_tile(tile)) {
+            return alp::make_unexpected(MissingTile{tile});
         }
+        return cv::Mat();
     }
 
 private:
@@ -61,7 +69,11 @@ private:
 
 class AlwaysEmptyTileProvider : public TileProvider {
 public:
-    virtual std::optional<cv::Mat> get_tile(const radix::tile::Id) const override {
+    virtual bool has_tile(const radix::tile::Id) const override {
+        return true;
+    }
+
+    virtual alp::Result<cv::Mat, TileError> get_tile(const radix::tile::Id) const override {
         return cv::Mat();
     }
 };
@@ -218,13 +230,13 @@ TEST_CASE("texture assembler assembles single tile", "[terrainbuilder]") {
 
     const ctb::Grid grid = ctb::GlobalMercator();
     const radix::tile::Id root_tile(0, {0, 0}, radix::tile::Scheme::SlippyMap);
-    cv::Mat assembled_texture = terrainbuilder::splatter_tiles_to_texture(
+    cv::Mat assembled_texture = REQUIRE_VALUE(terrainbuilder::splatter_tiles_to_texture(
         root_tile,
         grid,
         grid.srsBounds(root_tile, false),
         tile_provider,
         tiles_to_splatter,
-        cv::INTER_NEAREST_EXACT).image;
+        cv::INTER_NEAREST_EXACT)).image;
 
     REQUIRE(assembled_texture.size() == cv::Size(1, 1));
     CHECK(assembled_texture.type() == CV_8UC3);
@@ -245,13 +257,13 @@ TEST_CASE("texture assembler assembles two tiles", "[terrainbuilder]") {
 
     const ctb::Grid grid = ctb::GlobalMercator();
     const radix::tile::Id root_tile(0, {0, 0}, radix::tile::Scheme::SlippyMap);
-    cv::Mat assembled_texture = terrainbuilder::splatter_tiles_to_texture(
+    cv::Mat assembled_texture = REQUIRE_VALUE(terrainbuilder::splatter_tiles_to_texture(
         root_tile,
         grid,
         grid.srsBounds(root_tile, false),
         tile_provider,
         tiles_to_splatter,
-        cv::INTER_NEAREST_EXACT).image;
+        cv::INTER_NEAREST_EXACT)).image;
 
     REQUIRE(assembled_texture.size() == cv::Size(2, 2));
     CHECK(assembled_texture.type() == CV_8UC3);
@@ -276,13 +288,13 @@ TEST_CASE("texture assembler correct order of texture writes", "[terrainbuilder]
 
     const ctb::Grid grid = ctb::GlobalMercator();
     const radix::tile::Id root_tile(0, {0, 0}, radix::tile::Scheme::SlippyMap);
-    cv::Mat assembled_texture = terrainbuilder::splatter_tiles_to_texture(
+    cv::Mat assembled_texture = REQUIRE_VALUE(terrainbuilder::splatter_tiles_to_texture(
         root_tile,
         grid,
         grid.srsBounds(root_tile, false),
         tile_provider,
         tiles_to_splatter,
-        cv::INTER_NEAREST_EXACT).image;
+        cv::INTER_NEAREST_EXACT)).image;
 
     REQUIRE(assembled_texture.size() == cv::Size(2, 2));
     CHECK(assembled_texture.type() == CV_8UC1);
@@ -359,13 +371,13 @@ TEST_CASE("texture assembler reports the content region", "[terrainbuilder]") {
     const radix::tile::SrsBounds root_tile_bounds = grid.srsBounds(root_tile, false);
     const radix::tile::SrsBounds target_bounds = bounds_of_root_tile_pixels(root_tile_bounds, glm::uvec2(100, 70), glm::uvec2(150, 160));
 
-    const terrainbuilder::AssembledTexture assembled = terrainbuilder::splatter_tiles_to_texture(
+    const terrainbuilder::AssembledTexture assembled = REQUIRE_VALUE(terrainbuilder::splatter_tiles_to_texture(
         root_tile,
         grid,
         target_bounds,
         tile_provider,
         tiles_to_splatter,
-        cv::INTER_NEAREST_EXACT);
+        cv::INTER_NEAREST_EXACT));
 
     // Region (96, 80) to (160, 192), with the content region flipped along with the image.
     REQUIRE(assembled.image.size() == cv::Size(64, 112));
@@ -388,4 +400,52 @@ TEST_CASE("assembled texture remaps uvs into the padded image", "[terrainbuilder
     CHECK(uvs[0] == glm::dvec2(0.1, 0.2));
     CHECK(uvs[1] == glm::dvec2(0.6, 0.7));
     CHECK(uvs[2] == glm::dvec2(0.35, 0.45));
+}
+
+TEST_CASE("Assembling a texture fails with a decode error when a tile's file is not an image", "[texture_assembler]") {
+    const TempDirectory directory("texture_assembler_not_an_image");
+    const BasemapSchemeTilePathProvider tile_provider(directory.path());
+    const radix::tile::Id root_tile(0, {0, 0}, radix::tile::Scheme::SlippyMap);
+    REQUIRE_VALUE(io::write_bytes_to_path(std::vector<uint8_t>{1, 2, 3, 4}, tile_provider.get_tile_path(root_tile).value()));
+    const std::vector<radix::tile::Id> tiles_to_splatter = {root_tile};
+
+    const ctb::Grid grid = ctb::GlobalMercator();
+    const TileError error = REQUIRE_ERROR(terrainbuilder::splatter_tiles_to_texture(
+        root_tile,
+        grid,
+        grid.srsBounds(root_tile, false),
+        tile_provider,
+        tiles_to_splatter));
+
+    CHECK(error.holds<texture::io::DecodeError>());
+}
+
+TEST_CASE("Assembling a texture yields none when the provider has no tiles", "[texture_assembler]") {
+    const EmptyTileProvider tile_provider;
+    const ctb::Grid grid = ctb::GlobalMercator();
+    const radix::tile::Id tile(3, {5, 4}, radix::tile::Scheme::SlippyMap);
+
+    const std::optional<terrainbuilder::AssembledTexture> texture = REQUIRE_VALUE(terrainbuilder::assemble_texture_from_tiles(
+        grid,
+        grid.getSRS(),
+        grid.srsBounds(tile, false),
+        tile_provider));
+
+    CHECK(!texture.has_value());
+}
+
+TEST_CASE("Assembling a texture yields none for bounds outside the tile grid", "[texture_assembler]") {
+    const radix::tile::Id root_tile(0, {0, 0}, radix::tile::Scheme::SlippyMap);
+    const StaticTileProvider tile_provider({{root_tile, cv::Mat(1, 1, CV_8UC3, cv::Vec3b(0, 0, 255))}});
+    const ctb::Grid grid = ctb::GlobalMercator();
+    const radix::tile::SrsBounds grid_bounds = grid.srsBounds(root_tile, false);
+    const radix::tile::SrsBounds outside(grid_bounds.max + glm::dvec2(1, 1), grid_bounds.max + glm::dvec2(101, 101));
+
+    const std::optional<terrainbuilder::AssembledTexture> texture = REQUIRE_VALUE(terrainbuilder::assemble_texture_from_tiles(
+        grid,
+        grid.getSRS(),
+        outside,
+        tile_provider));
+
+    CHECK(!texture.has_value());
 }

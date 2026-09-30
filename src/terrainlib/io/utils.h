@@ -7,6 +7,10 @@
 
 namespace io::utils {
 
+// Creates the directory at `path` and its missing parents.
+[[nodiscard]]
+alp::Result<void, FileError> create_directories(const std::filesystem::path &path);
+
 // Creates the missing parent directories of `path`.
 [[nodiscard]]
 alp::Result<void, FileError> create_parent_directories(const std::filesystem::path &path);

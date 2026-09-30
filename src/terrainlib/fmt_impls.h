@@ -37,4 +37,8 @@ struct formatter<radix::geometry::Aabb<N, T>> {
         return fmt::format_to(ctx.out(), "[{}-{}]", aabb.min, aabb.max);
     }
 };
+
+// Aabb2 derives from Aabb instead of aliasing it, so it needs its own specialization.
+template <typename T>
+struct formatter<radix::geometry::Aabb2<T>> : formatter<radix::geometry::Aabb<2, T>> {};
 }
