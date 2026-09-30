@@ -11,7 +11,7 @@
 
 #include <glm/glm.hpp>
 
-#include "atlas/bake_cluster_texture.h"
+#include "atlas/apply_atlas.h"
 #include "bake/bake.h"
 #include "cluster.h"
 #include "cluster_adjacency.h"

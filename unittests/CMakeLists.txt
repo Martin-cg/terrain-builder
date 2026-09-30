@@ -101,14 +101,13 @@ endif()
 if(TARGET dagbuilderlib)
     add_executable(unittests_dagbuilder
         catch2_helpers.h
-        dag_builder/bake_cluster_texture.cpp
+        dag_builder/apply_atlas.cpp
         dag_builder/bake_flat_quad.cpp
         dag_builder/bake_tent.cpp
         dag_builder/cluster_adjacency.cpp
         dag_builder/interpolate_uncovered.cpp
         dag_builder/correspondence.cpp
         dag_builder/query.cpp
-        dag_builder/reprojection.cpp
         dag_builder/merge_clusterings.cpp
         dag_builder/multi_component.cpp
         dag_builder/weld.cpp
