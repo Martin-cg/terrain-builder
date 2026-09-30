@@ -268,7 +268,7 @@ TEST_CASE("Loading a mesh with an unsupported extension fails, naming the extens
     const mesh::io::Result<SimpleMesh> result = mesh::io::load_from_path("mesh.xyz");
 
     REQUIRE(!result.has_value());
-    CHECK(result.error().holds(mesh::io::UnsupportedFormat{".xyz"}));
+    CHECK(result.error().holds(io::UnsupportedFormat{".xyz"}));
 }
 
 TEST_CASE("Saving a mesh with an unsupported extension fails, naming the extension") {
@@ -276,7 +276,7 @@ TEST_CASE("Saving a mesh with an unsupported extension fails, naming the extensi
     const mesh::io::Result<void> result = mesh::io::save_to_path(make_triangle(), directory.path() / "mesh.xyz");
 
     REQUIRE(!result.has_value());
-    CHECK(result.error().holds(mesh::io::UnsupportedFormat{".xyz"}));
+    CHECK(result.error().holds(io::UnsupportedFormat{".xyz"}));
 }
 
 TEST_CASE("Loading a missing terrain file fails with a file error") {

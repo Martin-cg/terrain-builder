@@ -75,6 +75,7 @@ add_executable(unittests_terrainlib
     terrainlib/srs.cpp
     terrainlib/string_utils.cpp
     terrainlib/texture_dilate_colors.cpp
+    terrainlib/texture_io.cpp
     terrainlib/tiny_vector.cpp
     terrainlib/type_utils.cpp
     terrainlib/union_find.cpp

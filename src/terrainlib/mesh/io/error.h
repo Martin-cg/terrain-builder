@@ -12,6 +12,7 @@
 #include "error/Result.h"
 #include "error/format.h"
 #include "io/Error.h"
+#include "io/UnsupportedFormat.h"
 #include "mesh/encode_error.h"
 
 namespace mesh::io {
@@ -57,13 +58,6 @@ inline std::string_view format_as(const GltfError error) {
     }
 }
 
-// A path whose extension names no mesh format this library reads or writes.
-struct UnsupportedFormat {
-    std::filesystem::path extension;
-
-    bool operator==(const UnsupportedFormat &) const = default;
-};
-
 // A glTF file whose content this library cannot read as a mesh.
 struct UnsupportedGltf {
     std::string reason;
@@ -72,17 +66,6 @@ struct UnsupportedGltf {
 };
 
 } // namespace mesh::io
-
-template <>
-struct fmt::formatter<mesh::io::UnsupportedFormat> {
-    constexpr fmt::format_parse_context::iterator parse(fmt::format_parse_context &context) {
-        return context.begin();
-    }
-
-    fmt::format_context::iterator format(const mesh::io::UnsupportedFormat &error, fmt::format_context &context) const {
-        return fmt::format_to(context.out(), "unsupported format {}", error.extension.string());
-    }
-};
 
 template <>
 struct fmt::formatter<mesh::io::UnsupportedGltf> {
@@ -98,7 +81,7 @@ struct fmt::formatter<mesh::io::UnsupportedGltf> {
 namespace mesh::io {
 
 // An error from loading or saving a mesh.
-using Error = alp::Error<::io::Error, EncodeError, DecodeError, GltfError, UnsupportedFormat, UnsupportedGltf>;
+using Error = alp::Error<::io::Error, EncodeError, DecodeError, GltfError, ::io::UnsupportedFormat, UnsupportedGltf>;
 
 // A value, or an error from loading or saving a mesh.
 template <typename T>

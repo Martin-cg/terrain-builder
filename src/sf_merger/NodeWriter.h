@@ -3,11 +3,13 @@
 #include <libassert/assert.hpp>
 
 #include "NodeLoader.h"
+#include "error/unwrap.h"
 #include "mesh/SimpleMesh.h"
 #include "octree/Id.h"
 #include "octree/NodeStatus.h"
 #include "octree/storage/Storage.h"
 #include "octree/traverse.h"
+#include "texture/io.h"
 
 // TODO: make thread safe
 class NodeWriter {
@@ -24,7 +26,7 @@ public:
         auto p = this->_storage.path_for(id);
         // change extension to .png
         p.replace_extension(".png");
-        cv::imwrite(p, mesh.texture.value_or(cv::Mat()));
+        alp::unwrap(texture::io::write_to_path(mesh.texture.value_or(cv::Mat()), p));
     }
 
     void copy_subtree_to_output(

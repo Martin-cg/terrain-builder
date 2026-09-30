@@ -44,6 +44,7 @@ add_library(terrainlib
     polygon/clip.cpp
 
     texture/dilate_colors.cpp
+    texture/io.cpp
 
     uv/unwrap.cpp
     uv/atlas.cpp
