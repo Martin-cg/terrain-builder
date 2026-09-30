@@ -27,6 +27,7 @@ add_executable(unittests_terrainlib
     terrainlib/error_result.cpp
     terrainlib/error_trace.cpp
     terrainlib/error_try.cpp
+    terrainlib/error_unwrap.cpp
     terrainlib/error_utils.cpp
     terrainlib/file_error.cpp
     terrainlib/fixed_vector.cpp
