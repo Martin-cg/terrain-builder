@@ -95,11 +95,14 @@ public:
             auto result = clip_on_mask(left.mesh(), mask, false);
             if (result->is_empty()) {
                 return Ignore{};
-            } else if (result.is_borrowed()) {
-                return Unchanged{Source::Left};
-            } else {
-                return Merged{std::move(result).into_owned()};
             }
+            return std::move(result).visit(
+                [](const Cow<SimpleMesh>::Borrowed &) -> Result {
+                    return Unchanged{Source::Left};
+                },
+                [](Cow<SimpleMesh>::Owned &&owned) -> Result {
+                    return Merged{std::move(owned.value)};
+                });
         }
 
         // If we have a right leaf we either directly return it (after clipping)
@@ -113,11 +116,14 @@ public:
             auto result = clip_on_mask(right.mesh(), mask, true);
             if (result->is_empty()) {
                 return Ignore{};
-            } else if (result.is_borrowed()) {
-                return Unchanged{Source::Right};
-            } else {
-                return Merged{std::move(result).into_owned()};
             }
+            return std::move(result).visit(
+                [](const Cow<SimpleMesh>::Borrowed &) -> Result {
+                    return Unchanged{Source::Right};
+                },
+                [](Cow<SimpleMesh>::Owned &&owned) -> Result {
+                    return Merged{std::move(owned.value)};
+                });
         }
 
         if constexpr (LeftStatus == Status::Missing && RightStatus == Status::Missing) {
