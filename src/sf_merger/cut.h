@@ -37,19 +37,21 @@ inline void cut_leaf_node(
     LOG_TRACE("Cutting mesh at {} using mask with {} vertices and {} triangles",
         id, mask.vertex_count(), mask.face_count());
     const Cow<SimpleMesh> clipped = clip_on_mask(mesh, mask, ctx.keep_inside);
-    if (clipped.is_borrowed()) {
-        LOG_TRACE("Mesh was fully inside the mask");
-        DEBUG_ASSERT_VAL(ctx.output.copy_from(id, ctx.input));
-    } else {
-        const SimpleMesh &clipped_mesh = clipped;
-        if (!clipped_mesh.is_empty()) {
-            LOG_TRACE("Mesh was clipped from {} vertices and {} triangles to {} vertices and {} triangles",
-                mesh.vertex_count(), mesh.face_count(), clipped_mesh.vertex_count(), clipped_mesh.face_count());
-            DEBUG_ASSERT_VAL(ctx.output.save(id, clipped_mesh));
-        } else {
-            LOG_TRACE("Mesh was fully outside the mask");
-        }
-    }
+    clipped.visit(
+        [&](const Cow<SimpleMesh>::Borrowed &) {
+            LOG_TRACE("Mesh was fully inside the mask");
+            DEBUG_ASSERT_VAL(ctx.output.copy_from(id, ctx.input));
+        },
+        [&](const Cow<SimpleMesh>::Owned &owned) {
+            const SimpleMesh &clipped_mesh = owned.value;
+            if (!clipped_mesh.is_empty()) {
+                LOG_TRACE("Mesh was clipped from {} vertices and {} triangles to {} vertices and {} triangles",
+                    mesh.vertex_count(), mesh.face_count(), clipped_mesh.vertex_count(), clipped_mesh.face_count());
+                DEBUG_ASSERT_VAL(ctx.output.save(id, clipped_mesh));
+            } else {
+                LOG_TRACE("Mesh was fully outside the mask");
+            }
+        });
 }
 
 inline void cut_virtual_node(
