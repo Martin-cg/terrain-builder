@@ -1,10 +1,10 @@
 # SF builder/merger border fixture
 
 This approximately 454 KB input fixture drives both SF builders and the SF
-merger. It retains two adjacent level-15 mask-border nodes: one valid merge and
-one merge that currently produces a malformed terrain file. The integration
-test intentionally requires both results to be readable, so the known defect
-makes the test fail.
+merger. It retains two adjacent level-15 mask-border nodes: one merge at a
+regular mask border and one at a point-touching mask border, which used to
+produce a malformed terrain file. The integration test requires both merged
+results to be readable and non-empty, so it fails if that defect returns.
 
 The fixture contains:
 
