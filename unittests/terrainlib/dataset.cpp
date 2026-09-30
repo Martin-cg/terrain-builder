@@ -108,6 +108,10 @@ TEST_CASE("datasets are as expected") {
         CHECK(d_mgi.pixelHeightIn(wgs84) == Approx((northern - southern) / 350));
         CHECK(d_mgi.gridResolution(wgs84) == Approx((northern - southern) / 350));
 
+        const glm::dvec2 pixel_size = d_mgi.pixelSizeIn(wgs84);
+        CHECK(pixel_size.x == Approx((eastern - western) / 620));
+        CHECK(pixel_size.y == Approx((northern - southern) / 350));
+
         const auto wgs84_grid = ctb::GlobalGeodetic(256);
         CHECK(wgs84_grid.zoomForResolution(d_mgi.gridResolution(wgs84)) == 7);
 

@@ -275,3 +275,7 @@ double Dataset::pixelHeightIn(const OGRSpatialReference &target_srs) const {
     const auto b = srs::non_exact_bounds_transform(bounds(), srs(), target_srs);
     return b.height() / heightInPixels();
 }
+
+glm::dvec2 Dataset::pixelSizeIn(const OGRSpatialReference &target_srs) const {
+    return glm::dvec2(this->pixelWidthIn(target_srs), this->pixelHeightIn(target_srs));
+}

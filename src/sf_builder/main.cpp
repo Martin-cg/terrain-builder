@@ -145,6 +145,7 @@ void log_dataset_overview(const Dataset &dataset) {
     const uint32_t bands = dataset.n_bands();
 
     const auto datasetSrs = dataset.srs();
+    const glm::dvec2 pixelSize = dataset.pixelSizeIn(datasetSrs);
     const auto bounds = dataset.bounds3d(true);
 
     const auto boundsEcef =
@@ -160,6 +161,7 @@ void log_dataset_overview(const Dataset &dataset) {
     LOG_INFO("Dataset");
     LOG_INFO("  name        : {}", name);
     LOG_INFO("  size        : {} x {} px | bands={}", widthPx, heightPx, bands);
+    LOG_INFO("  pixel size  : {:.3f} x {:.3f}", pixelSize.x, pixelSize.y);
     LOG_INFO("  srs         : {}", srs::friendly_name(datasetSrs));
     LOG_INFO("  bounds      : [{:.3f}, {:.3f}, {:.3f}] - [{:.3f}, {:.3f}, {:.3f}]",
              bounds.min.x, bounds.min.y, bounds.min.z,

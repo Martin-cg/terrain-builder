@@ -24,6 +24,7 @@
 #include <optional>
 #include <filesystem>
 
+#include <glm/vec2.hpp>
 #include <radix/tile.h>
 
 #include "error/Result.h"
@@ -73,6 +74,7 @@ public:
     [[nodiscard]] double gridResolution(const OGRSpatialReference &target_srs) const;
     [[nodiscard]] double pixelWidthIn(const OGRSpatialReference &target_srs) const;
     [[nodiscard]] double pixelHeightIn(const OGRSpatialReference &target_srs) const;
+    [[nodiscard]] glm::dvec2 pixelSizeIn(const OGRSpatialReference &target_srs) const;
 
 private:
     Dataset(const std::filesystem::path path, GDALDataset *dataset);
