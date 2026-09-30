@@ -276,7 +276,7 @@ public:
 
         this->ensure_indexed();
 
-        auto result = helpers::save_index_map(this->index().value(), this->_inner.layout());
+        auto result = helpers::save_index_map(*ASSERT_VAL(this->index()), this->_inner.layout());
         if (result.has_value()) {
             this->_index.dirty = false;
         }

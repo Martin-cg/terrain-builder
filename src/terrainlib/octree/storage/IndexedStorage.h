@@ -40,8 +40,8 @@ public:
     }
 
     const IndexMap& index() const noexcept {
-        DEBUG_ASSERT(this->is_indexed());
-        return Storage_<T, Codec>::index().value();
+        const auto index_opt = Storage_<T, Codec>::index();
+        return *ASSERT_VAL(index_opt);
     }
     void update_index() noexcept {
         Storage_<T, Codec>::update_index();
@@ -61,8 +61,8 @@ public:
 
 private:
     IndexMap& index_mut() noexcept {
-        DEBUG_ASSERT(this->is_indexed());
-        return Storage_<T, Codec>::index_mut().value();
+        std::optional<IndexMap> &index_opt = Storage_<T, Codec>::index_mut();
+        return *ASSERT_VAL(index_opt);
     }
 };
 

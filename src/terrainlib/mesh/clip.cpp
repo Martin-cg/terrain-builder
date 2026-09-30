@@ -469,8 +469,8 @@ Cow<const SimpleMesh> clip_on_bounds(const SimpleMesh &mesh, const radix::geomet
                     const glm::dvec3 outside1_vertex = vertices[outside1_tri_index];
                     const glm::dvec3 outside2_vertex = vertices[outside2_tri_index];
 
-                    const Intersection intersection1 = compute_intersection(radix::geometry::Edge{inside_vertex, outside1_vertex}, plane).value();
-                    const Intersection intersection2 = compute_intersection(radix::geometry::Edge{inside_vertex, outside2_vertex}, plane).value();
+                    const Intersection intersection1 = *ASSERT_VAL(compute_intersection(radix::geometry::Edge{inside_vertex, outside1_vertex}, plane));
+                    const Intersection intersection2 = *ASSERT_VAL(compute_intersection(radix::geometry::Edge{inside_vertex, outside2_vertex}, plane));
 
                     // Compute the uvs for the vertices and intersection points
                     const glm::dvec2 inside_uv = uvs[inside_tri_index];
@@ -513,8 +513,8 @@ Cow<const SimpleMesh> clip_on_bounds(const SimpleMesh &mesh, const radix::geomet
                     const glm::dvec3 inside1_vertex = vertices[inside1_tri_index];
                     const glm::dvec3 inside2_vertex = vertices[inside2_tri_index];
 
-                    const Intersection intersection1 = compute_intersection(radix::geometry::Edge{outside_vertex, inside1_vertex}, plane).value();
-                    const Intersection intersection2 = compute_intersection(radix::geometry::Edge{outside_vertex, inside2_vertex}, plane).value();
+                    const Intersection intersection1 = *ASSERT_VAL(compute_intersection(radix::geometry::Edge{outside_vertex, inside1_vertex}, plane));
+                    const Intersection intersection2 = *ASSERT_VAL(compute_intersection(radix::geometry::Edge{outside_vertex, inside2_vertex}, plane));
 
                     // Compute the Uvs for the vertices and intersection points
                     const glm::dvec2 outside_uv = uvs[outside_tri_index];
@@ -793,7 +793,8 @@ Cow<const SimpleMesh> clip_on_mesh(const SimpleMesh &mesh, const SimpleMesh &cli
     bool success;
     bool has_intersections;
     if (mesh.has_uvs()) {
-        UvMap uv_map = cgal_mesh.property_map<cgal::VertexIndex, glm::dvec2>("v:uv").value();
+        const auto uv_map_opt = cgal_mesh.property_map<cgal::VertexIndex, glm::dvec2>("v:uv");
+        UvMap uv_map = *ASSERT_VAL(uv_map_opt);
         UvInterpolatorVisitor<cgal::Mesh, UvMap> visitor(uv_map, cgal_mesh);
         const auto params = CGAL::Polygon_mesh_processing::parameters::visitor(visitor);
         success = CGAL::Polygon_mesh_processing::clip(cgal_mesh, cgal_clip_mesh, params);

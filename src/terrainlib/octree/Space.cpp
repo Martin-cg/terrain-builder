@@ -78,7 +78,7 @@ std::optional<Id> Space::find_node_at_level_containing_point(const glm::dvec3& p
 
     // TODO: this could be much more efficient
     while (current.level() < target_level) {
-        const auto children = current.children().value();
+        const auto children = *ASSERT_VAL(current.children());
         for (const auto& child : children) {
             const Bounds child_bounds = this->get_node_bounds(child);
             if (child_bounds.contains(point)) {

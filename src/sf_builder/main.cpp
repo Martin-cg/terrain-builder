@@ -150,7 +150,7 @@ void log_dataset_overview(const Dataset &dataset) {
 
     const octree::Space earth = octree::Space::earth();
     const auto enclosingNode =
-        earth.find_smallest_node_encompassing_bounds(boundsEcef).value();
+        *ASSERT_VAL(earth.find_smallest_node_encompassing_bounds(boundsEcef));
 
     const int32_t scaleLevel = static_cast<int32_t>(std::floor(std::log2(
         earth.bounds().size().x / glm::compMax(boundsEcef.size()))));

@@ -60,9 +60,7 @@ inline void cut_virtual_node(
     const MeshMask& mask
 ) {
     DEBUG_ASSERT(ctx.input.index().is(octree::NodeStatus::Virtual, id));
-    DEBUG_ASSERT(id.has_children());
-
-    const auto children = id.children().value();
+    const auto children = *ASSERT_VAL(id.children());
     for (const octree::Id& child_id : children) {
         // TODO: split mask based on inner planes instead
         const auto child_bounds = geometry::pad_bounds_relative(ctx.space.get_node_bounds(child_id), 0.125);

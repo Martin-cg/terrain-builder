@@ -349,9 +349,9 @@ inline alp::Result<uint64_t, io::Error> run_round(
     uint64_t merges = 0;
     for (const WorkerResult &result : workers.join()) {
         if (!result.has_value()) {
-            auto failure_result = result.error().narrow<io::Error>();
-            if (failure_result.has_value()) {
-                return alp::propagate(std::move(failure_result).value());
+            auto narrow_result = result.error().narrow<io::Error>();
+            if (narrow_result.has_value()) {
+                return alp::propagate(std::move(narrow_result).value());
             }
             continue;
         }
@@ -359,9 +359,10 @@ inline alp::Result<uint64_t, io::Error> run_round(
     }
 
     if (!read_result.has_value()) {
-        auto failure_result = read_result.error().narrow<io::Error>();
-        ASSERT(failure_result.has_value(), "the round was cancelled without any worker failing");
-        return alp::propagate(std::move(failure_result).value());
+        io::Error io_error = *ASSERT_VAL(
+            read_result.error().narrow<io::Error>(),
+            "the round was cancelled without any worker failing");
+        return alp::propagate(std::move(io_error));
     }
 
     ASSERT(ring.stream_state() != EntryRing::StreamState::Aborted, "the round aborted without any worker failing");

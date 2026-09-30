@@ -35,7 +35,7 @@ struct fmt::formatter<alp::BasicError<Es...>> {
         const std::string cause = error._code.message();
         fmt::format_context::iterator output = context.out();
 
-        const auto [origin, outer_frames] = split_first(frames).value();
+        const auto [origin, outer_frames] = *ASSERT_VAL(split_first(frames));
 
         switch (this->_form) {
         case Form::Message:
