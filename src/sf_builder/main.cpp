@@ -1,11 +1,14 @@
 #include <algorithm>
 #include <execution>
 #include <filesystem>
+#include <memory>
+#include <optional>
 #include <span>
+#include <variant>
 #include <vector>
 #include <cstdint>
+#include <cstdlib>
 
-#include <CLI/CLI.hpp>
 #include <fmt/core.h>
 #include <glm/glm.hpp>
 #include <glm/gtx/component_wise.hpp>
@@ -13,7 +16,10 @@
 #include <tbb/global_control.h>
 
 #include "Dataset.h"
+#include "cli.h"
 #include "error/log.h"
+#include "error/try.h"
+#include "error/utils.h"
 #include "log.h"
 #include "srs.h"
 #include "terrainbuilder.h"
@@ -23,15 +29,6 @@
 #include "ctb/GlobalGeodetic.hpp"
 #include "ctb/GlobalMercator.hpp"
 #include "ctb/Grid.hpp"
-
-OGRSpatialReference parse_srs(const std::string &user_input) {
-    const auto result = srs::from_user_input(user_input);
-    if (!result.has_value()) {
-        LOG_UNEXPECTED(result.error());
-        exit(1);
-    }
-    return result.value();
-}
 
 int32_t srs_dimension(const OGRSpatialReference &srs) {
     if (srs.IsCompound())
@@ -177,194 +174,96 @@ void log_dataset_overview(const Dataset &dataset) {
     LOG_INFO("  octree      : scale level={}", scaleLevel);
 }
 
-int run(std::span<char *> args) {
-    int argc = args.size();
-    char **argv = args.data();
-
-    CLI::App app{"sf_builder"};
-    app.allow_windows_style_options();
-    app.require_subcommand(1, 1);
-    argv = app.ensure_utf8(argv);
-
-    // === COMMON OPTIONS ===
-    std::filesystem::path dataset_path;
-    std::optional<std::filesystem::path> texture_base_path;
-    std::string mesh_srs_input = "EPSG:4978";
-    std::optional<uint32_t> min_texture_level;
-    std::optional<uint32_t> max_texture_level;
-    std::filesystem::path output_path;
-    spdlog::level::level_enum log_level = spdlog::level::level_enum::trace;
-
-    const std::map<std::string, spdlog::level::level_enum> log_level_names{
-        {"off", spdlog::level::level_enum::off},
-        {"critical", spdlog::level::level_enum::critical},
-        {"error", spdlog::level::level_enum::err},
-        {"warn", spdlog::level::level_enum::warn},
-        {"info", spdlog::level::level_enum::info},
-        {"debug", spdlog::level::level_enum::debug},
-        {"trace", spdlog::level::level_enum::trace}};
-
-    app.add_option("--dataset", dataset_path, "Path to a heightmap dataset file")
-        ->required()
-        ->check(CLI::ExistingFile);
-    app.add_option("--textures", texture_base_path, "Path to a folder containing texture tiles in the format of {zoom}/{col}/{row}.jpeg")
-        ->check(CLI::ExistingDirectory);
-    app.add_option("--mesh-srs", mesh_srs_input, "EPSG code of the target srs of the mesh positions")
-        ->default_val("EPSG:4978");
-    app.add_option("--min-texture-level", min_texture_level, "Minimum texture zoom level to use for assembling textures.")
-        ->needs("--textures");
-    app.add_option("--max-texture-level", max_texture_level, "Maximum texture zoom level to use for assembling textures.")
-        ->needs("--textures");
-    app.add_option("--verbosity", log_level, "Verbosity level of logging")
-        ->transform(CLI::CheckedTransformer(log_level_names, CLI::ignore_case));
-
-    // === SINGLE COMMAND ===
-    auto *single = app.add_subcommand("single", "Build a single reference mesh")
-                       ->fallthrough();
-
-    std::vector<double> target_bounds_data;
-    std::vector<uint32_t> target_tile_data;
-    std::vector<uint64_t> target_node_data;
-    std::string target_srs_input;
-    radix::tile::Scheme target_tile_scheme;
-
-    auto *target = single->add_option_group("target");
-    target->add_option("--bounds", target_bounds_data, "Target bounds for the reference mesh as \"{xmin} {width} {ymin} {height} [{zmin} {depth}]\"")
-        ->expected(4, 6);
-    target->add_option("--tile", target_tile_data, "Target tile id for the reference tile as \"{zoom} {x} {y}\"")
-        ->expected(3);
-    target->add_option("--node", target_node_data, "Target node id for the reference node as \"{zoom} {index}\" or \"{zoom} {x} {y} {z}\"")
-        ->expected(2, 4);
-    target->require_option(1);
-
-    single->add_option("--output", output_path, "Output path were the mesh is written to (.terrain, .gltf or .glb)")
-        ->required();
-
-    std::map<std::string, radix::tile::Scheme> scheme_str_map{
-        {"slippymap", radix::tile::Scheme::SlippyMap},
-        {"google", radix::tile::Scheme::SlippyMap},
-        {"tms", radix::tile::Scheme::Tms}};
-    single->add_option("--scheme", target_tile_scheme, "Tile scheme")
-        ->default_val(radix::tile::Scheme::SlippyMap)
-        ->needs("--tile")
-        ->transform(CLI::CheckedTransformer(scheme_str_map, CLI::ignore_case));
-
-    single->add_option("--srs", target_srs_input, "EPSG code of the srs of the target bounds or id");
-    single->callback([&]() {
-        if (target_srs_input.empty()) {
-            if (!target_bounds_data.empty()) {
-                target_srs_input = "EPSG:4978";
-            } else if (!target_tile_data.empty()) {
-                target_srs_input = "EPSG:3857";
-            } else if (!target_node_data.empty()) {
-                target_srs_input = "EPSG:4978";
-            }
-        }
-    });
-
-    // === BATCH COMMAND ===
-    auto *batch = app.add_subcommand("batch", "Build all nodes for a dataset at a given level")
-                      ->fallthrough();
-
-    octree::Id::Level target_level;
-    batch->add_option("--target-level", target_level, "Level of detail for batch generation")
-        ->required();
-    std::filesystem::path output_base_path;
-    batch->add_option("--output", output_base_path, "Output path were the meshes are written to.")
-        ->required();
-    std::string output_format;
-    batch->add_option("--format", output_format, "Output mesh format")
-        ->check(CLI::IsMember({".glb", ".gltf", ".terrain"}))
-        ->default_val(".terrain");
-    uint32_t num_threads = 0;
-    batch->add_option("--threads", num_threads, "Number of threads to use")
-        ->check(CLI::PositiveNumber);
-    bool overwrite_existing = false;
-    batch->add_flag("--overwrite", overwrite_existing, "Overwrite existing mesh files");
-
-    CLI11_PARSE(app, argc, argv);
-
-    Log::init(log_level);
-
-    alp::Result<Dataset, gdal::CplError> dataset_result = Dataset::open_raster(dataset_path);
-    if (!dataset_result.has_value()) {
-        LOG_UNEXPECTED(dataset_result.error());
-        return 1;
+std::unique_ptr<TileProvider> make_tile_provider(const cli::BaseArgs &args) {
+    if (!args.texture_base_path.has_value()) {
+        return nullptr;
     }
-    Dataset dataset = std::move(dataset_result).value();
-    const auto geo_transform_result = dataset.geo_transform();
-    if (!geo_transform_result.has_value()) {
-        LOG_UNEXPECTED(geo_transform_result.error());
-        return 1;
+
+    BasemapSchemeTilePathProvider basemap_provider(args.texture_base_path.value());
+    if (args.min_texture_level.has_value() || args.max_texture_level.has_value()) {
+        return std::make_unique<ZoomRangeTileProvider<BasemapSchemeTilePathProvider>>(
+            std::move(basemap_provider),
+            args.min_texture_level,
+            args.max_texture_level);
+    } else {
+        return std::make_unique<BasemapSchemeTilePathProvider>(std::move(basemap_provider));
     }
+}
+
+alp::Result<void> run(
+    const cli::SingleArgs &args,
+    Dataset &dataset,
+    const OGRSpatialReference &mesh_srs,
+    const OGRSpatialReference &texture_srs,
+    const TileProvider *tile_provider) {
+    ALP_TRY(OGRSpatialReference target_srs, srs::from_user_input(args.target_srs_input));
+    const radix::geometry::Aabb3d target_bounds = parse_target_bounds(
+        args.target_bounds_data,
+        args.target_node_data,
+        args.target_tile_data,
+        args.target_tile_scheme,
+        target_srs);
+
+    ALP_TRY(terrainbuilder::build_and_save_patch(
+        dataset,
+        target_srs,
+        target_bounds,
+        texture_srs,
+        tile_provider,
+        mesh_srs,
+        args.output_path));
+    return {};
+}
+
+alp::Result<void> run(
+    const cli::BatchArgs &args,
+    Dataset &dataset,
+    const OGRSpatialReference &mesh_srs,
+    const OGRSpatialReference &texture_srs,
+    const TileProvider *tile_provider) {
+    std::optional<tbb::global_control> tbb_control;
+    if (args.num_threads > 0) {
+        LOG_DEBUG("Requesting max parallelism of {}", args.num_threads);
+        tbb_control.emplace(tbb::global_control::max_allowed_parallelism, args.num_threads);
+    }
+    const auto actual_num_threads = tbb::global_control::active_value(tbb::global_control::max_allowed_parallelism);
+    const auto maybe_s = actual_num_threads == 1 ? "" : "s";
+    LOG_INFO("Using {} thread{} for batch processing.", actual_num_threads, maybe_s);
+
+    ALP_TRY(terrainbuilder::build_all_patches(
+        dataset,
+        args.target_level,
+        texture_srs,
+        tile_provider,
+        mesh_srs,
+        args.output_base_path,
+        args.output_format,
+        args.overwrite_existing));
+    return {};
+}
+
+alp::Result<void> run(const cli::Args &args) {
+    const cli::BaseArgs &base_args = std::visit([](const auto &args) -> const cli::BaseArgs & { return args; }, args);
+
+    ALP_TRY(Dataset dataset, Dataset::open_raster(base_args.dataset_path));
+    ALP_TRY(dataset.geo_transform());
     log_dataset_overview(dataset);
-    OGRSpatialReference mesh_srs = parse_srs(mesh_srs_input);
-    OGRSpatialReference texture_srs = srs::webmercator();
+    ALP_TRY(const OGRSpatialReference mesh_srs, srs::from_user_input(base_args.mesh_srs_input));
+    const OGRSpatialReference texture_srs = srs::webmercator();
+    const std::unique_ptr<TileProvider> tile_provider = make_tile_provider(base_args);
 
-    std::unique_ptr<TileProvider> tile_provider;
-    if (texture_base_path.has_value()) {
-        BasemapSchemeTilePathProvider basemap_provider(texture_base_path.value());
-        if (min_texture_level.has_value() || max_texture_level.has_value()) {
-            tile_provider = std::make_unique<ZoomRangeTileProvider<BasemapSchemeTilePathProvider>>(
-                std::move(basemap_provider),
-                min_texture_level,
-                max_texture_level);
-        } else {
-            tile_provider = std::make_unique<BasemapSchemeTilePathProvider>(std::move(basemap_provider));
-        }
-    }
-
-    if (*single) {
-        OGRSpatialReference target_srs = parse_srs(target_srs_input);
-        const radix::geometry::Aabb3d target_bounds = parse_target_bounds(
-            target_bounds_data,
-            target_node_data,
-            target_tile_data,
-            target_tile_scheme,
-            target_srs);
-
-        const auto result = terrainbuilder::build_and_save_patch(
-            dataset,
-            target_srs,
-            target_bounds,
-            texture_srs,
-            tile_provider.get(),
-            mesh_srs,
-            output_path);
-        if (!result.has_value()) {
-            LOG_UNEXPECTED(result.error());
-            return 1;
-        }
-    }
-
-    if (*batch) {
-        std::optional<tbb::global_control> tbb_control;
-        if (num_threads > 0) {
-            LOG_DEBUG("Requesting max parallelism of {}", num_threads);
-            tbb_control.emplace(tbb::global_control::max_allowed_parallelism, num_threads);
-        }
-        const auto actual_num_threads = tbb::global_control::active_value(tbb::global_control::max_allowed_parallelism);
-        const auto maybe_s = actual_num_threads == 1 ? "" : "s";
-        LOG_INFO("Using {} thread{} for batch processing.", actual_num_threads, maybe_s);
-
-        const auto result = terrainbuilder::build_all_patches(
-            dataset,
-            target_level,
-            texture_srs,
-            tile_provider.get(),
-            mesh_srs,
-            output_base_path,
-            output_format,
-            overwrite_existing);
-        if (!result.has_value()) {
-            LOG_UNEXPECTED(result.error());
-            return 1;
-        }
-    }
-
-    return 0;
+    return std::visit([&](const auto &args) { return run(args, dataset, mesh_srs, texture_srs, tile_provider.get()); }, args);
 }
 
 int main(int argc, char **argv) {
-    return run(std::span{argv, static_cast<size_t>(argc)});
+    const cli::Args args = cli::parse(argc, argv);
+    const auto log_level = std::visit([](const auto &args) { return args.log_level; }, args);
+    Log::init(log_level);
+
+    const alp::Result<void> result = run(args);
+    if (!result.has_value()) {
+        LOG_UNEXPECTED(result.error());
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
 }
