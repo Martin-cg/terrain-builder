@@ -29,6 +29,7 @@
 
 #include "error/Result.h"
 #include "gdal/CplError.h"
+#include "gdal/GeoTransform.h"
 #include "log.h"
 
 class GDALDataset;
@@ -58,6 +59,8 @@ public:
     Dataset &operator=(const Dataset &) = delete;
 
     [[nodiscard]] std::string name() const;
+
+    [[nodiscard]] alp::Result<gdal::GeoTransform, gdal::GeoTransformError> geo_transform() const;
 
     [[nodiscard]] radix::tile::SrsBounds bounds() const;
     [[nodiscard]] radix::tile::SrsAndHeightBounds bounds3d(bool approx_ok = false) const;

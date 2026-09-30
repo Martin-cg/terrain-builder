@@ -104,6 +104,14 @@ Dataset Dataset::clone() {
     return Dataset(this->m_path.value());
 }
 
+alp::Result<gdal::GeoTransform, gdal::GeoTransformError> Dataset::geo_transform() const {
+    ALP_TRY_CONTEXT(
+        gdal::GeoTransform transform,
+        gdal::GeoTransform::from_dataset(*this->m_gdal_dataset),
+        fmt::format("reading the geotransform of {}", this->name()));
+    return transform;
+}
+
 std::string Dataset::name() const {
     if (m_path.has_value()) {
         return m_path->stem().string();
@@ -123,10 +131,11 @@ std::string Dataset::name() const {
 Dataset::~Dataset() = default;
 
 radix::tile::SrsBounds Dataset::bounds() const {
-    std::array<double, 6> adfGeoTransform = {};
-    if (m_gdal_dataset->GetGeoTransform(adfGeoTransform.data()) != CE_None) {
+    const alp::Result<gdal::GeoTransform, gdal::GeoTransformError> transform_result = this->geo_transform();
+    if (!transform_result.has_value()) {
         throw std::runtime_error("Could not get transformation information from source dataset");
     }
+    const gdal::GeoTransform &transform = transform_result.value();
 
     // https://gdal.org/user/raster_data_model.html
     // gdal has a row/column raster format, where row 0 is the top most row.
@@ -134,16 +143,13 @@ radix::tile::SrsBounds Dataset::bounds() const {
     // computing bounds is going first from row/column to dataset SRS and then to target SRS
 
     // we don't support sheering or rotation for now
-    if (adfGeoTransform[2] != 0.0 || adfGeoTransform[4] != 0.0) {
+    if (!transform.is_axis_aligned()) {
         throw std::runtime_error("Dataset geo transform contains sheering or rotation. This is not supported!");
     }
 
-    const double westX = adfGeoTransform[0];
-    const double southY = adfGeoTransform[3] + (heightInPixels() * adfGeoTransform[5]);
-
-    const double eastX = adfGeoTransform[0] + (widthInPixels() * adfGeoTransform[1]);
-    const double northY = adfGeoTransform[3];
-    return {{westX, southY}, {eastX, northY}};
+    const glm::dvec2 north_west = transform.apply(glm::dvec2(0, 0));
+    const glm::dvec2 south_east = transform.apply(glm::dvec2(widthInPixels(), heightInPixels()));
+    return {{north_west.x, south_east.y}, {south_east.x, north_west.y}};
 }
 
 radix::tile::SrsAndHeightBounds Dataset::bounds3d(bool approx_ok) const {
