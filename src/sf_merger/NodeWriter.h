@@ -22,7 +22,7 @@ public:
 
     void write_node(const octree::Id &id, const SimpleMesh &mesh) {
         mesh::validate(mesh);
-        DEBUG_ASSERT_VAL(this->_storage.save(id, mesh));
+        alp::unwrap(this->_storage.save(id, mesh));
         auto p = this->_storage.path_for(id);
         // change extension to .png
         p.replace_extension(".png");
@@ -40,7 +40,7 @@ public:
                 }
                 DEBUG_ASSERT(status == octree::NodeStatus::Leaf);
 
-                DEBUG_ASSERT_VAL(this->_storage.copy_from(child_id, loader.storage()));
+                alp::unwrap(this->_storage.copy_from(child_id, loader.storage()));
             },
             octree::always_refine,
             id);

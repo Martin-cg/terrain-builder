@@ -34,6 +34,7 @@
 #include "ctb/Grid.hpp"
 #include "error/log.h"
 #include "error/try.h"
+#include "error/unwrap.h"
 #include "error/utils.h"
 #include "init.h"
 #include "log.h"
@@ -131,11 +132,7 @@ std::string Dataset::name() const {
 Dataset::~Dataset() = default;
 
 radix::tile::SrsBounds Dataset::bounds() const {
-    const alp::Result<gdal::GeoTransform, gdal::GeoTransformError> transform_result = this->geo_transform();
-    if (!transform_result.has_value()) {
-        throw std::runtime_error("Could not get transformation information from source dataset");
-    }
-    const gdal::GeoTransform &transform = transform_result.value();
+    const gdal::GeoTransform transform = alp::unwrap(this->geo_transform());
 
     // https://gdal.org/user/raster_data_model.html
     // gdal has a row/column raster format, where row 0 is the top most row.

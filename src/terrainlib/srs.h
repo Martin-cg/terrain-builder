@@ -36,6 +36,7 @@
 #include <radix/tile.h>
 
 #include "error/Result.h"
+#include "error/unwrap.h"
 #include "error/utils.h"
 #include "gdal/OgrError.h"
 
@@ -377,16 +378,16 @@ inline alp::Result<OGRSpatialReference, gdal::OgrError> from_user_input(const st
 }
 
 inline OGRSpatialReference ecef() {
-    return from_epsg(4978).value();
+    return alp::unwrap(from_epsg(4978));
 }
 inline OGRSpatialReference webmercator() {
-    return from_epsg(3857).value();
+    return alp::unwrap(from_epsg(3857));
 }
 inline OGRSpatialReference wgs84() {
-    return from_epsg(4326).value();
+    return alp::unwrap(from_epsg(4326));
 }
 inline OGRSpatialReference mgi() {
-    return from_epsg(4312).value();
+    return alp::unwrap(from_epsg(4312));
 }
 
 }

@@ -10,6 +10,7 @@
 #include <fmt/core.h>
 #include <fmt/format.h>
 
+#include "error/unwrap.h"
 #include "log.h"
 #include "octree/Id.h"
 #include "octree/NodeStatus.h"
@@ -187,7 +188,7 @@ octree::IndexedStorage open_path_indexed(const std::filesystem::path& path) {
     if (std::filesystem::is_directory(path)) {
         return octree::open_folder_indexed(path);
     } else {
-        return octree::open_index(path).value();
+        return alp::unwrap(octree::open_index(path));
     }
 }
 
