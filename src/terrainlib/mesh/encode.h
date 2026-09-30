@@ -6,12 +6,14 @@
 #include <meshoptimizer.h>
 
 #include "error/Result.h"
+#include "error/try.h"
 #include "error/utils.h"
+#include "io/UnsupportedFormat.h"
 #include "log.h"
 #include "mesh/EncodedMesh.h"
 #include "mesh/SimpleMesh.h"
 #include "mesh/encode_error.h"
-#include "mesh/io/texture.h"
+#include "texture/io.h"
 
 namespace mesh {
 
@@ -71,7 +73,7 @@ alp::Result<Encoded, EncodeError> encode(const Simple_<n_dims, T>& mesh, const E
         position_buf.resize(meshopt_encodeVertexBufferBound(vertex_count, position_size));
         const size_t pos_written = meshopt_encodeVertexBuffer(position_buf.data(), position_buf.size(), mesh.positions.data(), vertex_count, position_size);
         if (pos_written == 0) {
-            return alp::make_unexpected(EncodeError::PositionEncode);
+            return alp::make_unexpected(GeometryEncodeError::Positions);
         }
         position_buf.resize(pos_written);
     }
@@ -82,7 +84,7 @@ alp::Result<Encoded, EncodeError> encode(const Simple_<n_dims, T>& mesh, const E
         uv_buf.resize(meshopt_encodeVertexBufferBound(vertex_count, uv_size));
         const size_t uv_written = meshopt_encodeVertexBuffer(uv_buf.data(), uv_buf.size(), mesh.uvs.data(), vertex_count, uv_size);
         if (uv_written == 0) {
-            return alp::make_unexpected(EncodeError::UvEncode);
+            return alp::make_unexpected(GeometryEncodeError::Uvs);
         }
         uv_buf.resize(uv_written);
     }
@@ -96,7 +98,7 @@ alp::Result<Encoded, EncodeError> encode(const Simple_<n_dims, T>& mesh, const E
             reinterpret_cast<const unsigned int *>(mesh.triangles.data()),
             index_count);
         if (index_written == 0) {
-            return alp::make_unexpected(EncodeError::TriangleEncode);
+            return alp::make_unexpected(GeometryEncodeError::Triangles);
         }
         index_buf.resize(index_written);
     }
@@ -104,12 +106,7 @@ alp::Result<Encoded, EncodeError> encode(const Simple_<n_dims, T>& mesh, const E
     // Encode texture
     std::vector<uint8_t> texture_buf;
     if (mesh.has_texture()) {
-        try {
-            texture_buf = mesh::io::write_texture_to_encoded_buffer(mesh.texture.value(), options.texture_format);
-        } catch (const cv::Exception &e) {
-            LOG_ERROR("Failed while encoding texture {}", e.what());
-            return alp::make_unexpected(EncodeError::TextureEncode);
-        }
+        ALP_TRY_CONTEXT(texture_buf, texture::io::encode_to_bytes(mesh.texture.value(), options.texture_format), "encoding the texture");
     }
 
     const Encoded::Header header{
@@ -139,7 +136,7 @@ alp::Result<Simple_<n_dims, T>, DecodeError> decode(const Encoded &encoded, cons
     if (header.version != 1 ||
         header.n_dims != n_dims ||
         header.component_type != expected_component_type) {
-        return alp::make_unexpected(DecodeError::IncompatibleData);
+        return alp::make_unexpected(GeometryDecodeError::IncompatibleData);
     }
 
     using Mesh = Simple_<n_dims, T>;
@@ -152,7 +149,7 @@ alp::Result<Simple_<n_dims, T>, DecodeError> decode(const Encoded &encoded, cons
     mesh.positions.resize(vertex_count);
     result = meshopt_decodeVertexBuffer(mesh.positions.data(), vertex_count, position_size, encoded.positions.data(), encoded.positions.size());
     if (result != 0) {
-        return alp::make_unexpected(DecodeError::PositionDecode);
+        return alp::make_unexpected(GeometryDecodeError::Positions);
     }
 
     // Decode uvs
@@ -161,7 +158,7 @@ alp::Result<Simple_<n_dims, T>, DecodeError> decode(const Encoded &encoded, cons
         mesh.uvs.resize(vertex_count);
         result = meshopt_decodeVertexBuffer(mesh.uvs.data(), vertex_count, uv_size, encoded.uvs.data(), encoded.uvs.size());
         if (result != 0) {
-            return alp::make_unexpected(DecodeError::UvDecode);
+            return alp::make_unexpected(GeometryDecodeError::Uvs);
         }
     }
 
@@ -172,17 +169,12 @@ alp::Result<Simple_<n_dims, T>, DecodeError> decode(const Encoded &encoded, cons
     mesh.triangles.resize(face_count);
     result = meshopt_decodeIndexBuffer(mesh.triangles.data(), index_count, index_size, encoded.triangles.data(), encoded.triangles.size());
     if (result != 0) {
-        return alp::make_unexpected(DecodeError::TriangleDecode);
+        return alp::make_unexpected(GeometryDecodeError::Triangles);
     }
 
     // Decode texture
     if (!encoded.texture.empty()) {
-        try {
-            mesh.texture = mesh::io::read_texture_from_encoded_bytes(encoded.texture);
-        } catch (const cv::Exception &e) {
-            LOG_ERROR("Failed while decoding texture {}", e.what());
-            return alp::make_unexpected(DecodeError::TextureDecode);
-        }
+        ALP_TRY_CONTEXT(mesh.texture, texture::io::decode_bytes(encoded.texture, cv::IMREAD_UNCHANGED), "decoding the texture");
     }
 
     return mesh;

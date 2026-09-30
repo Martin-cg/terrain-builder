@@ -2,55 +2,59 @@
 
 #include <string_view>
 
+#include "error/Error.h"
+#include "io/UnsupportedFormat.h"
+#include "texture/io.h"
+
 namespace mesh {
 
-// A mesh that could not be encoded.
-enum class EncodeError {
-    PositionEncode,
-    UvEncode,
-    TriangleEncode,
-    TextureEncode
+// The part of a mesh's geometry that could not be encoded.
+enum class GeometryEncodeError {
+    Positions,
+    Uvs,
+    Triangles
 };
 
-inline std::string_view format_as(const EncodeError error) {
+inline std::string_view format_as(const GeometryEncodeError error) {
     switch (error) {
-    case EncodeError::PositionEncode:
+    case GeometryEncodeError::Positions:
         return "encoding the positions failed";
-    case EncodeError::UvEncode:
+    case GeometryEncodeError::Uvs:
         return "encoding the UVs failed";
-    case EncodeError::TriangleEncode:
+    case GeometryEncodeError::Triangles:
         return "encoding the triangles failed";
-    case EncodeError::TextureEncode:
-        return "encoding the texture failed";
     default:
         return "an unknown encoding failure";
     }
 }
 
-// An encoded mesh that could not be decoded.
-enum class DecodeError {
+// The part of an encoded mesh's geometry that could not be decoded.
+enum class GeometryDecodeError {
     IncompatibleData,
-    PositionDecode,
-    UvDecode,
-    TriangleDecode,
-    TextureDecode
+    Positions,
+    Uvs,
+    Triangles
 };
 
-inline std::string_view format_as(const DecodeError error) {
+inline std::string_view format_as(const GeometryDecodeError error) {
     switch (error) {
-    case DecodeError::IncompatibleData:
+    case GeometryDecodeError::IncompatibleData:
         return "the data is incompatible";
-    case DecodeError::PositionDecode:
+    case GeometryDecodeError::Positions:
         return "decoding the positions failed";
-    case DecodeError::UvDecode:
+    case GeometryDecodeError::Uvs:
         return "decoding the UVs failed";
-    case DecodeError::TriangleDecode:
+    case GeometryDecodeError::Triangles:
         return "decoding the triangles failed";
-    case DecodeError::TextureDecode:
-        return "decoding the texture failed";
     default:
         return "an unknown decoding failure";
     }
 }
+
+// An error from encoding a mesh.
+using EncodeError = alp::Error<GeometryEncodeError, ::io::UnsupportedFormat, texture::io::EncodeError>;
+
+// An error from decoding a mesh.
+using DecodeError = alp::Error<GeometryDecodeError, texture::io::DecodeError>;
 
 } // namespace mesh

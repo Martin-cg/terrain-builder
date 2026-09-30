@@ -26,7 +26,7 @@ public:
         auto p = this->_storage.path_for(id);
         // change extension to .png
         p.replace_extension(".png");
-        alp::unwrap(texture::io::write_to_path(mesh.texture.value_or(cv::Mat()), p));
+        alp::unwrap(texture::io::write_to_path(mesh.texture.value(), p));
     }
 
     void copy_subtree_to_output(

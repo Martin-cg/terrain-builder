@@ -15,7 +15,7 @@
 #include "io/utils.h"
 #include "log.h"
 #include "mesh/io/gltf.h"
-#include "mesh/io/texture.h"
+#include "texture/io.h"
 
 namespace mesh::io::gltf {
 
@@ -178,7 +178,7 @@ std::string data_uri_encode(unsigned char const *bytes_to_encode, unsigned int i
     return "data:application/octet-stream;base64," + base64_encode(bytes_to_encode, in_len);
 }
 
-std::optional<cv::Mat> load_texture_from_material(const cgltf_material &material) {
+alp::Result<std::optional<cv::Mat>, texture::io::DecodeError> load_texture_from_material(const cgltf_material &material) {
     if (!material.has_pbr_metallic_roughness || material.pbr_metallic_roughness.base_color_texture.texture == nullptr) {
         LOG_WARN("mesh material has no texture");
         return std::nullopt;
@@ -193,7 +193,7 @@ std::optional<cv::Mat> load_texture_from_material(const cgltf_material &material
     }
 
     const std::span<const uint8_t> raw_texture{cgltf_buffer_view_data(albedo_image.buffer_view), albedo_image.buffer_view->size};
-    cv::Mat texture = mesh::io::read_texture_from_encoded_bytes(raw_texture);
+    ALP_TRY(cv::Mat texture, texture::io::decode_bytes(raw_texture, cv::IMREAD_UNCHANGED));
     return texture;
 }
 
@@ -332,7 +332,7 @@ Result<SimpleMesh> load_from_raw(const RawMesh &raw, const LoadOptions& /* optio
 
     std::optional<cv::Mat> texture;
     if (mesh_primitive.material != nullptr) {
-        texture = load_texture_from_material(*mesh_primitive.material);
+        ALP_TRY_CONTEXT(texture, load_texture_from_material(*mesh_primitive.material), "decoding the mesh texture");
     }
 
     return SimpleMesh(indices, positionsd, uvsd, texture);
@@ -393,7 +393,7 @@ Result<void> save_to_path(
     const bool has_texture = terrain_mesh.has_texture();
     std::vector<uint8_t> texture_bytes;
     if (has_texture) {
-        texture_bytes = mesh::io::write_texture_to_encoded_buffer(terrain_mesh.texture.value(), options.texture_format);
+        ALP_TRY_CONTEXT(texture_bytes, texture::io::encode_to_bytes(terrain_mesh.texture.value(), options.texture_format), "encoding the mesh texture");
     }
 
     // Create a single buffer that holds all binary data (indices, vertices, textures)
