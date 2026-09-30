@@ -124,7 +124,7 @@ alp::Result<void, gdal::CplError, TileError, mesh::io::Error> build_and_save_pat
     const OGRSpatialReference &mesh_srs,
     const std::filesystem::path &output_path) {
     ALP_TRY(
-        std::optional<SimpleMesh> mesh_result,
+        std::optional<SimpleMesh> mesh_opt,
         build_patch(
             dataset,
             target_bounds_srs,
@@ -132,10 +132,10 @@ alp::Result<void, gdal::CplError, TileError, mesh::io::Error> build_and_save_pat
             texture_srs,
             tile_provider,
             mesh_srs));
-    if (!mesh_result.has_value()) {
+    if (!mesh_opt.has_value()) {
         return {};
     }
-    const SimpleMesh mesh = std::move(mesh_result).value();
+    const SimpleMesh mesh = std::move(mesh_opt).value();
 
     LOG_INFO("Writing mesh to output path {}", output_path);
 
@@ -173,7 +173,7 @@ alp::BasicResult<void, BuildError> build_and_save_node(
     const OGRSpatialReference &mesh_srs,
     octree::Storage &storage) {
     ALP_TRY_CONTEXT(
-        std::optional<SimpleMesh> mesh_result,
+        std::optional<SimpleMesh> mesh_opt,
         build_patch(
             dataset,
             ecef_srs,
@@ -182,11 +182,11 @@ alp::BasicResult<void, BuildError> build_and_save_node(
             tile_provider,
             mesh_srs),
         fmt::format("building node {}", node));
-    if (!mesh_result.has_value()) {
+    if (!mesh_opt.has_value()) {
         return {};
     }
-        
-    const SimpleMesh mesh = std::move(mesh_result).value();
+
+    const SimpleMesh mesh = std::move(mesh_opt).value();
     mesh::validate(mesh);
     ALP_TRY(storage.save(node, mesh));
     return {};

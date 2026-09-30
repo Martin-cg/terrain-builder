@@ -450,12 +450,12 @@ inline alp::Result<std::optional<AssembledTexture>, TileError> assemble_texture_
     // Start by transforming the input bounds into the srs the tiles are in.
     const radix::tile::SrsBounds encompassing_bounds = srs::encompassing_bounds_transfer(target_srs, grid.getSRS(), target_bounds);
     // Then we find the smallest tile (id) that encompasses these bounds.
-    const std::optional<radix::tile::Id> encompassing_tile_result = grid.findSmallestEncompassingTile(encompassing_bounds);
-    if (!encompassing_tile_result.has_value()) {
+    const std::optional<radix::tile::Id> encompassing_tile_opt = grid.findSmallestEncompassingTile(encompassing_bounds);
+    if (!encompassing_tile_opt.has_value()) {
         LOG_WARN("Texture target bounds lie outside the tile grid");
         return std::nullopt;
     }
-    radix::tile::Id smallest_encompassing_tile = encompassing_tile_result.value().to(radix::tile::Scheme::SlippyMap);
+    radix::tile::Id smallest_encompassing_tile = encompassing_tile_opt.value().to(radix::tile::Scheme::SlippyMap);
     LOG_TRACE("Smallest encompassing tile for texture bounds is {}", radix::tile::to_string(smallest_encompassing_tile));
 
     if (max_zoom.has_value() && smallest_encompassing_tile.zoom_level > max_zoom.value()) {
