@@ -19,6 +19,7 @@
 #include "Dataset.h"
 #include "ParallelTiler.h"
 #include "TopDownTiler.h"
+#include "../result_helpers.h"
 #include "ctb/GlobalGeodetic.hpp"
 #include "ctb/GlobalMercator.hpp"
 #include <catch2/catch_template_test_macros.hpp>
@@ -67,7 +68,7 @@ TEMPLATE_TEST_CASE("BottomUpTiler, using tms scheme", "", std::true_type, std::f
     SECTION("mercator / level 0 austria")
     {
         const auto grid = ctb::GlobalMercator();
-        auto dataset = Dataset::open_shared_raster(ALP_TEST_DATA_DIR "/austria/at_mgi.tif").value();
+        auto dataset = REQUIRE_VALUE(Dataset::open_shared_raster(ALP_TEST_DATA_DIR "/austria/at_mgi.tif"));
         const auto bounds = dataset->bounds(grid.getSRS());
         const auto tiler = TopDownTiler(grid, bounds, radix::tile::Border::No, scheme);
 
@@ -91,7 +92,7 @@ TEMPLATE_TEST_CASE("BottomUpTiler, using tms scheme", "", std::true_type, std::f
     SECTION("geodetic / level 0 austria")
     {
         const auto grid = ctb::GlobalGeodetic();
-        auto dataset = Dataset::open_shared_raster(ALP_TEST_DATA_DIR "/austria/at_mgi.tif").value();
+        auto dataset = REQUIRE_VALUE(Dataset::open_shared_raster(ALP_TEST_DATA_DIR "/austria/at_mgi.tif"));
         const auto bounds = dataset->bounds(grid.getSRS());
         const auto tiler = TopDownTiler(grid, bounds, radix::tile::Border::No, scheme);
 
