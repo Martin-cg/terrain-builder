@@ -39,3 +39,22 @@ inline PartitionToClusters invert_partitioning(const Partitioning &partitioning)
     }
     return partition_to_clusters;
 }
+
+// Renumbers the partitions so that none is empty, keeping their order.
+inline void remove_empty_partitions_inplace(Partitioning &partitioning) {
+    const std::vector<uint32_t> sizes = count_partition_sizes(partitioning);
+
+    std::vector<uint32_t> remap(partitioning.partition_count, 0);
+    uint32_t next_index = 0;
+    for (const auto [partition, size] : enumerate<uint32_t>(sizes)) {
+        remap[partition] = next_index;
+        if (size > 0) {
+            next_index++;
+        }
+    }
+
+    for (uint32_t &partition : partitioning.cluster_partitions) {
+        partition = remap[partition];
+    }
+    partitioning.partition_count = next_index;
+}

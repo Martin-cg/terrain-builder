@@ -110,6 +110,8 @@ if(TARGET dagbuilderlib)
         dag_builder/query.cpp
         dag_builder/reprojection.cpp
         dag_builder/merge_clusterings.cpp
+        dag_builder/partition.cpp
+        dag_builder/partitioning.cpp
         dag_builder/weld.cpp
         dag_builder/slice.cpp
         dag_builder/texture_reprojection.cpp
