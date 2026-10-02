@@ -1,7 +1,6 @@
 #include <algorithm>
 #include <cstdint>
 #include <optional>
-#include <system_error>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -55,7 +54,7 @@ std::optional<Clustering> load_and_clusterize_mesh(
 
     if (!result) {
         const ::io::FileError *file_error = result.error().get_if<::io::FileError>();
-        if (file_error == nullptr || *file_error != std::errc::no_such_file_or_directory) {
+        if (file_error == nullptr || !file_error->is_not_found()) {
             LOG_UNEXPECTED(result.error());
         }
         return std::nullopt;

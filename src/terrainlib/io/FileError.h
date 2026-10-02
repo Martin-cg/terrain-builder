@@ -23,6 +23,12 @@ public:
         return this->_code == condition;
     }
 
+    // Whether the code reports that some element of the path does not exist.
+    [[nodiscard]]
+    bool is_not_found() const {
+        return this->_code == std::errc::no_such_file_or_directory || this->_code == std::errc::not_a_directory;
+    }
+
     // The code the operation reported.
     const std::error_code &code() const {
         return this->_code;
