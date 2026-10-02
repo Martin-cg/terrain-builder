@@ -184,6 +184,11 @@ template <std::integral T>
 }
 
 template <std::integral T>
+[[nodiscard]] constexpr T saturating_inc(const T value) noexcept {
+    return saturating_add(value, T{1});
+}
+
+template <std::integral T>
 [[nodiscard]] constexpr T saturating_sub(const T lhs, const T rhs) noexcept {
     T result;
 
@@ -196,6 +201,11 @@ template <std::integral T>
     } else {
         return rhs > T{0} ? std::numeric_limits<T>::min() : std::numeric_limits<T>::max();
     }
+}
+
+template <std::integral T>
+[[nodiscard]] constexpr T saturating_dec(const T value) noexcept {
+    return saturating_sub(value, T{1});
 }
 
 [[nodiscard]] inline constexpr uint32_t next_power_of_two(uint32_t n) noexcept {
