@@ -59,7 +59,7 @@ target_include_directories(zpp_bits SYSTEM INTERFACE ${zpp_bits_SOURCE_DIR})
 
 alp_add_git_repository(libassert URL https://github.com/jeremy-rifkin/libassert.git COMMITISH v2.1.0)
 alp_add_git_repository(magic_enum URL https://github.com/Neargye/magic_enum.git COMMITISH v0.9.7)
-alp_add_git_repository(meshoptimizer URL https://github.com/zeux/meshoptimizer.git COMMITISH v1.0.1)
+alp_add_git_repository(meshoptimizer URL https://github.com/zeux/meshoptimizer.git COMMITISH v1.3)
 
 alp_add_git_repository(wideinteger URL https://github.com/ckormanyos/wide-integer.git COMMITISH 719cbbd557fe974f48b055568e2b149b2444bee9)
 
