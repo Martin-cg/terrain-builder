@@ -25,6 +25,7 @@
 #include "octree/storage/codec/Codec.h"
 #include "octree/storage/defaults.h"
 #include "octree/storage/helpers.h"
+#include "optional_utils.h"
 
 namespace octree {
 
@@ -248,12 +249,7 @@ public:
     }
     
     std::optional<std::reference_wrapper<const IndexMap>> index() const noexcept {
-        // I miss Option::as_ref
-        if (this->_index.map.has_value()) {
-            return this->_index.map.value();
-        } else {
-            return std::nullopt;
-        }
+        return as_ref(this->_index.map);
     }
 
     std::optional<std::unique_ptr<cache::ICache<T>>> &cache() noexcept {

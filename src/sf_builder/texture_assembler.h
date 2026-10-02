@@ -19,6 +19,7 @@
 #include "geometry/geometry.h"
 #include "numeric/glm_math.h"
 #include "numeric/int_math.h"
+#include "optional_utils.h"
 #include "srs.h"
 
 #include "error/try.h"
@@ -58,9 +59,9 @@ namespace terrainbuilder {
     // It can happen that the root tile is very large because the target tile was (slightly) over the tile border
     // at a high zoom level. So we try to estimate the actual zoom level of the target bounds and recurse at least
     // to that level to find relevant textures.
-    if (!min_zoom_level_to_examine.has_value()) {
-        min_zoom_level_to_examine = estimate_zoom_level(root_tile.zoom_level, grid.srsBounds(root_tile, false), target_bounds) + 1;
-    }
+    const uint32_t effective_min_zoom_level_to_examine = unwrap_or_else(min_zoom_level_to_examine, [&] {
+        return estimate_zoom_level(root_tile.zoom_level, grid.srsBounds(root_tile, false), target_bounds) + 1;
+    });
     
     // A list of tiles determined to be relevant for the target bounds.
     std::vector<radix::tile::Id> tiles_to_splatter;
@@ -82,7 +83,7 @@ namespace terrainbuilder {
 
         // If we are not deep enough yet, recurse further down.
         bool should_recurse;
-        if (tile.zoom_level + 1 <= min_zoom_level_to_examine.value()) {
+        if (tile.zoom_level + 1 <= effective_min_zoom_level_to_examine) {
             // Minimum zoom level to examine not yet reached.
             should_recurse = true;
         } else {
