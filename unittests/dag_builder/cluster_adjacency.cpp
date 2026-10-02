@@ -108,3 +108,24 @@ TEST_CASE("compute_cluster_adjacency handles an empty clustering", "[cluster_adj
 
     CHECK(adjacency.segment_count() == 0);
 }
+
+TEST_CASE("count_vertex_adjacent_clusters counts the clusters using each vertex", "[cluster_adjacency]") {
+    Clustering clustering = make_quad_grid();
+    clustering.positions.push_back({10.0, 0.0, 0.0});
+
+    // Corners belong to one quad, edge midpoints to two, the centre to all four, and the added vertex to none.
+    CHECK(count_vertex_adjacent_clusters(clustering) == std::vector<uint32_t>{1, 2, 1, 2, 4, 2, 1, 2, 1, 0});
+}
+
+TEST_CASE("count_vertex_adjacent_clusters saturates at the largest count", "[cluster_adjacency]") {
+    // 256 triangles fanning around vertex 0, one cluster each, one more than uint8_t can count.
+    Clustering clustering;
+    clustering.positions.resize(513);
+    for (const uint32_t i : range<uint32_t>(256)) {
+        clustering.clusters.push_back(Cluster{.id = i, .vertex_indices = {0, 2 * i + 1, 2 * i + 2}, .local_triangles = {{0, 1, 2}}});
+    }
+
+    std::vector<uint8_t> expected(513, 1);
+    expected[0] = 255;
+    CHECK(count_vertex_adjacent_clusters<uint8_t>(clustering) == expected);
+}
