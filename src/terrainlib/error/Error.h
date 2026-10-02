@@ -156,4 +156,8 @@ private:
     Trace _trace;
 };
 
+// Whether an error of type `ErrorType` can hold a code of type `E`.
+template <typename ErrorType, typename E>
+inline constexpr bool can_hold = ErrorType::template can_hold<E>;
+
 } // namespace alp
