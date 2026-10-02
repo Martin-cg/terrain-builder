@@ -26,6 +26,7 @@ template <glm::length_t n_dims, typename T>
 std::unordered_set<glm::uvec2> find_boundary_edges(const mesh::Simple_<n_dims, T> &mesh);
 std::unordered_set<glm::uvec2> find_boundary_edges(const std::span<const glm::uvec3> triangles);
 void find_boundary_edges(const std::span<const glm::uvec3> triangles, std::unordered_set<glm::uvec2> &boundary);
+void find_boundary_edges(const std::span<const glm::uvec3> triangles, std::vector<glm::uvec2> &boundary);
 
 template <glm::length_t n_dims, typename T>
 std::unordered_set<uint32_t> find_boundary_triangles(const mesh::View_<n_dims, T> &mesh);

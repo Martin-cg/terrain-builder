@@ -159,6 +159,55 @@ TEST_CASE("mesh::find_boundary_edges", "[mesh][connectivity][boundary]") {
     }
 }
 
+TEST_CASE("mesh::find_boundary_edges into a vector", "[mesh][connectivity][boundary]") {
+    SECTION("leaves out the edge two triangles share") {
+        const std::vector<glm::uvec3> triangles = {
+            {0, 1, 2},
+            {1, 3, 2}};
+
+        std::vector<glm::uvec2> edges;
+        mesh::find_boundary_edges(triangles, edges);
+
+        const std::vector<glm::uvec2> expected = {
+            {0, 1}, {2, 0}, {1, 3}, {3, 2}};
+        CHECK_THAT(edges, Catch::Matchers::UnorderedEquals(expected));
+    }
+
+    SECTION("keeps the winding the triangle gave each edge") {
+        const std::vector<glm::uvec3> triangles = {{0, 2, 1}};
+
+        std::vector<glm::uvec2> edges;
+        mesh::find_boundary_edges(triangles, edges);
+
+        const std::vector<glm::uvec2> expected = {
+            {0, 2}, {2, 1}, {1, 0}};
+        CHECK_THAT(edges, Catch::Matchers::UnorderedEquals(expected));
+    }
+
+    SECTION("leaves out an edge three triangles share") {
+        const std::vector<glm::uvec3> triangles = {
+            {0, 1, 2},
+            {1, 0, 3},
+            {0, 1, 4}};
+
+        std::vector<glm::uvec2> edges;
+        mesh::find_boundary_edges(triangles, edges);
+
+        const std::vector<glm::uvec2> expected = {
+            {1, 2}, {2, 0}, {0, 3}, {3, 1}, {1, 4}, {4, 0}};
+        CHECK_THAT(edges, Catch::Matchers::UnorderedEquals(expected));
+    }
+
+    SECTION("finds nothing without triangles") {
+        const std::vector<glm::uvec3> triangles;
+
+        std::vector<glm::uvec2> edges = {{7, 8}};
+        mesh::find_boundary_edges(triangles, edges);
+
+        CHECK(edges.empty());
+    }
+}
+
 TEST_CASE("mesh::find_boundary_vertices", "[mesh][connectivity][boundary]") {
     SECTION("outer vertices of a closed fan") {
         const std::vector<glm::uvec3> triangles = {

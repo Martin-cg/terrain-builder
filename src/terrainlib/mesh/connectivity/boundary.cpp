@@ -1,4 +1,7 @@
+#include <algorithm>
 #include <ranges>
+#include <tuple>
+#include <vector>
 #include <span>
 #include <unordered_set>
 #include <unordered_map>
@@ -19,6 +22,34 @@ void find_boundary_edges(const std::span<const glm::uvec3> triangles, std::unord
     detail::for_each_boundary_halfedge(triangles, [&](const glm::uvec2 &edge, const uint32_t) {
         boundary.insert(edge);
     });
+}
+
+void find_boundary_edges(const std::span<const glm::uvec3> triangles, std::vector<glm::uvec2> &boundary) {
+    boundary.clear();
+    boundary.reserve(triangles.size() * 3);
+    for_each_halfedge(triangles, [&](const glm::uvec2 &edge) {
+        boundary.push_back(edge);
+    }, /* normalize */ false);
+
+    const auto normalized_less = [](const glm::uvec2 first, const glm::uvec2 second) {
+        const glm::uvec2 a = normalize_edge(first);
+        const glm::uvec2 b = normalize_edge(second);
+        return std::tie(a.x, a.y) < std::tie(b.x, b.y);
+    };
+    std::ranges::sort(boundary, normalized_less);
+
+    const auto same_edge = [](const glm::uvec2 first, const glm::uvec2 second) {
+        return normalize_edge(first) == normalize_edge(second);
+    };
+    // An edge is on the boundary when only one triangle holds it.
+    uint32_t boundary_count = 0;
+    for (const auto occurrences : boundary | std::views::chunk_by(same_edge)) {
+        if (std::ranges::size(occurrences) == 1) {
+            boundary[boundary_count] = occurrences.front();
+            boundary_count++;
+        }
+    }
+    boundary.resize(boundary_count);
 }
 
 void find_boundary_triangles(const std::span<const glm::uvec3> triangles, std::unordered_set<uint32_t>& boundary_triangles) {
