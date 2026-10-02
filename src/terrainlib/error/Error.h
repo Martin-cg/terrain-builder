@@ -38,7 +38,7 @@ public:
 
     // Whether this error can hold a code of type E.
     template <typename E>
-    static constexpr bool accepts = is_erased ? ErrorCode<E> && std::copy_constructible<E> : OneOf<E, Es...>;
+    static constexpr bool can_hold = is_erased ? ErrorCode<E> && std::copy_constructible<E> : OneOf<E, Es...>;
 
     // Whether this error can narrow to the codes Fs, of which there is at least one.
     template <ErrorCodes... Fs>
@@ -88,7 +88,7 @@ public:
     }
 
     // The held code if it is an E, otherwise null.
-    template <typename E> requires(accepts<E>)
+    template <typename E> requires(can_hold<E>)
     [[nodiscard]]
     const E *get_if() const {
         return this->_code.template get_if<E>();
@@ -101,14 +101,14 @@ public:
     }
 
     // Whether this error holds a code of type E.
-    template <typename E> requires(accepts<E>)
+    template <typename E> requires(can_hold<E>)
     [[nodiscard]]
     bool holds() const {
         return this->get_if<E>() != nullptr;
     }
 
     // Whether this error holds `code`.
-    template <typename E> requires(accepts<E> && std::equality_comparable<E>)
+    template <typename E> requires(can_hold<E> && std::equality_comparable<E>)
     [[nodiscard]]
     bool holds(const E &code) const {
         const E *held = this->get_if<E>();
