@@ -12,7 +12,7 @@
 
 #include "error/try.h"
 #include "error/utils.h"
-#include "io/utils.h"
+#include "io/filesystem.h"
 #include "log.h"
 #include "mesh/io/gltf.h"
 #include "texture/io.h"
@@ -678,7 +678,7 @@ Result<void> save_to_path(
 
     // ********************* Save the GLTF data to a file ********************* //
     const auto context = alp::make_context("saving a glTF mesh to {}", path);
-    ALP_TRY_CONTEXT(::io::utils::create_parent_directories(path), context);
+    ALP_TRY_CONTEXT(::io::filesystem::create_parent_directories(path), context);
     cgltf_options gltf_options = {};
     if (binary_output) {
         gltf_options.type = cgltf_file_type_glb;

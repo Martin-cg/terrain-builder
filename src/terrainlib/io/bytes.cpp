@@ -6,7 +6,7 @@
 #include "error/try.h"
 #include "error/utils.h"
 #include "io/bytes.h"
-#include "io/utils.h"
+#include "io/filesystem.h"
 #include "log.h"
 
 namespace io {
@@ -16,7 +16,7 @@ alp::Result<void, FileError> write_bytes_to_path(const std::span<const uint8_t> 
     const auto context = alp::make_context("writing bytes to {}", path);
 
     if (make_dirs) {
-        ALP_TRY_CONTEXT(utils::create_parent_directories(path), context);
+        ALP_TRY_CONTEXT(filesystem::create_parent_directories(path), context);
     }
 
     // A stream reports no reason for a failure, so it becomes a general io error.

@@ -9,7 +9,6 @@ add_library(terrainlib
     gdal/GeoTransform.cpp
 
     io/bytes.cpp
-    io/utils.cpp
 
     mesh/connectivity/adjacency.cpp
     mesh/connectivity/boundary.cpp

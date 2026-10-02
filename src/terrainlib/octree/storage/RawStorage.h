@@ -11,7 +11,7 @@
 #include "error/try.h"
 #include "error/utils.h"
 #include "io/FileError.h"
-#include "io/utils.h"
+#include "io/filesystem.h"
 #include "octree/Id.h"
 #include "octree/disk/Layout.h"
 #include "octree/storage/codec/Codec.h"
@@ -81,7 +81,7 @@ public:
                     .context(context));
         }
 
-        ALP_TRY_CONTEXT(io::utils::create_parent_directories(target_path), context);
+        ALP_TRY_CONTEXT(io::filesystem::create_parent_directories(target_path), context);
 
         std::filesystem::create_hard_link(source_path, target_path, code);
         if (code) {
