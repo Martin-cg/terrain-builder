@@ -1,5 +1,4 @@
 #include <cstdint>
-#include <unordered_map>
 #include <vector>
 
 #include <glm/glm.hpp>
@@ -12,53 +11,25 @@
 
 namespace {
 
-Clustering make_clustering(
-    const std::vector<glm::dvec3> &positions,
-    const std::vector<std::vector<glm::uvec3>> &clusters) {
-    Clustering clustering;
-    clustering.positions = positions;
-
-    for (const std::vector<glm::uvec3> &triangles : clusters) {
-        Cluster cluster;
-        cluster.id = clustering.clusters.size();
-
-        std::unordered_map<uint32_t, uint32_t> local_of_global;
-        const auto take = [&](const uint32_t global) {
-            const auto [entry, inserted] = local_of_global.emplace(global, cluster.vertex_count());
-            if (inserted) {
-                cluster.vertex_indices.push_back(global);
-            }
-            return entry->second;
-        };
-
-        for (const glm::uvec3 &triangle : triangles) {
-            cluster.local_triangles.emplace_back(take(triangle.x), take(triangle.y), take(triangle.z));
-        }
-        clustering.clusters.push_back(std::move(cluster));
-    }
-
-    return clustering;
-}
-
 bool are_neighbours(const ClusterAdjacency &adjacency, const uint32_t first, const uint32_t second) {
     return contains(adjacency.segment(first), second);
 }
 
 // Four quads of a 3x3 grid, one cluster each, all meeting at the centre vertex 4.
 Clustering make_quad_grid() {
-    std::vector<glm::dvec3> positions;
-    for (const uint32_t row : range<uint32_t>(3)) {
-        for (const uint32_t column : range<uint32_t>(3)) {
-            positions.emplace_back(column, row, 0.0);
-        }
-    }
-
-    return make_clustering(positions, {
-        {{0, 1, 4}, {0, 4, 3}},
-        {{1, 2, 5}, {1, 5, 4}},
-        {{3, 4, 7}, {3, 7, 6}},
-        {{4, 5, 8}, {4, 8, 7}},
-    });
+    Clustering clustering;
+    clustering.positions = {
+        {0.0, 0.0, 0.0}, {1.0, 0.0, 0.0}, {2.0, 0.0, 0.0},
+        {0.0, 1.0, 0.0}, {1.0, 1.0, 0.0}, {2.0, 1.0, 0.0},
+        {0.0, 2.0, 0.0}, {1.0, 2.0, 0.0}, {2.0, 2.0, 0.0},
+    };
+    clustering.clusters = {
+        Cluster{.id = 0, .vertex_indices = {0, 1, 4, 3}, .local_triangles = {{0, 1, 2}, {0, 2, 3}}},
+        Cluster{.id = 1, .vertex_indices = {1, 2, 5, 4}, .local_triangles = {{0, 1, 2}, {0, 2, 3}}},
+        Cluster{.id = 2, .vertex_indices = {3, 4, 7, 6}, .local_triangles = {{0, 1, 2}, {0, 2, 3}}},
+        Cluster{.id = 3, .vertex_indices = {4, 5, 8, 7}, .local_triangles = {{0, 1, 2}, {0, 2, 3}}},
+    };
+    return clustering;
 }
 
 } // namespace
@@ -82,9 +53,7 @@ TEST_CASE("compute_cluster_adjacency reports clusters sharing only a vertex", "[
 TEST_CASE("compute_cluster_adjacency leaves clusters sharing nothing apart", "[cluster_adjacency]") {
     Clustering clustering = make_quad_grid();
     clustering.positions.insert(clustering.positions.end(), {{10.0, 0.0, 0.0}, {11.0, 0.0, 0.0}, {10.0, 1.0, 0.0}});
-
-    const Clustering detached = make_clustering(clustering.positions, {{{9, 10, 11}}});
-    clustering.clusters.push_back(detached.clusters.front());
+    clustering.clusters.push_back(Cluster{.id = 4, .vertex_indices = {9, 10, 11}, .local_triangles = {{0, 1, 2}}});
 
     const ClusterAdjacency adjacency = compute_cluster_adjacency(clustering);
     CHECK(adjacency.segment(4).empty());
@@ -112,9 +81,12 @@ TEST_CASE("compute_cluster_adjacency lists every cluster a vertex is shared with
 
 TEST_CASE("compute_cluster_adjacency names each neighbour once", "[cluster_adjacency]") {
     // 0 and 1 share two vertices, so a naive gather would list the neighbour twice.
-    const Clustering clustering = make_clustering(
-        {{0.0, 0.0, 0.0}, {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {1.0, 1.0, 0.0}},
-        {{{0, 1, 2}}, {{1, 3, 2}}});
+    Clustering clustering;
+    clustering.positions = {{0.0, 0.0, 0.0}, {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {1.0, 1.0, 0.0}};
+    clustering.clusters = {
+        Cluster{.id = 0, .vertex_indices = {0, 1, 2}, .local_triangles = {{0, 1, 2}}},
+        Cluster{.id = 1, .vertex_indices = {1, 3, 2}, .local_triangles = {{0, 1, 2}}},
+    };
 
     const ClusterAdjacency adjacency = compute_cluster_adjacency(clustering);
     CHECK(adjacency.segment(0).size() == 1);
