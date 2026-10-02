@@ -342,15 +342,13 @@ Cow<SimpleMesh> clip_on_bounds(const SimpleMesh &mesh, const radix::geometry::Aa
     // Create another simpler mapping for the vertices copied directly from the input mesh
     const uint32_t invalid_index = static_cast<uint32_t>(-1);
     std::vector<uint32_t> position_mapping(mesh.vertex_count(), invalid_index);
-    auto add_original_vertex = [&](const uint32_t original_index, const glm::dvec3 &position, const glm::dvec2 &uv) {
+    auto add_original_vertex = [&](const uint32_t original_index) {
         uint32_t &mapped = position_mapping[original_index];
         if (mapped == invalid_index) {
             mapped = new_positions.size();
-            DEBUG_ASSERT(position == mesh.positions[original_index]);
-            new_positions.push_back(position);
+            new_positions.push_back(mesh.positions[original_index]);
             if (mesh.has_uvs()) {
-                DEBUG_ASSERT(uv == mesh.uvs[original_index]);
-                new_uvs.push_back(uv);
+                new_uvs.push_back(mesh.uvs[original_index]);
             }
         }
         return mapped;
@@ -401,7 +399,7 @@ Cow<SimpleMesh> clip_on_bounds(const SimpleMesh &mesh, const radix::geometry::Aa
             // All vertices are in bounds, so we can directly add the vertex to the result mesh
             glm::uvec3 new_triangle;
             for (uint8_t k = 0; k < 3; k++) {
-                new_triangle[k] = add_original_vertex(source_triangle[k], source_vertices[k], source_uvs[k]);
+                new_triangle[k] = add_original_vertex(source_triangle[k]);
             }
             new_triangles.push_back(new_triangle);
             continue;
@@ -592,7 +590,7 @@ Cow<SimpleMesh> clip_on_bounds(const SimpleMesh &mesh, const radix::geometry::Aa
                     using V = std::decay_t<decltype(v)>;
                     if constexpr (std::is_same_v<V, VertexProvenance::Original>) {
                         // We have a vertex in the original mesh -> look up in the boolean vector
-                        return add_original_vertex(v.vertex_index, position, uv);
+                        return add_original_vertex(v.vertex_index);
                     } else {
                         // We have a vertex not in the original mesh -> look up in the spatial hash map
                         return add_intersection_vertex(v, position, uv);
