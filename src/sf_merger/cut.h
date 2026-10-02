@@ -125,7 +125,7 @@ inline void cut_dataset(
     LOG_TRACE("Creating output dataset at {}", output_path);
     std::filesystem::create_directories(output_path);
 
-    octree::IndexedStorage output_dataset = octree::open_folder_indexed(output_path, octree::OpenOptions(octree::disk::layout::strategy::make_default(), ".glb"));
+    octree::IndexedStorage output_dataset = alp::unwrap(octree::open_folder_indexed(output_path, octree::OpenOptions(octree::disk::layout::strategy::make_default(), ".glb")));
     if (!output_dataset.index().empty()) {
         LOG_ERROR_AND_EXIT("Output dataset has to be empty.");
     }

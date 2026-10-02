@@ -30,12 +30,12 @@ alp::Result<void> export_node(const cli::Args &args) {
 
 [[nodiscard]]
 alp::Result<void> export_storage(const cli::Args &args) {
-    const octree::IndexedDagStorage input_storage = octree::open_folder_indexed<dag::ClusterBatch>(args.input_path);
+    ALP_TRY(const octree::IndexedDagStorage input_storage, octree::open_folder_indexed<dag::ClusterBatch>(args.input_path));
 
-    octree::MeshStorage output_storage = octree::open_folder<mesh::Simple, octree::MeshCodec>(
+    ALP_TRY(octree::MeshStorage output_storage, (octree::open_folder<mesh::Simple, octree::MeshCodec>(
         args.output_path,
         false,
-        octree::OpenOptions{.preferred_extension_with_dot = ".glb"});
+        octree::OpenOptions{.preferred_extension_with_dot = ".glb"})));
     output_storage.settings().allow_overwrite = true;
 
     size_t exported_count = 0;

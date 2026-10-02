@@ -4,6 +4,9 @@
 
 #include <libassert/assert.hpp>
 
+#include "error/Result.h"
+#include "error/try.h"
+#include "io/FileError.h"
 #include "log.h"
 #include "octree/Id.h"
 #include "octree/IndexMap.h"
@@ -18,10 +21,11 @@ namespace octree {
 template <typename T = DefaultT, CodecFor<T> Codec = DefaultCodecFor<T>>
 class IndexedStorage_ : public Storage_<T, Codec> {
 public:
-    explicit IndexedStorage_(Storage_<T, Codec> inner) noexcept
-        : Storage_<T, Codec>(std::move(inner)) {
-        this->ensure_indexed();
-        DEBUG_ASSERT(this->is_indexed());
+    // Turns `inner` into an indexed storage, building its index from the stored nodes if it has none.
+    [[nodiscard]]
+    static alp::Result<IndexedStorage_, io::FileError> from_storage(Storage_<T, Codec> inner) {
+        ALP_TRY(inner.ensure_indexed());
+        return IndexedStorage_(std::move(inner));
     }
     explicit IndexedStorage_(RawStorage_<T, Codec> inner, IndexMap map) noexcept
         : Storage_<T, Codec>(std::move(inner), std::move(map)) {
@@ -43,8 +47,10 @@ public:
         const auto index_opt = Storage_<T, Codec>::index();
         return *ASSERT_VAL(index_opt);
     }
-    void update_index() noexcept {
-        Storage_<T, Codec>::update_index();
+    // Rebuilds the index from the stored nodes; keeps the old index on failure.
+    [[nodiscard]]
+    alp::Result<void, io::FileError> update_index() noexcept {
+        return Storage_<T, Codec>::update_index();
     }
     [[nodiscard]]
     std::expected<void, io::Error> save_index() const {
@@ -60,6 +66,11 @@ public:
     }
 
 private:
+    explicit IndexedStorage_(Storage_<T, Codec> inner) noexcept
+        : Storage_<T, Codec>(std::move(inner)) {
+        ASSERT(this->is_indexed());
+    }
+
     IndexMap& index_mut() noexcept {
         std::optional<IndexMap> &index_opt = Storage_<T, Codec>::index_mut();
         return *ASSERT_VAL(index_opt);

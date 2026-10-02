@@ -48,7 +48,7 @@ alp::Result<bvh::Reference, io::Error> build_tree(
 // Builds the bvh over the dag at the input path, writing it to the output path.
 [[nodiscard]]
 alp::Result<void> build_bvh(const cli::Args &args) {
-    const octree::IndexedDagMetaStorage dag = octree::open_folder_indexed<dag::NodeMetadata>(args.input_path);
+    ALP_TRY(const octree::IndexedDagMetaStorage dag, octree::open_folder_indexed<dag::NodeMetadata>(args.input_path));
 
     // The binary tree is what widening consumes, so only its widened form is the run being asked for.
     bvh::Storage nodes(args.scratch_path / "binary");

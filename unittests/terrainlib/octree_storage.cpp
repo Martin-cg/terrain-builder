@@ -8,6 +8,7 @@
 
 #include <fmt/format.h>
 
+#include "../result_helpers.h"
 #include "../temp_directory.h"
 #include "error/format.h"
 #include "io/FileError.h"
@@ -18,7 +19,7 @@
 
 TEST_CASE("Loading a node the index does not list fails as a missing file", "[octree][storage]") {
     const TempDirectory directory("octree_storage_index_miss");
-    const octree::IndexedMeshStorage storage = octree::open_folder_indexed(directory.path());
+    const octree::IndexedMeshStorage storage = REQUIRE_VALUE(octree::open_folder_indexed(directory.path()));
     const octree::Id id = octree::Id::root();
 
     const auto result = storage.load(id);
@@ -29,8 +30,8 @@ TEST_CASE("Loading a node the index does not list fails as a missing file", "[oc
 
 TEST_CASE("Copying a node the source index does not list fails as a missing file", "[octree][storage]") {
     const TempDirectory directory("octree_storage_copy_index_miss");
-    const octree::IndexedMeshStorage source = octree::open_folder_indexed(directory.path() / "source");
-    octree::MeshStorage target = octree::open_folder(directory.path() / "target");
+    const octree::IndexedMeshStorage source = REQUIRE_VALUE(octree::open_folder_indexed(directory.path() / "source"));
+    octree::MeshStorage target = REQUIRE_VALUE(octree::open_folder(directory.path() / "target"));
     const octree::Id id = octree::Id::root();
 
     const auto result = target.copy_from(id, source);
@@ -41,8 +42,8 @@ TEST_CASE("Copying a node the source index does not list fails as a missing file
 
 TEST_CASE("A failed node copy names the file it could not replace", "[octree][storage]") {
     const TempDirectory directory("octree_storage_failed_copy_step");
-    const octree::MeshStorage source = octree::open_folder(directory.path() / "source");
-    octree::MeshStorage target = octree::open_folder(directory.path() / "target");
+    const octree::MeshStorage source = REQUIRE_VALUE(octree::open_folder(directory.path() / "source"));
+    octree::MeshStorage target = REQUIRE_VALUE(octree::open_folder(directory.path() / "target"));
     target.settings().allow_overwrite = true;
     const octree::Id id = octree::Id::root();
 

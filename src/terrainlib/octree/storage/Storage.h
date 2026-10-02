@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "error/log.h"
+#include "error/try.h"
 #include "error/utils.h"
 #include "io/Error.h"
 #include "log.h"
@@ -236,16 +237,17 @@ public:
         return this->_index.map.has_value();
     }
 
-    void ensure_indexed() noexcept {
+    [[nodiscard]]
+    alp::Result<void, io::FileError> ensure_indexed() noexcept {
         if (this->is_indexed()) {
-            return;
+            return {};
         }
 
         LOG_TRACE("Index not present, creating empty index");
-        IndexMap map;
-        helpers::update_index_map(map, this->_inner.layout());
+        ALP_TRY(IndexMap map, helpers::build_index_map(this->_inner.layout()));
         LOG_TRACE("Index created with {} entries", map.size());
         this->_index.map = std::move(map);
+        return {};
     }
     
     std::optional<std::reference_wrapper<const IndexMap>> index() const noexcept {
@@ -270,7 +272,7 @@ public:
             return {};
         }
 
-        this->ensure_indexed();
+        ALP_TRY(this->ensure_indexed());
 
         auto result = helpers::save_index_map(*ASSERT_VAL(this->index()), this->_inner.layout());
         if (result.has_value()) {
@@ -306,13 +308,17 @@ protected:
         this->_index.dirty = val;
     }
 
-    void update_index() noexcept {
+    // Rebuilds the index from the stored nodes if the storage has one; keeps the old index on failure.
+    [[nodiscard]]
+    alp::Result<void, io::FileError> update_index() noexcept {
         if (!this->is_indexed()) {
-            return;
+            return {};
         }
 
-        helpers::update_index_map(this->index_mut().value(), this->_inner.layout());
+        ALP_TRY(IndexMap map, helpers::build_index_map(this->_inner.layout()));
+        this->_index.map = std::move(map);
         this->_index.dirty = false;
+        return {};
     }
 
 private:
