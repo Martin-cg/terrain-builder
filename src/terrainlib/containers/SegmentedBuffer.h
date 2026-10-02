@@ -28,6 +28,9 @@ public:
     SegmentedBuffer(std::vector<value_type> segment) : _data(std::move(segment)) {
         this->_offsets.append_length(this->_data.size());
     }
+    SegmentedBuffer(std::vector<value_type> data, OffsetTable_<index_type> offsets) : _offsets(std::move(offsets)), _data(std::move(data)) {
+        ASSERT(this->_offsets.total_size() == this->_data.size());
+    }
 
     // Resets the buffer to its default state.
     void reset() {

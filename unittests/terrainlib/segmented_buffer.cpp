@@ -39,6 +39,26 @@ TEST_CASE("SegmentedBuffer construct from vector", "[containers][SegmentedBuffer
     CHECK(buf(0, 2) == 30);
 }
 
+TEST_CASE("SegmentedBuffer construct from vector and offsets", "[containers][SegmentedBuffer]") {
+    OffsetTable offsets;
+    offsets.append_lengths(std::vector<size_t>{2, 0, 3});
+
+    const SegmentedBuffer<int> buf(std::vector<int>{10, 20, 30, 40, 50}, std::move(offsets));
+
+    SegmentedBuffer<int> expected;
+    expected.push_new_segment(std::vector<int>{10, 20});
+    expected.push_new_segment(std::vector<int>{});
+    expected.push_new_segment(std::vector<int>{30, 40, 50});
+    CHECK(buf == expected);
+}
+
+TEST_CASE("SegmentedBuffer construct from empty vector and offsets", "[containers][SegmentedBuffer]") {
+    const SegmentedBuffer<int> buf(std::vector<int>{}, OffsetTable{});
+
+    CHECK(buf.segment_count() == 0);
+    CHECK(buf.total_size() == 0);
+}
+
 TEST_CASE("SegmentedBuffer push_to_last_segment", "[containers][SegmentedBuffer]") {
     SegmentedBuffer<int> buf;
 
@@ -304,6 +324,20 @@ TEST_CASE("SegmentedBuffer start_new_segment after the vector constructor append
     REQUIRE(buf.segment_count() == 2);
     CHECK(buf.segment_size(0) == 3);
     CHECK(buf.segment_size(1) == 1);
+}
+
+TEST_CASE("SegmentedBuffer start_new_segment after the vector and offsets constructor appends", "[containers][SegmentedBuffer]") {
+    OffsetTable offsets;
+    offsets.append_lengths(std::vector<size_t>{1, 2});
+    SegmentedBuffer<int> buf(std::vector<int>{1, 2, 3}, std::move(offsets));
+
+    buf.start_new_segment();
+    buf.push_to_last_segment(9);
+
+    REQUIRE(buf.segment_count() == 3);
+    CHECK(buf.segment_size(0) == 1);
+    CHECK(buf.segment_size(1) == 2);
+    CHECK(buf.segment_size(2) == 1);
 }
 
 TEST_CASE("group_by_key keeps pair order per key and an empty segment for an unused key", "[containers][SegmentedBuffer]") {
