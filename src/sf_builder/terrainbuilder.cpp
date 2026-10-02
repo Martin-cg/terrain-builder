@@ -33,7 +33,6 @@
 #include "error/log.h"
 #include "error/try.h"
 #include "error/utils.h"
-#include "io/filesystem.h"
 #include "log.h"
 #include "mesh/SimpleMesh.h"
 #include "mesh/io.h"
@@ -203,20 +202,13 @@ alp::Result<void> build_all_patches(
     const std::string &output_format,
     const bool overwrite_existing
 ) {
-    if (!std::filesystem::exists(output_base_path)) {
-        LOG_TRACE("Output base path {} does not exist, creating it", output_base_path);
-        ALP_TRY(io::filesystem::create_directories(output_base_path));
-    } else if (!std::filesystem::is_directory(output_base_path)) {
-        return alp::make_unexpected(fmt::format("the output path {} exists but is not a directory", output_base_path));
-    }
-
-    octree::Storage storage = octree::open_folder(
+    ALP_TRY(octree::Storage storage, octree::open_folder(
         output_base_path,
         false,
         octree::OpenOptions {
             .preferred_extension_with_dot = output_format
         }
-    );
+    ));
     storage.settings().allow_overwrite = overwrite_existing;
 
     const auto dataset_srs = dataset.srs();

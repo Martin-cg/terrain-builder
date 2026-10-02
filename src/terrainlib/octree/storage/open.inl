@@ -1,14 +1,19 @@
 #include <algorithm>
-#include <expected>
 #include <filesystem>
 #include <memory>
+#include <optional>
+#include <system_error>
 #include <unordered_set>
 #include <vector>
 
 #include <fmt/format.h>
 
+#include "error/Context.h"
 #include "error/log.h"
 #include "error/try.h"
+#include "error/utils.h"
+#include "io/FileError.h"
+#include "io/filesystem.h"
 #include "io/serialize.h"
 #include "log.h"
 #include "io/Error.h"
@@ -22,7 +27,7 @@
 namespace octree {
 
 template <typename T, CodecFor<T> Codec>
-std::expected<IndexedStorage_<T, Codec>, io::Error> open_index(const std::filesystem::path &index_path) {
+io::Result<IndexedStorage_<T, Codec>> open_index(const std::filesystem::path &index_path) {
     LOG_TRACE("Opening storage index {}", index_path);
 
     ALP_TRY_CONTEXT(
@@ -39,19 +44,22 @@ std::expected<IndexedStorage_<T, Codec>, io::Error> open_index(const std::filesy
 }
 
 template <typename T, CodecFor<T> Codec>
-Storage_<T, Codec> open_folder(
+io::Result<Storage_<T, Codec>> open_folder(
     const std::filesystem::path &base_path,
     bool create_index,
     OpenOptions options) {
     LOG_TRACE("Opening storage folder {}", base_path);
+    const auto context = alp::make_context("opening storage at {}", base_path);
 
-    if (!std::filesystem::is_directory(base_path)) {
-        if (std::filesystem::exists(base_path)) {
-            LOG_ERROR_AND_EXIT("Base path {} exists but is not a directory", base_path);
+    ALP_TRY_CONTEXT(const bool is_directory, io::filesystem::is_directory(base_path), context);
+    if (!is_directory) {
+        ALP_TRY_CONTEXT(const bool exists, io::filesystem::exists(base_path), context);
+        if (exists) {
+            return alp::make_unexpected(io::FileError(std::make_error_code(std::errc::not_a_directory), base_path), context);
         }
 
         LOG_TRACE("Base path {} does not exist, creating it", base_path);
-        std::filesystem::create_directories(base_path);
+        ALP_TRY_CONTEXT(io::filesystem::create_directories(base_path), context);
     }
 
     const std::filesystem::path index_path = base_path / disk::v1::index_file_name();
@@ -61,7 +69,7 @@ Storage_<T, Codec> open_folder(
         return Storage_<T, Codec>(std::move(storage_opt.value()));
     }
 
-    auto layout_info_opt = helpers::guess_layout_strategy(base_path);
+    ALP_TRY_CONTEXT(std::optional<helpers::LayoutWithoutBase> layout_info_opt, helpers::guess_layout_strategy(base_path), context);
     if (layout_info_opt.has_value()) {
         const octree::helpers::LayoutWithoutBase &layout_info = layout_info_opt.value();
         LOG_TRACE("Guessed layout strategy of dataset as {} and extension as {}",
@@ -92,7 +100,7 @@ Storage_<T, Codec> open_folder(
     }
 
     IndexMap map;
-    helpers::update_index_map(map, layout);
+    ALP_TRY_CONTEXT(helpers::update_index_map(map, layout), context);
     if (!map.empty()) {
         LOG_UNEXPECTED_OF(helpers::save_index_map(map, layout));
     }
@@ -100,10 +108,12 @@ Storage_<T, Codec> open_folder(
 }
 
 template <typename T, CodecFor<T> Codec>
-IndexedStorage_<T, Codec> open_folder_indexed(
+io::Result<IndexedStorage_<T, Codec>> open_folder_indexed(
     const std::filesystem::path &base_path,
     OpenOptions options) {
-    return IndexedStorage_<T, Codec>(open_folder<T, Codec>(base_path, true, std::move(options)));
+    using StorageT = Storage_<T, Codec>;
+    ALP_TRY(StorageT storage, (open_folder<T, Codec>(base_path, true, std::move(options))));
+    return IndexedStorage_<T, Codec>(std::move(storage));
 }
 
 } // namespace octree

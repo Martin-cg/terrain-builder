@@ -23,7 +23,7 @@ public:
         return this->_base_path / this->_strategy->get_relative_node_path(id, this->_extension_with_dot);
     }
     std::optional<Id> get_id_from_node_path(const std::filesystem::path& path) const {
-        const std::filesystem::path relative_path = std::filesystem::relative(path, _base_path);
+        const std::filesystem::path relative_path = path.lexically_relative(_base_path);
         return this->_strategy->get_id_from_relative_node_path(relative_path);
     }
 
