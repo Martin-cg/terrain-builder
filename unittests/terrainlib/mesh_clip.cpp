@@ -355,6 +355,24 @@ TEST_CASE("clip_on_bounds produces manifold mesh", "[mesh][clip]") {
     CHECK(clipped.positions.size() == 6);
 }
 
+TEST_CASE("mesh::clip_on_bounds handles an edge crossing a plane by less than epsilon", "[mesh][clip]") {
+    // Two vertices lie on the plane x = 0 and the third lies just outside it, so the part in bounds has no area.
+    SimpleMesh mesh;
+    mesh.positions = {
+        glm::dvec3(0, 0, 0),
+        glm::dvec3(0, 1, 0),
+        glm::dvec3(-5e-13, 0.5, 0),
+    };
+    mesh.triangles = {
+        glm::uvec3(0, 1, 2)};
+    const radix::geometry::Aabb3d bounds(glm::dvec3(0, -1, -1), glm::dvec3(1, 2, 1));
+
+    const SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh, bounds).into_owned();
+
+    CHECK(clipped_mesh.positions.empty());
+    CHECK(clipped_mesh.triangles.empty());
+}
+
 TEST_CASE("mesh::clip_on_bounds keeps the exact position of a vertex on a plane", "[mesh][clip]") {
     // The edge from (1.1, -1, 0) ends on the plane y = 0 at (0.1, 0, 0), where 1.1 + (0.1 - 1.1) != 0.1.
     SimpleMesh mesh;
