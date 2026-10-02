@@ -355,6 +355,28 @@ TEST_CASE("clip_on_bounds produces manifold mesh", "[mesh][clip]") {
     CHECK(clipped.positions.size() == 6);
 }
 
+TEST_CASE("mesh::clip_on_bounds keeps the exact position of a vertex on a plane", "[mesh][clip]") {
+    // The edge from (1.1, -1, 0) ends on the plane y = 0 at (0.1, 0, 0), where 1.1 + (0.1 - 1.1) != 0.1.
+    SimpleMesh mesh;
+    mesh.positions = {
+        glm::dvec3(1.1, -1, 0),
+        glm::dvec3(0.1, 0, 0),
+        glm::dvec3(1.1, 1, 0),
+    };
+    mesh.triangles = {
+        glm::uvec3(0, 1, 2)};
+    const radix::geometry::Aabb3d bounds(glm::dvec3(-2, 0, -1), glm::dvec3(2, 2, 1));
+
+    const SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh, bounds).into_owned();
+
+    const TriangleSoup clipped_soup = to_sorted_triangle_soup(clipped_mesh);
+    CHECK(clipped_soup == TriangleSoup{{
+                              glm::dvec3(0.1, 0, 0),
+                              glm::dvec3(1.1, 1, 0),
+                              glm::dvec3(1.1, 0, 0),
+                          }});
+}
+
 #ifdef NDEBUG
 TEST_CASE("mesh::clip_on_bounds benchmark", "[mesh][clip]") {
     BENCHMARK_ADVANCED("clip based on octree")(Catch::Benchmark::Chronometer meter) {
