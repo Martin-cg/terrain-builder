@@ -12,6 +12,7 @@
 
 #include "error/try.h"
 #include "error/utils.h"
+#include "io/bytes.h"
 #include "io/filesystem.h"
 #include "log.h"
 #include "mesh/io/gltf.h"
@@ -20,6 +21,19 @@
 namespace mesh::io::gltf {
 
 namespace {
+// Releases the bytes `load_raw_from_path` hands to cgltf, and any other file buffer with cgltf's default release.
+void release_file(
+    const cgltf_memory_options *memory_options,
+    const cgltf_file_options *file_options,
+    void *data,
+    cgltf_size size) {
+    if (data == file_options->user_data) {
+        delete static_cast<std::vector<uint8_t> *>(data);
+    } else {
+        cgltf_default_file_release(memory_options, file_options, data, size);
+    }
+}
+
 cgltf_attribute *find_attribute_with_type(cgltf_attribute *attributes, size_t attribute_count, cgltf_attribute_type type) {
     for (unsigned int i = 0; i < attribute_count; i++) {
         cgltf_attribute *attribute = &attributes[i];
@@ -235,15 +249,23 @@ static std::string image_ext_to_mime(std::string_view extension) {
 namespace detail {
 
 [[nodiscard]]
-alp::Result<RawMesh, GltfError> load_raw_from_path(const std::filesystem::path &path) {
+alp::Result<RawMesh, ::io::FileError, GltfError> load_raw_from_path(const std::filesystem::path &path) {
+    ALP_TRY(std::vector<uint8_t> bytes, ::io::read_bytes_from_path(path));
+    auto file_data = std::make_unique<std::vector<uint8_t>>(std::move(bytes));
+
     cgltf_options options = {};
     cgltf_data *data = NULL;
     const std::string path_str = path.string();
     const char *path_ptr = path_str.c_str();
-    cgltf_result result = cgltf_parse_file(&options, path_ptr, &data);
+    cgltf_result result = cgltf_parse(&options, file_data->data(), file_data->size(), &data);
     if (result != cgltf_result::cgltf_result_success) {
         return alp::make_unexpected(GltfError(result));
     }
+
+    // cgltf_free releases the bytes through `release_file`.
+    data->file.release = release_file;
+    data->file.user_data = file_data.get();
+    data->file_data = file_data.release();
 
     result = cgltf_load_buffers(&options, data, path_ptr);
     if (result != cgltf_result::cgltf_result_success) {
@@ -340,7 +362,7 @@ Result<SimpleMesh> load_from_raw(const RawMesh &raw, const LoadOptions& /* optio
 
 } // namespace detail
 
-alp::Result<RawMesh, GltfError> load_raw_from_path(const std::filesystem::path &path) {
+alp::Result<RawMesh, ::io::FileError, GltfError> load_raw_from_path(const std::filesystem::path &path) {
     ALP_TRY_CONTEXT(RawMesh raw, detail::load_raw_from_path(path), fmt::format("parsing a glTF file at {}", path));
     return raw;
 }
