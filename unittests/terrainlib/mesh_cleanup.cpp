@@ -1,110 +1,10 @@
-#include <algorithm>
 #include <cstdint>
+#include <span>
 #include <vector>
 
 #include "../catch2_helpers.h"
 #include "mesh/SimpleMesh.h"
 #include "mesh/cleanup.h"
-#include "mesh/connectivity/triangle_compare.h"
-
-namespace {
-std::vector<uint32_t> sorted(std::vector<uint32_t> v) {
-    std::sort(v.begin(), v.end());
-    return v;
-}
-
-SimpleMesh make_unique_triangle_mesh() {
-    SimpleMesh mesh;
-    mesh.positions = {
-        glm::dvec3(0, 0, 0), // 0
-        glm::dvec3(1, 0, 0), // 1
-        glm::dvec3(0, 1, 0), // 2
-    };
-    mesh.triangles = {
-        glm::uvec3(0, 1, 2),
-    };
-    return mesh;
-}
-
-SimpleMesh make_same_indices_duplicate_mesh() {
-    SimpleMesh mesh;
-    mesh.positions = {
-        glm::dvec3(0, 0, 0), // 0
-        glm::dvec3(1, 0, 0), // 1
-        glm::dvec3(0, 1, 0), // 2
-    };
-    mesh.triangles = {
-        glm::uvec3(0, 1, 2),
-        glm::uvec3(0, 1, 2),
-    };
-    return mesh;
-}
-
-SimpleMesh make_orientation_flipped_duplicate_mesh() {
-    SimpleMesh mesh;
-    mesh.positions = {
-        glm::dvec3(0, 0, 0), // 0
-        glm::dvec3(1, 0, 0), // 1
-        glm::dvec3(0, 1, 0), // 2
-    };
-    mesh.triangles = {
-        glm::uvec3(0, 1, 2),
-        glm::uvec3(0, 2, 1),
-    };
-    return mesh;
-}
-
-SimpleMesh make_mesh_with_no_unused_vertices() {
-    SimpleMesh mesh;
-    mesh.positions = {
-        glm::dvec3(0, 0, 0),
-        glm::dvec3(1, 0, 0),
-        glm::dvec3(0, 1, 0),
-        glm::dvec3(1, 1, 0),
-    };
-    mesh.triangles = {
-        glm::uvec3(0, 1, 2),
-        glm::uvec3(1, 3, 2),
-    };
-    return mesh;
-}
-
-SimpleMesh make_mesh_with_degenerate_triangles() {
-    SimpleMesh mesh;
-    mesh.positions = {
-        glm::dvec3(0, 0, 0),
-        glm::dvec3(1, 0, 0),
-        glm::dvec3(0, 1, 0),
-        glm::dvec3(1, 1, 0),
-    };
-    mesh.triangles = {
-        glm::uvec3(0, 1, 2), // valid
-        glm::uvec3(0, 0, 1), // degenerate
-        glm::uvec3(2, 3, 3), // degenerate
-        glm::uvec3(1, 3, 2), // valid
-    };
-    return mesh;
-}
-
-SimpleMesh make_mesh_with_one_tiny_and_one_large_triangle() {
-    SimpleMesh mesh;
-    mesh.positions = {
-        glm::dvec3(0.0, 0.0, 0.0),  // 0
-        glm::dvec3(10.0, 0.0, 0.0), // 1
-        glm::dvec3(0.0, 10.0, 0.0), // 2  large triangle
-
-        glm::dvec3(0.0, 0.0, 1.0),   // 3
-        glm::dvec3(0.001, 0.0, 1.0), // 4
-        glm::dvec3(0.0, 0.001, 1.0), // 5  tiny triangle
-    };
-    mesh.triangles = {
-        glm::uvec3(0, 1, 2),
-        glm::uvec3(3, 4, 5),
-    };
-    return mesh;
-}
-
-} // namespace
 
 TEST_CASE("mesh::find_duplicate_triangle_groups", "[mesh][cleanup]") {
     const std::vector<glm::uvec3> triangles = {
@@ -147,69 +47,65 @@ TEST_CASE("mesh::find_duplicate_triangle_groups without duplicates is empty", "[
 }
 
 TEST_CASE("mesh::find_duplicate_triangles", "[mesh][cleanup]") {
+    const std::vector<glm::dvec3> positions = {
+        glm::dvec3(0, 0, 0), // 0
+        glm::dvec3(1, 0, 0), // 1
+        glm::dvec3(0, 1, 0), // 2
+        glm::dvec3(1, 1, 0), // 3
+    };
 
-    SECTION("unique mesh has no duplicates") {
-        const SimpleMesh mesh = make_unique_triangle_mesh();
+    SECTION("a single triangle has no duplicates") {
+        const std::vector<glm::uvec3> triangles = {
+            glm::uvec3(0, 1, 2),
+        };
 
-        CHECK(mesh::find_duplicate_triangles(mesh, false).empty());
-        CHECK(mesh::find_duplicate_triangles(mesh, true).empty());
-        CHECK(mesh::find_duplicate_triangles(mesh.triangles, mesh.positions, false).empty());
-        CHECK(mesh::find_duplicate_triangles(mesh.triangles, mesh.positions, true).empty());
-        CHECK(mesh::find_duplicate_triangles_consider_orientation(mesh.triangles).empty());
-        CHECK(mesh::find_duplicate_triangles_ignore_orientation(mesh.triangles, mesh.positions).empty());
+        CHECK(mesh::find_duplicate_triangles_consider_orientation(triangles).empty());
+        CHECK(mesh::find_duplicate_triangles_ignore_orientation(triangles, positions).empty());
     }
 
-    SECTION("exact duplicate indices are found regardless of orientation mode") {
-        const SimpleMesh mesh = make_same_indices_duplicate_mesh();
+    SECTION("an exact copy is a duplicate in both modes and the first is kept") {
+        const std::vector<glm::uvec3> triangles = {
+            glm::uvec3(0, 1, 2),
+            glm::uvec3(0, 1, 2),
+        };
 
-        const auto a = sorted(mesh::find_duplicate_triangles(mesh, false));
-        const auto b = sorted(mesh::find_duplicate_triangles(mesh, true));
-        const auto c = sorted(mesh::find_duplicate_triangles(mesh.triangles, mesh.positions, false));
-        const auto d = sorted(mesh::find_duplicate_triangles(mesh.triangles, mesh.positions, true));
-        const auto e = sorted(mesh::find_duplicate_triangles_consider_orientation(mesh.triangles));
-        const auto f = sorted(mesh::find_duplicate_triangles_ignore_orientation(mesh.triangles, mesh.positions));
-
-        REQUIRE(a.size() == 1);
-        REQUIRE(b.size() == 1);
-        REQUIRE(c.size() == 1);
-        REQUIRE(d.size() == 1);
-        REQUIRE(e.size() == 1);
-        REQUIRE(f.size() == 1);
-
-        CHECK((a[0] == 0 || a[0] == 1));
-        CHECK((b[0] == 0 || b[0] == 1));
-        CHECK((c[0] == 0 || c[0] == 1));
-        CHECK((d[0] == 0 || d[0] == 1));
-        CHECK((e[0] == 0 || e[0] == 1));
-        CHECK((f[0] == 0 || f[0] == 1));
+        CHECK(mesh::find_duplicate_triangles_consider_orientation(triangles) == std::vector<uint32_t>{1});
+        CHECK(mesh::find_duplicate_triangles_ignore_orientation(triangles, positions) == std::vector<uint32_t>{1});
     }
 
-    SECTION("orientation-flipped triangle is duplicate only when orientation is ignored") {
-        const SimpleMesh mesh = make_orientation_flipped_duplicate_mesh();
+    SECTION("a flipped copy is a duplicate only when orientation is ignored") {
+        const std::vector<glm::uvec3> triangles = {
+            glm::uvec3(0, 1, 2),
+            glm::uvec3(0, 2, 1),
+        };
 
-        CHECK(mesh::find_duplicate_triangles(mesh, false).empty());
-        CHECK(mesh::find_duplicate_triangles(mesh.triangles, mesh.positions, false).empty());
-        CHECK(mesh::find_duplicate_triangles_consider_orientation(mesh.triangles).empty());
+        CHECK(mesh::find_duplicate_triangles_consider_orientation(triangles).empty());
+        CHECK(mesh::find_duplicate_triangles_ignore_orientation(triangles, positions) == std::vector<uint32_t>{1});
+    }
 
-        const auto a = sorted(mesh::find_duplicate_triangles(mesh, true));
-        const auto b = sorted(mesh::find_duplicate_triangles(mesh.triangles, mesh.positions, true));
-        const auto c = sorted(mesh::find_duplicate_triangles_ignore_orientation(mesh.triangles, mesh.positions));
+    SECTION("ignoring orientation, the copy facing like its neighbours is kept") {
+        SECTION("neighbour facing +z keeps the first copy") {
+            const std::vector<glm::uvec3> triangles = {
+                glm::uvec3(0, 1, 2), // +z
+                glm::uvec3(0, 2, 1), // -z
+                glm::uvec3(1, 3, 2), // +z, shares edge 1-2
+            };
 
-        REQUIRE(a.size() == 1);
-        REQUIRE(b.size() == 1);
-        REQUIRE(c.size() == 1);
+            CHECK(mesh::find_duplicate_triangles_ignore_orientation(triangles, positions) == std::vector<uint32_t>{1});
+        }
 
-        CHECK((a[0] == 0 || a[0] == 1));
-        CHECK((b[0] == 0 || b[0] == 1));
-        CHECK((c[0] == 0 || c[0] == 1));
+        SECTION("neighbour facing -z keeps the flipped copy") {
+            const std::vector<glm::uvec3> triangles = {
+                glm::uvec3(0, 1, 2), // +z
+                glm::uvec3(0, 2, 1), // -z
+                glm::uvec3(2, 3, 1), // -z, shares edge 1-2
+            };
+
+            CHECK(mesh::find_duplicate_triangles_ignore_orientation(triangles, positions) == std::vector<uint32_t>{0});
+        }
     }
 
     SECTION("three copies with one flipped keep only the first aligned copy") {
-        const std::vector<glm::dvec3> positions = {
-            glm::dvec3(0, 0, 0),
-            glm::dvec3(1, 0, 0),
-            glm::dvec3(0, 1, 0),
-        };
         const std::vector<glm::uvec3> triangles = {
             glm::uvec3(0, 1, 2),
             glm::uvec3(0, 2, 1),
@@ -223,74 +119,52 @@ TEST_CASE("mesh::find_duplicate_triangles", "[mesh][cleanup]") {
 }
 
 TEST_CASE("mesh::remove_duplicate_triangles", "[mesh][cleanup]") {
-    SECTION("removing from unique mesh changes nothing") {
-        SimpleMesh mesh = make_unique_triangle_mesh();
-        const auto old_triangles = mesh.triangles;
+    const std::vector<glm::dvec3> positions = {
+        glm::dvec3(0, 0, 0),
+        glm::dvec3(1, 0, 0),
+        glm::dvec3(0, 1, 0),
+    };
 
-        mesh::remove_duplicate_triangles(mesh, false);
-        CHECK(mesh.triangles == old_triangles);
+    SECTION("a single triangle is left unchanged in both modes") {
+        std::vector<glm::uvec3> triangles = {
+            glm::uvec3(0, 1, 2),
+        };
+        const std::vector<glm::uvec3> old_triangles = triangles;
 
-        mesh::remove_duplicate_triangles(mesh, true);
-        CHECK(mesh.triangles == old_triangles);
+        mesh::remove_duplicate_triangles(triangles, std::span<const glm::dvec3>(positions), false);
+        CHECK(triangles == old_triangles);
+
+        mesh::remove_duplicate_triangles(triangles, std::span<const glm::dvec3>(positions), true);
+        CHECK(triangles == old_triangles);
     }
 
-    SECTION("removes exact duplicate triangles") {
-        SimpleMesh mesh = make_same_indices_duplicate_mesh();
-
-        mesh::remove_duplicate_triangles(mesh, false);
-
-        REQUIRE(mesh.triangles.size() == 1);
-        CHECK(mesh.triangles[0] == glm::uvec3(0, 1, 2));
-    }
-
-    SECTION("removing with ignore orientation removes flipped duplicate") {
-        SimpleMesh mesh = make_orientation_flipped_duplicate_mesh();
-
-        mesh::remove_duplicate_triangles(mesh, true);
-
-        REQUIRE(mesh.triangles.size() == 1);
-        CHECK(mesh::compare_equality_triangles_ignore_orientation(
-            mesh.triangles[0], glm::uvec3(0, 1, 2)));
-    }
-
-    SECTION("consider orientation keeps flipped duplicate") {
-        SimpleMesh mesh = make_orientation_flipped_duplicate_mesh();
-
-        mesh::remove_duplicate_triangles_consider_orientation(mesh);
-
-        REQUIRE(mesh.triangles.size() == 2);
-        CHECK(mesh.triangles[0] == glm::uvec3(0, 1, 2));
-        CHECK(mesh.triangles[1] == glm::uvec3(0, 2, 1));
-    }
-
-    SECTION("consider orientation triangles-only overload removes exact duplicates") {
+    SECTION("considering orientation, exact copies are removed and flipped ones kept") {
         std::vector<glm::uvec3> triangles = {
             glm::uvec3(0, 1, 2),
             glm::uvec3(0, 1, 2),
             glm::uvec3(0, 2, 1),
         };
 
-        mesh::remove_duplicate_triangles_consider_orientation(triangles);
+        mesh::remove_duplicate_triangles(triangles, std::span<const glm::dvec3>(positions), false);
 
-        REQUIRE(triangles.size() == 2);
-        CHECK(triangles[0] == glm::uvec3(0, 1, 2));
-        CHECK(triangles[1] == glm::uvec3(0, 2, 1));
+        CHECK(triangles == std::vector<glm::uvec3>{
+            glm::uvec3(0, 1, 2),
+            glm::uvec3(0, 2, 1),
+        });
     }
 
-    SECTION("ignore orientation vector overload removes the flipped duplicate") {
+    SECTION("ignoring orientation, exact and flipped copies are removed") {
         std::vector<glm::uvec3> triangles = {
+            glm::uvec3(0, 1, 2),
             glm::uvec3(0, 1, 2),
             glm::uvec3(0, 2, 1),
         };
-        const std::vector<glm::dvec3> positions = {
-            glm::dvec3(0, 0, 0),
-            glm::dvec3(1, 0, 0),
-            glm::dvec3(0, 1, 0),
-        };
 
-        mesh::remove_duplicate_triangles_ignore_orientation(triangles, positions);
+        mesh::remove_duplicate_triangles(triangles, std::span<const glm::dvec3>(positions), true);
 
-        CHECK(triangles == std::vector<glm::uvec3>{glm::uvec3(0, 1, 2)});
+        CHECK(triangles == std::vector<glm::uvec3>{
+            glm::uvec3(0, 1, 2),
+        });
     }
 }
 
@@ -468,40 +342,69 @@ TEST_CASE("mesh::remove_unused_vertices", "[mesh][cleanup]") {
 }
 
 TEST_CASE("mesh::remove_degenerate_triangles", "[mesh][cleanup]") {
-    SECTION("removes triangles with repeated vertex indices") {
-        SimpleMesh mesh = make_mesh_with_degenerate_triangles();
+    SECTION("removes triangles with a repeated vertex in any position") {
+        std::vector<glm::uvec3> triangles = {
+            glm::uvec3(0, 1, 2), // valid
+            glm::uvec3(0, 0, 1), // first equals second
+            glm::uvec3(2, 3, 3), // second equals third
+            glm::uvec3(1, 2, 1), // third equals first
+            glm::uvec3(1, 3, 2), // valid
+        };
 
-        mesh::remove_degenerate_triangles(mesh.triangles);
+        mesh::remove_degenerate_triangles(triangles);
 
-        REQUIRE(mesh.triangles.size() == 2);
-        CHECK(mesh.triangles[0] == glm::uvec3(0, 1, 2));
-        CHECK(mesh.triangles[1] == glm::uvec3(1, 3, 2));
+        CHECK(triangles == std::vector<glm::uvec3>{
+            glm::uvec3(0, 1, 2),
+            glm::uvec3(1, 3, 2),
+        });
     }
 
-    SECTION("mesh with no degenerate triangles stays unchanged") {
-        SimpleMesh mesh = make_mesh_with_no_unused_vertices();
-        const auto old_triangles = mesh.triangles;
+    SECTION("triangles without a repeated vertex stay unchanged") {
+        std::vector<glm::uvec3> triangles = {
+            glm::uvec3(0, 1, 2),
+            glm::uvec3(1, 3, 2),
+        };
+        const std::vector<glm::uvec3> old_triangles = triangles;
 
-        mesh::remove_degenerate_triangles(mesh.triangles);
+        mesh::remove_degenerate_triangles(triangles);
 
-        CHECK(mesh.triangles == old_triangles);
+        CHECK(triangles == old_triangles);
     }
 }
 
 TEST_CASE("mesh::remove_triangles_of_negligible_size", "[mesh][cleanup]") {
-    SECTION("removes very small triangles relative to average size") {
-        SimpleMesh mesh = make_mesh_with_one_tiny_and_one_large_triangle();
+    // Areas 32, 2 and 0.5, so the average is 11.5.
+    SimpleMesh mesh;
+    mesh.positions = {
+        glm::dvec3(0, 0, 0), // 0
+        glm::dvec3(8, 0, 0), // 1
+        glm::dvec3(0, 8, 0), // 2
+        glm::dvec3(0, 0, 1), // 3
+        glm::dvec3(2, 0, 1), // 4
+        glm::dvec3(0, 2, 1), // 5
+        glm::dvec3(0, 0, 2), // 6
+        glm::dvec3(1, 0, 2), // 7
+        glm::dvec3(0, 1, 2), // 8
+    };
+    mesh.triangles = {
+        glm::uvec3(0, 1, 2), // area 32
+        glm::uvec3(3, 4, 5), // area 2
+        glm::uvec3(6, 7, 8), // area 0.5
+    };
 
-        const size_t removed = mesh::remove_triangles_of_negligible_size(mesh, 1.0);
+    SECTION("removes triangles below the fraction of the average area") {
+        // The cutoff is 1.15, between the two smaller areas.
+        const size_t removed = mesh::remove_triangles_of_negligible_size(mesh, 0.1);
 
         CHECK(removed == 1);
-        REQUIRE(mesh.triangles.size() == 1);
-        CHECK(mesh.triangles[0] == glm::uvec3(0, 1, 2));
+        CHECK(mesh.triangles == std::vector<glm::uvec3>{
+            glm::uvec3(0, 1, 2),
+            glm::uvec3(3, 4, 5),
+        });
     }
 
     SECTION("threshold zero removes nothing") {
-        SimpleMesh mesh = make_mesh_with_one_tiny_and_one_large_triangle();
-        const auto old_triangles = mesh.triangles;
+        const std::vector<glm::uvec3> old_triangles = mesh.triangles;
 
         const size_t removed = mesh::remove_triangles_of_negligible_size(mesh, 0.0);
 
@@ -509,22 +412,34 @@ TEST_CASE("mesh::remove_triangles_of_negligible_size", "[mesh][cleanup]") {
         CHECK(mesh.triangles == old_triangles);
     }
 
-    SECTION("float threshold on a double mesh removes the tiny triangle") {
-        SimpleMesh mesh = make_mesh_with_one_tiny_and_one_large_triangle();
-
+    SECTION("float threshold on a double mesh") {
+        // The cutoff is 5.75.
         const size_t removed = mesh::remove_triangles_of_negligible_size(mesh, 0.5f);
 
-        CHECK(removed == 1);
-        CHECK(mesh.triangles == std::vector<glm::uvec3>{glm::uvec3(0, 1, 2)});
+        CHECK(removed == 2);
+        CHECK(mesh.triangles == std::vector<glm::uvec3>{
+            glm::uvec3(0, 1, 2),
+        });
     }
+}
 
-    SECTION("mesh with similarly sized triangles remains unchanged for small threshold") {
-        SimpleMesh mesh = make_mesh_with_no_unused_vertices();
-        const auto old_triangles = mesh.triangles;
+TEST_CASE("mesh::remove_triangles_of_negligible_size keeps triangles exactly at the cutoff", "[mesh][cleanup]") {
+    // Both areas are 0.5, which equals the cutoff for a fraction of 1.
+    SimpleMesh mesh;
+    mesh.positions = {
+        glm::dvec3(0, 0, 0),
+        glm::dvec3(1, 0, 0),
+        glm::dvec3(0, 1, 0),
+        glm::dvec3(1, 1, 0),
+    };
+    mesh.triangles = {
+        glm::uvec3(0, 1, 2),
+        glm::uvec3(1, 3, 2),
+    };
+    const std::vector<glm::uvec3> old_triangles = mesh.triangles;
 
-        const size_t removed = mesh::remove_triangles_of_negligible_size(mesh, 0.01);
+    const size_t removed = mesh::remove_triangles_of_negligible_size(mesh, 1.0);
 
-        CHECK(removed == 0);
-        CHECK(mesh.triangles == old_triangles);
-    }
+    CHECK(removed == 0);
+    CHECK(mesh.triangles == old_triangles);
 }

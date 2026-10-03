@@ -3,10 +3,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include <glm/glm.hpp>
-
 #include "../catch2_helpers.h"
-#include "../opencv_helpers.h"
 
 #include "mesh/SimpleMesh.h"
 #include "mesh/connectivity/boundary.h"
@@ -14,10 +11,10 @@
 TEST_CASE("mesh::find_boundary_edges", "[mesh][connectivity][boundary]") {
     SECTION("empty for empty mesh") {
         SimpleMesh mesh;
-        auto edges = mesh::find_boundary_edges(mesh);
+        const auto edges = mesh::find_boundary_edges(mesh);
 
-        std::vector<glm::uvec2> actual(edges.begin(), edges.end());
-        std::vector<glm::uvec2> expected;
+        const std::vector<glm::uvec2> actual(edges.begin(), edges.end());
+        const std::vector<glm::uvec2> expected;
 
         CHECK_THAT(actual, Catch::Matchers::UnorderedEquals(expected));
     }
@@ -30,10 +27,10 @@ TEST_CASE("mesh::find_boundary_edges", "[mesh][connectivity][boundary]") {
             {0, 1, 0}};
         mesh.triangles = {glm::uvec3(0, 1, 2)};
 
-        auto edges = mesh::find_boundary_edges(mesh);
+        const auto edges = mesh::find_boundary_edges(mesh);
 
-        std::vector<glm::uvec2> actual(edges.begin(), edges.end());
-        std::vector<glm::uvec2> expected = {
+        const std::vector<glm::uvec2> actual(edges.begin(), edges.end());
+        const std::vector<glm::uvec2> expected = {
             {0, 1}, {1, 2}, {2, 0}};
         CHECK_THAT(actual, Catch::Matchers::UnorderedEquals(expected));
     }
@@ -49,10 +46,10 @@ TEST_CASE("mesh::find_boundary_edges", "[mesh][connectivity][boundary]") {
             {0, 1, 2},
             {1, 3, 2}};
 
-        auto edges = mesh::find_boundary_edges(mesh);
+        const auto edges = mesh::find_boundary_edges(mesh);
 
-        std::vector<glm::uvec2> actual(edges.begin(), edges.end());
-        std::vector<glm::uvec2> expected = {
+        const std::vector<glm::uvec2> actual(edges.begin(), edges.end());
+        const std::vector<glm::uvec2> expected = {
             {0, 1}, {2, 0}, {1, 3}, {3, 2} // shared edge {1,2} not included
         };
 
@@ -81,10 +78,10 @@ TEST_CASE("mesh::find_boundary_edges", "[mesh][connectivity][boundary]") {
             {4, 5, 1}, {4, 1, 0}  // bottom
         };
 
-        auto edges = mesh::find_boundary_edges(mesh);
+        const auto edges = mesh::find_boundary_edges(mesh);
 
-        std::vector<glm::uvec2> actual(edges.begin(), edges.end());
-        std::vector<glm::uvec2> expected;
+        const std::vector<glm::uvec2> actual(edges.begin(), edges.end());
+        const std::vector<glm::uvec2> expected;
 
         CHECK_THAT(actual, Catch::Matchers::UnorderedEquals(expected));
     }
@@ -282,6 +279,8 @@ TEST_CASE("mesh::find_boundary_triangles", "[mesh][connectivity][boundary]") {
     }
 }
 
+namespace {
+
 void normalize_boundary(std::vector<uint32_t> &boundary) {
     if (boundary.empty()) {
         return;
@@ -295,6 +294,8 @@ void normalize_boundaries(std::vector<std::vector<uint32_t>> &boundaries) {
         normalize_boundary(b);
     }
     std::sort(boundaries.begin(), boundaries.end());
+}
+
 }
 
 TEST_CASE("mesh::find_boundaries", "[mesh][connectivity][boundary]") {
@@ -509,7 +510,7 @@ TEST_CASE("mesh::find_boundaries_non_manifold", "[mesh][connectivity][boundary]"
     }
 
     SECTION("bowtie sharing vertex") {
-        std::vector<glm::uvec3> triangles = {
+        const std::vector<glm::uvec3> triangles = {
             {0, 1, 2},
             {1, 3, 4},
         };
@@ -526,7 +527,7 @@ TEST_CASE("mesh::find_boundaries_non_manifold", "[mesh][connectivity][boundary]"
     }
 
     SECTION("three triangles sharing vertex") {
-        std::vector<glm::uvec3> triangles = {
+        const std::vector<glm::uvec3> triangles = {
             {0, 1, 2},
             {0, 3, 4},
             {0, 5, 6}
@@ -623,19 +624,18 @@ TEST_CASE("mesh::build_boundary_vertex_mask", "[mesh][connectivity][boundary]") 
 TEST_CASE("mesh::build_boundary_triangle_mask", "[mesh][connectivity][boundary]") {
     SECTION("open box with more triangles than vertices") {
         // 5 faces of a cube (top removed): 8 vertices, 10 triangles
-        std::vector<glm::uvec3> triangles = {
+        const std::vector<glm::uvec3> triangles = {
             {0, 1, 2}, {0, 2, 3},   // front
             {1, 5, 6}, {1, 6, 2},   // right
             {5, 4, 7}, {5, 7, 6},   // back
             {4, 0, 3}, {4, 3, 7},   // left
             {4, 5, 1}, {4, 1, 0},   // bottom
         };
-        CHECK(triangles.size() > 8);
 
         std::vector<uint8_t> mask;
-        mesh::build_boundary_triangle_mask<uint8_t>(triangles, mask, 1, 0);
+        mesh::build_boundary_triangle_mask<uint8_t>(triangles, mask, 7, 3);
 
-        const std::vector<uint8_t> expected = {0, 1, 0, 1, 0, 1, 0, 1, 0, 0};
+        const std::vector<uint8_t> expected = {3, 7, 3, 7, 3, 7, 3, 7, 3, 3};
         CHECK(mask == expected);
     }
 
