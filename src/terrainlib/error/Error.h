@@ -2,6 +2,7 @@
 
 #include <concepts>
 #include <expected>
+#include <functional>
 #include <optional>
 #include <source_location>
 #include <span>
@@ -125,6 +126,14 @@ public:
     bool holds(const E &code) const {
         const E *held = this->get_if<E>();
         return held != nullptr && *held == code;
+    }
+
+    // Whether this error holds a code of type E for which `predicate` is true.
+    template <typename E, std::predicate<const E &> P> requires(can_hold<E>)
+    [[nodiscard]]
+    bool holds_and(P &&predicate) const {
+        const E *held = this->get_if<E>();
+        return held != nullptr && std::invoke(std::forward<P>(predicate), *held);
     }
 
     // Where the error originated.
