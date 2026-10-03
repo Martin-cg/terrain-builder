@@ -17,6 +17,7 @@
 
 namespace geometry {
 
+using Triangle2d = radix::geometry::Triangle<2, double>;
 using Triangle3d = radix::geometry::Triangle<3, double>;
 
 // Normalize a set of positions into the range of [-1,1] based on maximum extents of the bounding box.
