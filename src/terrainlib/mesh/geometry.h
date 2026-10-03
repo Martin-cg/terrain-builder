@@ -9,6 +9,7 @@
 
 #include "geometry/geometry.h"
 #include "mesh/SimpleMesh.h"
+#include "mesh/TriangleSoup.h"
 #include "mesh/View.h"
 
 namespace mesh {
@@ -21,6 +22,8 @@ template <glm::length_t n_dims, typename T>
 T compute_surface_area(const mesh::View_<n_dims, T> &mesh);
 template <glm::length_t n_dims, typename T>
 T compute_surface_area(const mesh::Simple_<n_dims, T> &mesh);
+template <glm::length_t n_dims, typename T>
+T compute_surface_area(const TriangleSoup_<n_dims, T> &soup);
 
 std::optional<double> estimate_average_edge_length(const SimpleMesh &mesh, const size_t sample_size = 1000);
 
