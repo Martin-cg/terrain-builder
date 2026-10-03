@@ -215,7 +215,8 @@ public:
     
     ChunkedRingBuffer(const size_t chunk_size, const size_t num_chunks, const size_t padding) :
         _ring(chunk_size, num_chunks, padding),
-        _slot_state(num_chunks, SlotState::Empty) {
+        _slot_state(num_chunks) {
+        this->start_stream();
     }
 
     ChunkedRingBuffer(const ChunkedRingBuffer &) = delete;
@@ -360,6 +361,20 @@ public:
         this->wake_after_write(0, true);
     }
 
+    // Starts a new stream on the same memory, which must have no chunk rented.
+    void reset() {
+        std::unique_lock lock(this->_advance_mutex);
+
+        // A chunk rented for writing is one that was neither committed nor abandoned, which leaves its slot empty.
+        const size_t rented_for_writing = this->_next_write_chunk.load(std::memory_order_relaxed);
+        for (size_t chunk_index = this->_next_written_chunk.load(std::memory_order_relaxed); chunk_index < rented_for_writing; chunk_index++) {
+            ASSERT(this->_slot_state[this->_ring.get_slot_index(chunk_index)] != SlotState::Empty, "a chunk is still rented for writing");
+        }
+        ASSERT(this->_next_read_chunk.load(std::memory_order_relaxed) == this->_retired_read_chunk.load(std::memory_order_relaxed), "a chunk is still rented for reading");
+
+        this->start_stream();
+    }
+
     [[nodiscard]]
     std::expected<ReadLease, RentError> try_rent_for_reading() {
         size_t chunk_index = this->_next_read_chunk.load(std::memory_order_relaxed);
@@ -394,6 +409,18 @@ private:
     static StreamEnd get_stream_end(const RentError error) noexcept {
         DEBUG_ASSERT(error != RentError::WouldBlock);
         return error == RentError::Aborted ? StreamEnd::Aborted : StreamEnd::Completed;
+    }
+
+    // Puts the ring in the state of a stream nobody has written to yet.
+    void start_stream() {
+        std::ranges::fill(this->_slot_state.span(), SlotState::Empty);
+        this->_next_write_chunk.store(0, std::memory_order_relaxed);
+        this->_next_written_chunk.store(0, std::memory_order_release);
+        this->_next_read_chunk.store(0, std::memory_order_relaxed);
+        this->_retired_read_chunk.store(0, std::memory_order_release);
+        this->_final_chunk_count = 0;
+        this->_final_chunk_size = 0;
+        this->_stream_state.store(StreamState::Running, std::memory_order_release);
     }
 
     // Ends the stream after `chunk_count` chunks, of which the last holds `final_size` entries.
@@ -561,20 +588,20 @@ private:
     FixedArray<SlotState> _slot_state;
 
     // The next chunk to rent for writing.
-    std::atomic<size_t> _next_write_chunk = 0;
+    std::atomic<size_t> _next_write_chunk;
     // The next chunk that was written.
-    std::atomic<size_t> _next_written_chunk = 0;
+    std::atomic<size_t> _next_written_chunk;
     // Publishes the two fields below, which are only valid once it is not Running.
-    std::atomic<StreamState> _stream_state = StreamState::Running;
+    std::atomic<StreamState> _stream_state;
     // The number of chunks in the stream.
-    size_t _final_chunk_count = 0;
+    size_t _final_chunk_count;
     // Number of valid entries in the final chunk.
-    size_t _final_chunk_size = 0;
+    size_t _final_chunk_size;
 
     // The next chunk to rent for reading
-    std::atomic<size_t> _next_read_chunk = 0;
+    std::atomic<size_t> _next_read_chunk;
     // The oldest chunk that is still being read
-    std::atomic<size_t> _retired_read_chunk = 0;
+    std::atomic<size_t> _retired_read_chunk;
 
     // One park queue per side, so that a wakeup always reaches a thread that can use it.
     std::atomic<uint32_t> _readable_epoch = 0;

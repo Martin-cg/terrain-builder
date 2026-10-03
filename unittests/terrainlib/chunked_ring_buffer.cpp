@@ -248,6 +248,63 @@ TEST_CASE("ChunkedRingBuffer reports how the stream ended", "[chunked_ring_buffe
     CHECK(aborted.stream_state() == Buffer::StreamState::Aborted);
 }
 
+TEST_CASE("ChunkedRingBuffer::reset starts a new stream on a ring", "[chunked_ring_buffer]") {
+    Buffer buffer(4, 4, 2);
+
+    SECTION("that completed and was read") {
+        write_chunk(buffer, 0);
+        write_final_chunk(buffer, 1, 3);
+        skip_chunk(buffer, 0);
+        skip_chunk(buffer, 1);
+    }
+
+    SECTION("that completed and was left unread") {
+        write_chunk(buffer, 0);
+        write_final_chunk(buffer, 1, 3);
+    }
+
+    SECTION("that aborted behind a committed chunk") {
+        write_chunk(buffer, 0);
+        auto abandoned = buffer.rent_for_writing();
+        REQUIRE(abandoned.has_value());
+        auto committed = buffer.rent_for_writing();
+        REQUIRE(committed.has_value());
+        std::move(*committed).commit();
+        std::move(*abandoned).abandon();
+    }
+
+    buffer.reset();
+    CHECK(buffer.stream_state() == Buffer::StreamState::Running);
+
+    std::expected<Buffer::WriteLease, Buffer::RentError> first = buffer.try_rent_for_writing();
+    REQUIRE(first.has_value());
+    CHECK(first->chunk_index() == 0);
+    std::ranges::copy(std::vector<uint32_t>{21, 22, 23, 24}, first->span().begin());
+    std::move(*first).commit();
+
+    std::expected<Buffer::WriteLease, Buffer::RentError> second = buffer.try_rent_for_writing();
+    REQUIRE(second.has_value());
+    CHECK(second->chunk_index() == 1);
+    std::ranges::copy(std::vector<uint32_t>{25}, second->span().begin());
+    std::move(*second).commit_final(1);
+
+    {
+        const auto lease = buffer.rent_for_reading();
+        REQUIRE(lease.has_value());
+        CHECK(lease->chunk_index() == 0);
+        CHECK(std::ranges::equal(lease->view().span(), std::vector<uint32_t>{21, 22, 23, 24, 25}));
+    }
+    {
+        const auto lease = buffer.rent_for_reading();
+        REQUIRE(lease.has_value());
+        CHECK(lease->chunk_index() == 1);
+        CHECK(std::ranges::equal(lease->view().span(), std::vector<uint32_t>{23, 24, 25}));
+    }
+
+    CHECK(!buffer.rent_for_reading().has_value());
+    CHECK(buffer.stream_state() == Buffer::StreamState::Completed);
+}
+
 TEST_CASE("ChunkedRingBuffer holds back a chunk whose successor is still being written", "[chunked_ring_buffer]") {
     Buffer buffer(4, 8, 2);
     write_chunk(buffer, 0);
