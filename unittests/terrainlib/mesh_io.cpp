@@ -292,22 +292,13 @@ TEST_CASE("Saving a mesh with an unsupported extension fails, naming the extensi
     CHECK(result.error().holds(io::UnsupportedFormat{".xyz"}));
 }
 
-TEST_CASE("Loading a missing terrain file fails with a file error") {
-    const TempDirectory directory("mesh_io_missing_terrain");
-    const mesh::io::Result<SimpleMesh> result = mesh::io::load_from_path(directory.path() / "missing.terrain");
+TEST_CASE("load_from_path of a missing file reports that it does not exist", "[mesh][io]") {
+    const TempDirectory directory("mesh_io_missing");
+    const std::string extension = GENERATE(".terrain", ".gltf", ".glb");
+    const std::filesystem::path path = directory.path() / fmt::format("missing{}", extension);
 
-    REQUIRE(!result.has_value());
-    const io::FileError *file_error = result.error().get_if<io::FileError>();
-    REQUIRE(file_error != nullptr);
-    CHECK(*file_error == std::errc::no_such_file_or_directory);
-}
-
-TEST_CASE("Loading a missing glTF file fails with a glTF error") {
-    const TempDirectory directory("mesh_io_missing_gltf");
-    const mesh::io::Result<SimpleMesh> result = mesh::io::load_from_path(directory.path() / "missing.gltf");
-
-    REQUIRE(!result.has_value());
-    CHECK(result.error().holds(mesh::io::GltfError(cgltf_result_file_not_found)));
+    const mesh::io::Error error = REQUIRE_ERROR(mesh::io::load_from_path(path));
+    CHECK(error.holds(io::make_file_not_found(path)));
 }
 
 TEST_CASE("Loading a terrain file with truncated data fails with a serde error") {
@@ -331,35 +322,4 @@ TEST_CASE("Loading a glTF file without a mesh fails as unsupported") {
 
     REQUIRE(!result.has_value());
     CHECK(result.error().holds<mesh::io::UnsupportedGltf>());
-}
-
-TEST_CASE("A failed mesh load reports what went wrong", "[mesh][io]") {
-    const TempDirectory directory("mesh_io_failed_path");
-
-    SECTION("missing glTF file") {
-        const std::filesystem::path path = directory.path() / "missing.gltf";
-        const mesh::io::Result<SimpleMesh> result = mesh::io::load_from_path(path);
-
-        REQUIRE(!result.has_value());
-        CHECK(result.error().holds(mesh::io::GltfError(cgltf_result_file_not_found)));
-    }
-
-    SECTION("truncated terrain file") {
-        const std::filesystem::path path = directory.path() / "mesh.terrain";
-        REQUIRE(mesh::io::save_to_path(make_triangle(), path).has_value());
-        std::filesystem::resize_file(path, std::filesystem::file_size(path) - 1);
-        const mesh::io::Result<SimpleMesh> result = mesh::io::load_from_path(path);
-
-        REQUIRE(!result.has_value());
-        CHECK(result.error().holds<io::SerdeError>());
-    }
-
-    SECTION("glTF file without a mesh") {
-        const std::filesystem::path path = directory.path() / "empty.gltf";
-        std::ofstream(path) << R"({"asset":{"version":"2.0"}})";
-        const mesh::io::Result<SimpleMesh> result = mesh::io::load_from_path(path);
-
-        REQUIRE(!result.has_value());
-        CHECK(result.error().holds<mesh::io::UnsupportedGltf>());
-    }
 }

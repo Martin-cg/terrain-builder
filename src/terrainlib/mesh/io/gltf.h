@@ -32,6 +32,6 @@ Result<void> save_to_path(
 // Result<SimpleMesh> save_to_raw(const RawMesh &mesh, const SaveOptions &options = {});
 
 [[nodiscard]]
-alp::Result<RawMesh, GltfError> load_raw_from_path(const std::filesystem::path &path);
+alp::Result<RawMesh, ::io::FileError, GltfError> load_raw_from_path(const std::filesystem::path &path);
 
 } // namespace mesh::io::gltf
