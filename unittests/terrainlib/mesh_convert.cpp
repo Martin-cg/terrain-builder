@@ -2,7 +2,6 @@
 
 #include <numbers>
 
-#include <opencv2/opencv.hpp>
 #include <glm/glm.hpp>
 
 #include "mesh/SimpleMesh.h"
@@ -10,11 +9,11 @@
 #include "mesh/convert.h"
 #include "mesh/cgal.h"
 
-TEST_CASE("convert rountrip keeps precision", "[mesh][convert]") {
+TEST_CASE("to_simple_mesh restores a to_cgal_mesh round trip at full precision", "[mesh][convert]") {
     SimpleMesh mesh;
 
     const double pi = std::numbers::pi_v<double>;
-    CHECK((double)(float)pi != pi);
+    CHECK(static_cast<double>(static_cast<float>(pi)) != pi);
 
     mesh.positions.push_back(glm::dvec3(0, 0, 0));
     mesh.positions.push_back(glm::dvec3(pi, 0, 0));
