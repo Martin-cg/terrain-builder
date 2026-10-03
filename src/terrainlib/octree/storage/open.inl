@@ -72,6 +72,9 @@ alp::Result<Storage_<T, Codec>, OpenError> open_folder(
         LOG_TRACE("Loaded existing index");
         return Storage_<T, Codec>(std::move(storage_result.value()));
     }
+    if (!storage_result.error().template holds_and<io::FileError>(&io::FileError::is_not_found)) {
+        return std::unexpected(std::move(storage_result).error().context(context));
+    }
 
     ALP_TRY_CONTEXT(std::optional<helpers::LayoutWithoutBase> layout_info_opt, helpers::guess_layout_strategy(base_path), context);
     if (layout_info_opt.has_value()) {
@@ -106,7 +109,7 @@ alp::Result<Storage_<T, Codec>, OpenError> open_folder(
     IndexMap map;
     ALP_TRY_CONTEXT(helpers::update_index_map(map, layout), context);
     if (!map.empty()) {
-        LOG_UNEXPECTED_OF(helpers::save_index_map(map, layout));
+        ALP_TRY_CONTEXT(helpers::save_index_map(map, layout), context);
     }
     return Storage_<T, Codec>(RawStorage_<T, Codec>(std::move(layout)), std::move(map));
 }
