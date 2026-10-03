@@ -1,9 +1,7 @@
 #include <algorithm>
 #include <array>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <optional>
 #include <stdexcept>
 #include <type_traits>
 #include <unordered_map>
@@ -14,10 +12,16 @@
 #include <CGAL/Polygon_mesh_processing/orientation.h>
 #include <CGAL/Polygon_mesh_processing/remesh_planar_patches.h>
 #include <glm/glm.hpp>
+#include <glm/gtx/hash.hpp>
 #include <libassert/assert.hpp>
 #include <radix/geometry.h>
 
 #include "build_config.h"
+#include "containers/Cow.h"
+#include "containers/FixedVector.h"
+#include "geometry/AxisAlignedPlane.h"
+#include "geometry/bounds.h"
+#include "geometry/geometry.h"
 #include "hash_utils.h"
 #include "log.h"
 #include "mesh/cgal.h"
@@ -28,268 +32,221 @@
 #include "mesh/normalize.h"
 #include "mesh/validate.h"
 #include "mesh/validate_cgal.h"
-#include "containers/FixedVector.h"
+#include "polygon/clip_with.h"
+#include "polygon/triangulate.h"
+#include "variant_utils.h"
 #include "vector_utils.h"
 
 namespace mesh {
 namespace {
-template <typename T>
-struct Intersection {
-    glm::tvec3<T> point;
-    T t; // The parameter value along the line at which the intersection occurs
+
+// Where a source triangle lies relative to the bounds.
+enum class Placement { Inside, Outside, Partial };
+
+// Checks where `triangle` lies relative to `bounds`.
+// Partial if it is neither fully inside nor provably outside.
+Placement check_placement_in_bounds(const radix::geometry::Aabb3d &bounds, const std::array<glm::dvec3, 3> &triangle) {
+    const bool is_inside = std::ranges::all_of(triangle, [&](const glm::dvec3 &p) { return bounds.contains_inclusive(p); });
+    if (is_inside) {
+        return Placement::Inside;
+    }
+    if (!radix::geometry::intersect(bounds, geometry::calculate_bounds(triangle))) {
+        return Placement::Outside;
+    }
+    return Placement::Partial;
+}
+
+// A source vertex.
+struct Original {
+    uint32_t vertex_index;
 };
 
-// Copy of radix::geometry::intersection function that outputs the t value.
-template <typename T>
-std::optional<Intersection<T>> compute_intersection(const radix::geometry::Line<3, T> &line, const radix::geometry::Plane<T> &plane) {
-    const auto dot = glm::dot(plane.normal, line.direction);
-    // Exact, since for an axis-aligned plane this is the coordinate difference, nonzero across the plane.
-    if (dot == 0) {
-        return {};
-    }
-    const T t = (-plane.distance - glm::dot(plane.normal, line.point)) / dot;
-    return Intersection<T>{line.point + t * line.direction, t};
-}
+// A cut where a plane crosses a source edge, shared by both triangles on that edge.
+struct OnEdge {
+    glm::uvec2 edge;
+    SignedAxis plane_normal;
 
-template <typename T>
-std::optional<Intersection<T>>
-compute_intersection(const radix::geometry::Edge<3, T>& edge, const radix::geometry::Plane<T>& plane) {
-    const auto direction = edge[1] - edge[0];
-    const auto result = compute_intersection(radix::geometry::Line<3, T>{edge[0], direction}, plane);
-    if (!result) {
-        return std::nullopt;
-    }
-
-    // Keep only intersections on the edge
-    if (result->t < T(0) || result->t > T(1)) {
-        return std::nullopt;
-    }
-
-    return result;
-}
-
-class VertexProvenance {
-public:
-    struct Original {
-        uint32_t vertex_index;
-        bool operator==(const Original &) const = default;
-        auto operator<=>(const Original &) const = default;
-    };
-
-    struct OnEdge {
-        glm::uvec2 edge;
-        uint8_t plane_index;
-        bool operator==(const OnEdge &) const = default;
-        std::strong_ordering operator<=>(const OnEdge &other) const {
-            if (auto c = edge.x <=> other.edge.x; c != 0) {
-                return c;
-            }
-            if (auto c = edge.y <=> other.edge.y; c != 0) {
-                return c;
-            }
-            return plane_index <=> other.plane_index;
-        }
-    };
-
-    struct Inside {
-        std::unique_ptr<std::pair<VertexProvenance, VertexProvenance>> parts;
-        uint8_t plane_index;
-
-        Inside(std::unique_ptr<std::pair<VertexProvenance, VertexProvenance>> p, uint8_t plane_index)
-            : parts(std::move(p)), plane_index(plane_index) {}
-
-        Inside(const Inside &other)
-            : parts(other.parts
-                        ? std::make_unique<std::pair<VertexProvenance, VertexProvenance>>(*other.parts)
-                        : nullptr),
-              plane_index(other.plane_index) {}
-
-        Inside &operator=(const Inside &other) {
-            if (this != &other) {
-                parts = other.parts
-                            ? std::make_unique<std::pair<VertexProvenance, VertexProvenance>>(*other.parts)
-                            : nullptr;
-                plane_index = other.plane_index;
-            }
-            return *this;
-        }
-
-        Inside(Inside &&) noexcept = default;
-        Inside &operator=(Inside &&) noexcept = default;
-        std::strong_ordering operator<=>(const Inside& other) const {
-            if (auto c = plane_index <=> other.plane_index; c != 0) {
-                return c;
-            }
-
-            if (!parts && !other.parts) {
-                return std::strong_ordering::equal;
-            }
-            if (!parts) {
-                return std::strong_ordering::less;
-            }
-            if (!other.parts) {
-                return std::strong_ordering::greater;
-            }
-
-            if (auto c = parts->first <=> other.parts->first; c != 0) {
-                return c;
-            }
-            return parts->second <=> other.parts->second;
-        }
-        
-        bool operator==(const Inside& other) const {
-            if (plane_index != other.plane_index) {
-                return false;
-            }
-            if (static_cast<bool>(parts) != static_cast<bool>(other.parts)) {
-                return false;
-            }
-            if (!parts) {
-                return true;
-            }
-            return parts->first == other.parts->first &&
-                parts->second == other.parts->second;
-        }
-    };
-
-    VertexProvenance(const Original &v) : _v(v) {}
-    VertexProvenance(const OnEdge &v) : _v(v) {}
-    VertexProvenance(const Inside &v) : _v(v) {}
-
-    bool operator==(const VertexProvenance &) const = default;
-    std::strong_ordering operator<=>(const VertexProvenance &other) const {
-        if (auto c = _v.index() <=> other._v.index(); c != 0) {
-            return c;
-        }
-
-        return std::visit(
-            [](const auto &a, const auto &b) -> std::strong_ordering {
-                using A = std::decay_t<decltype(a)>;
-                using B = std::decay_t<decltype(b)>;
-                if constexpr (std::is_same_v<A, B>) {
-                    return a <=> b;
-                } else {
-                    UNREACHABLE();
-                }
-            },
-            _v, other._v);
-    }
-
-    bool is_original() const {
-        return std::holds_alternative<Original>(_v);
-    }
-
-    bool is_on_edge() const {
-        return std::holds_alternative<OnEdge>(_v);
-    }
-
-    bool is_inside() const {
-        return std::holds_alternative<Inside>(_v);
-    }
-
-    static VertexProvenance make_original(const uint32_t vertex_index) {
-        return VertexProvenance{Original{vertex_index}};
-    }
-
-    static VertexProvenance make_on_edge(const uint32_t a, const uint32_t b, const uint8_t plane_index) {
-        return make_on_edge(glm::uvec2(a, b), plane_index);
-    }
-
-    static VertexProvenance make_on_edge(const glm::uvec2 &edge, const uint8_t plane_index) {
-        return VertexProvenance{OnEdge{normalize_edge(edge), plane_index}};
-    }
-
-    static VertexProvenance make_inside(const VertexProvenance &a, const VertexProvenance &b, const uint8_t plane_index) {
-        auto parts = (a < b)
-                         ? std::make_unique<std::pair<VertexProvenance, VertexProvenance>>(a, b)
-                         : std::make_unique<std::pair<VertexProvenance, VertexProvenance>>(b, a);
-        return VertexProvenance{Inside{std::move(parts), plane_index}};
-    }
-
-    static VertexProvenance make_intersection(const VertexProvenance &a, const VertexProvenance &b, const uint8_t plane_index, const double t) {
-        if (t == 0) {
-            return a;
-        }
-        if (t == 1) {
-            return b;
-        }
-        return make_intersection(a, b, plane_index);
-    }
-
-    static VertexProvenance make_intersection(
-        const VertexProvenance &a,
-        const VertexProvenance &b,
-        uint8_t plane_index) {
-        return std::visit(
-            [&](const auto &av, const auto &bv) -> VertexProvenance {
-                using A = std::decay_t<decltype(av)>;
-                using B = std::decay_t<decltype(bv)>;
-
-                if constexpr (std::is_same_v<A, Original> && std::is_same_v<B, Original>) {
-                    if (av.vertex_index == bv.vertex_index) {
-                        return a;
-                    }
-                    return make_on_edge(av.vertex_index, bv.vertex_index, plane_index);
-                }
-
-                else if constexpr (std::is_same_v<A, Original> && std::is_same_v<B, OnEdge>) {
-                    if (point_lies_on_edge(av.vertex_index, bv.edge)) {
-                        return make_on_edge(bv.edge, plane_index);
-                    }
-                    return make_inside(a, b, plane_index);
-                }
-
-                else if constexpr (std::is_same_v<A, OnEdge> && std::is_same_v<B, Original>) {
-                    return make_intersection(b, a, plane_index);
-                }
-
-                else {
-                    return make_inside(a, b, plane_index);
-                }
-            },
-            a._v, b._v);
-    }
-
-    template <typename F>
-    [[maybe_unused]]
-    decltype(auto) visit(F &&f) {
-        return std::visit(std::forward<F>(f), _v);
-    }
-
-    template <typename F>
-    decltype(auto) visit(F &&f) const {
-        return std::visit(std::forward<F>(f), _v);
-    }
+    bool operator==(const OnEdge &) const = default;
 
     struct Hash {
-        size_t operator()(const VertexProvenance &v) const {
-            return std::visit(*this, v._v);
-        }
-
-        size_t operator()(const Original &v) const {
-            return v.vertex_index;
-        }
-
-        size_t operator()(const OnEdge &v) const {
-            return hash::combine(v.edge.x, v.edge.y, v.plane_index);
-        }
-
-        size_t operator()(const Inside &v) const {
-            size_t h = hash::combine(v.plane_index);
-            if (v.parts) {
-                hash::append(h, (*this)(v.parts->first));
-                hash::append(h, (*this)(v.parts->second));
-            }
-            return h;
+        size_t operator()(const OnEdge &on_edge) const {
+            return hash::combine(on_edge.edge, on_edge.plane_normal);
         }
     };
+};
+
+// Checks whether the source vertex with `vertex_index` ends `edge`.
+bool is_endpoint_of(const uint32_t vertex_index, const glm::uvec2 &edge) {
+    return vertex_index == edge.x || vertex_index == edge.y;
+}
+
+// A cut inside a source triangle, used by that triangle only.
+struct Inside {};
+
+using VertexProvenance = std::variant<Original, OnEdge, Inside>;
+
+// A vertex of a clipped source triangle.
+struct ClippedVertex {
+    glm::dvec3 position;
+    glm::dvec2 uv;
+    VertexProvenance provenance;
+};
+
+// Clipping a triangle by six planes adds at most one vertex per plane.
+constexpr size_t max_clipped_polygon_size = 9;
+using ClippedPolygon = FixedVector<ClippedVertex, max_clipped_polygon_size>;
+
+// Identifies the cut by `plane` between `from` and `to` by the source edge both lie on, or as inside the source triangle if they share none.
+VertexProvenance make_crossing(const VertexProvenance &from, const VertexProvenance &to, const AxisAlignedPlane &plane) {
+    // A polygon edge between a source vertex and a cut lies on a source edge only if that vertex ends it.
+    return std::visit(
+        overloaded{
+            [&](const Original &a, const Original &b) -> VertexProvenance {
+                return OnEdge{normalize_edge(glm::uvec2(a.vertex_index, b.vertex_index)), plane.normal};
+            },
+            [&](const Original &vertex, const OnEdge &on_edge) -> VertexProvenance {
+                return is_endpoint_of(vertex.vertex_index, on_edge.edge) ? VertexProvenance(OnEdge{on_edge.edge, plane.normal}) : Inside{};
+            },
+            [&](const OnEdge &on_edge, const Original &vertex) -> VertexProvenance {
+                return is_endpoint_of(vertex.vertex_index, on_edge.edge) ? VertexProvenance(OnEdge{on_edge.edge, plane.normal}) : Inside{};
+            },
+            [&](const OnEdge &a, const OnEdge &b) -> VertexProvenance {
+                if (a.edge == b.edge) {
+                    return OnEdge{a.edge, plane.normal};
+                }
+                return Inside{};
+            },
+            [](const auto &, const auto &) -> VertexProvenance {
+                return Inside{};
+            },
+        },
+        from,
+        to);
+}
+
+// Clips the vertices of a source triangle against a plane, keeping track of the source vertex or edge each one lies on.
+struct TrackedPolicy {
+    using Vertex = ClippedVertex;
+    using HalfSpace = AxisAlignedPlane;
+
+    // Measures the signed distance of `vertex` from `plane`.
+    static double compute_distance(const AxisAlignedPlane &plane, const ClippedVertex &vertex) {
+        return geometry::compute_distance(plane, vertex.position);
+    }
+
+    // Computes the vertex where the edge from `from` to `to` crosses `plane`, at `t` along it.
+    static ClippedVertex compute_crossing(const AxisAlignedPlane &plane, const ClippedVertex &from, const ClippedVertex &to, const double t) {
+        // Projecting puts the cut exactly on the bounds, so later planes and neighbouring bounds measure it without rounding.
+        const glm::dvec3 interpolated = geometry::lerp(from.position, to.position, t);
+        const glm::dvec3 position = geometry::project_onto_plane(interpolated, plane);
+        const glm::dvec2 uv = geometry::lerp(from.uv, to.uv, t);
+        return ClippedVertex{position, uv, make_crossing(from.provenance, to.provenance, plane)};
+    }
+};
+
+// Clips the source `triangle` to all `planes`.
+ClippedPolygon clip_triangle(const SimpleMesh &mesh, const glm::uvec3 &triangle, const std::array<AxisAlignedPlane, 6> &planes) {
+    ClippedPolygon polygon;
+    for (uint8_t k = 0; k < 3; k++) {
+        const uint32_t vertex_index = triangle[k];
+        const glm::dvec2 uv = mesh.has_uvs() ? mesh.uvs[vertex_index] : glm::dvec2(0);
+        polygon.push_back(ClippedVertex{mesh.positions[vertex_index], uv, Original{vertex_index}});
+    }
+
+    // Each plane adds at most one vertex only while the polygon is convex.
+    // Rounding can break that only for vertices within rounding of a plane without lying on it, and then the polygon overflows and throws.
+    for (const AxisAlignedPlane &plane : planes) {
+        polygon = polygon::clip_with<TrackedPolicy>(polygon, plane);
+    }
+    return polygon;
+}
+
+// The clipped mesh under construction, with every shared vertex added once.
+class ClippedMeshBuilder {
+public:
+    explicit ClippedMeshBuilder(const SimpleMesh &source)
+        : _source(source), _clipped_index_of_source(source.vertex_count(), invalid_index) {}
+
+    // Adds a source triangle unchanged.
+    void add_triangle(const glm::uvec3 &source_triangle) {
+        glm::uvec3 clipped_triangle;
+        for (uint8_t k = 0; k < 3; k++) {
+            clipped_triangle[k] = this->add_source_vertex(source_triangle[k]);
+        }
+        this->_triangles.push_back(clipped_triangle);
+    }
+
+    // Adds the convex `polygon` as a fan of triangles.
+    // Ignores a polygon with fewer than three vertices.
+    void add_polygon(const ClippedPolygon &polygon) {
+        if (polygon.size() < 3) {
+            return;
+        }
+
+        // Every vertex is used by the fan, so each can be added up front.
+        // Zero-area triangles are kept, since dropping one would leave a gap where it meets the triangles sharing its edges.
+        FixedVector<uint32_t, max_clipped_polygon_size> clipped_indices;
+        for (const ClippedVertex &vertex : polygon) {
+            clipped_indices.push_back(this->add_vertex(vertex));
+        }
+        polygon::triangulate_fan(clipped_indices, [&](const std::array<uint32_t, 3> &triangle) {
+            const glm::uvec3 clipped_triangle(triangle[0], triangle[1], triangle[2]);
+            DEBUG_ASSERT(!is_degenerate(clipped_triangle));
+            this->_triangles.push_back(clipped_triangle);
+        });
+    }
+
+    // Takes the clipped mesh.
+    SimpleMesh build() && {
+        return SimpleMesh(std::move(this->_triangles), std::move(this->_positions), std::move(this->_uvs), this->_source.texture);
+    }
 
 private:
-    std::variant<Original, OnEdge, Inside> _v;
+    static constexpr uint32_t invalid_index = static_cast<uint32_t>(-1);
 
-    static bool point_lies_on_edge(const uint32_t vertex_index, const glm::uvec2 &edge) {
-        return vertex_index == edge.x || vertex_index == edge.y;
+    uint32_t add_source_vertex(const uint32_t source_index) {
+        uint32_t &clipped_index = this->_clipped_index_of_source[source_index];
+        if (clipped_index == invalid_index) {
+            clipped_index = this->append_vertex(this->_source.positions[source_index], this->_source.has_uvs() ? this->_source.uvs[source_index] : glm::dvec2(0));
+        }
+        return clipped_index;
     }
+
+    uint32_t add_vertex(const ClippedVertex &vertex) {
+        return match(
+            vertex.provenance,
+            [&](const Original &original) {
+                return this->add_source_vertex(original.vertex_index);
+            },
+            [&](const OnEdge &on_edge) {
+                // A plane crosses an edge at most once, so the edge and plane identify the cut in both triangles sharing the edge.
+                const auto [it, inserted] = this->_clipped_index_of_crossing.try_emplace(on_edge, invalid_index);
+                if (inserted) {
+                    it->second = this->append_vertex(vertex.position, vertex.uv);
+                }
+                return it->second;
+            },
+            [&](const Inside &) {
+                // No other triangle can share this cut: it lies strictly inside one source triangle, whose polygon stays whole until the fan.
+                return this->append_vertex(vertex.position, vertex.uv);
+            });
+    }
+
+    uint32_t append_vertex(const glm::dvec3 &position, const glm::dvec2 &uv) {
+        const uint32_t clipped_index = this->_positions.size();
+        this->_positions.push_back(position);
+        if (this->_source.has_uvs()) {
+            this->_uvs.push_back(uv);
+        }
+        return clipped_index;
+    }
+
+    const SimpleMesh &_source;
+    std::vector<uint32_t> _clipped_index_of_source;
+    std::unordered_map<OnEdge, uint32_t, OnEdge::Hash> _clipped_index_of_crossing;
+    std::vector<glm::uvec3> _triangles;
+    std::vector<glm::dvec3> _positions;
+    std::vector<glm::dvec2> _uvs;
 };
 
 } // namespace
@@ -305,314 +262,24 @@ Cow<SimpleMesh> clip_on_bounds(const SimpleMesh &mesh, const radix::geometry::Aa
         LOG_ERROR_AND_EXIT("Mesh has Uvs, but the number of Uvs does not match the number of vertices.");
     }
 
-    // Construct 6 axis-aligned clipping planes from the bounding box
-    using Plane = radix::geometry::Plane<double>;
-    const std::array<Plane, 6> planes = {
-        Plane(glm::dvec3(1.0, 0.0, 0.0), -bounds.min.x), // left
-        Plane(glm::dvec3(-1.0, 0.0, 0.0), bounds.max.x), // right
-        Plane(glm::dvec3(0.0, 1.0, 0.0), -bounds.min.y), // bottom
-        Plane(glm::dvec3(0.0, -1.0, 0.0), bounds.max.y), // top
-        Plane(glm::dvec3(0.0, 0.0, 1.0), -bounds.min.z), // near
-        Plane(glm::dvec3(0.0, 0.0, -1.0), bounds.max.z)  // far
-    };
+    const std::array<AxisAlignedPlane, 6> planes = geometry::construct_face_planes(bounds);
 
-    std::vector<glm::dvec3> new_positions;
-    new_positions.reserve(mesh.vertex_count());
-    std::vector<glm::dvec2> new_uvs;
-    new_uvs.reserve(mesh.uvs.size());
-    std::vector<glm::uvec3> new_triangles;
-    new_triangles.reserve(mesh.face_count());
-
-    // Prepare a spatial hash map to deduplicate intersection vertices
-    std::unordered_map<VertexProvenance, uint32_t, VertexProvenance::Hash> seen_vertices(mesh.positions.size());
-    auto add_intersection_vertex = [&](const VertexProvenance &provenance, const glm::dvec3 &position, const glm::dvec2 &uv) {
-        const auto it = seen_vertices.find(provenance);
-        if (it != seen_vertices.cend()) {
-            return it->second;
-        } else {
-            const uint32_t vertex_index = new_positions.size();
-            new_positions.push_back(position);
-            if (mesh.has_uvs()) {
-                new_uvs.push_back(uv);
-            }
-            seen_vertices.emplace(provenance, vertex_index);
-            return vertex_index;
-        }
-    };
-
-    // Create another simpler mapping for the vertices copied directly from the input mesh
-    const uint32_t invalid_index = static_cast<uint32_t>(-1);
-    std::vector<uint32_t> position_mapping(mesh.vertex_count(), invalid_index);
-    auto add_original_vertex = [&](const uint32_t original_index) {
-        uint32_t &mapped = position_mapping[original_index];
-        if (mapped == invalid_index) {
-            mapped = new_positions.size();
-            new_positions.push_back(mesh.positions[original_index]);
-            if (mesh.has_uvs()) {
-                new_uvs.push_back(mesh.uvs[original_index]);
-            }
-        }
-        return mapped;
-    };
-
-    // Prepare temporary storage for intermediate triangles,
-    // to avoid allocating a new vector for each triangle in the slow path.
-    struct TriangleAndVertices {
-        std::array<VertexProvenance, 3> vertex_provenance;
-        std::array<glm::dvec3, 3> positions;
-        std::array<glm::dvec2, 3> uvs;
-        uint8_t next_plane_to_clip; // Which planes have already clipped this triangle
-    };
-    FixedVector<TriangleAndVertices, 6> triangles_left_to_clip;
-
-    // Iterate over each triangle in the mesh
-    for (const glm::uvec3 &source_triangle : mesh.triangles) {
-        // Get the positions for the current triangle
-        const std::array<glm::dvec3, 3> source_vertices = {
-            mesh.positions[source_triangle.x],
-            mesh.positions[source_triangle.y],
-            mesh.positions[source_triangle.z]};
-
-        // Load triangle uvs here to avoid repeated conditionals later
-        std::array<glm::dvec2, 3> source_uvs{};
-        if (mesh.has_uvs()) {
-            source_uvs = {
-                mesh.uvs[source_triangle.x],
-                mesh.uvs[source_triangle.y],
-                mesh.uvs[source_triangle.z]};
-        };
-
-        // Start with a few quick checks to try to avoid the slow path
-        const uint8_t in_bounds_count = std::count_if(source_vertices.begin(), source_vertices.end(), [&](const auto &vertex) {
-            return bounds.contains_inclusive(vertex);
-        });
-        if (in_bounds_count == 0) {
-            // All points are outside the bounds, but the triangle could still intersect.
-            // Calculate the triangle bounds and perform an intersection check
-            const glm::dvec3 triangle_min = glm::min(glm::min(source_vertices[0], source_vertices[1]), source_vertices[2]);
-            const glm::dvec3 triangle_max = glm::max(glm::max(source_vertices[0], source_vertices[1]), source_vertices[2]);
-            if (!radix::geometry::intersect(bounds, radix::geometry::Aabb3d{triangle_min, triangle_max})) {
-                // If the triangle bounds dont intersect, the triangle can be discarded
-                continue;
-            }
-        }
-        if (in_bounds_count == 3) {
-            // All vertices are in bounds, so we can directly add the vertex to the result mesh
-            glm::uvec3 new_triangle;
-            for (uint8_t k = 0; k < 3; k++) {
-                new_triangle[k] = add_original_vertex(source_triangle[k]);
-            }
-            new_triangles.push_back(new_triangle);
-            continue;
-        }
-
-        // Slow path: Clip triangle against all planes
-        
-        // Prepare vertex provenance
-        const std::array<VertexProvenance, 3> source_provenance = {
-            VertexProvenance::make_original(source_triangle[0]),
-            VertexProvenance::make_original(source_triangle[1]),
-            VertexProvenance::make_original(source_triangle[2]),
-        };
-
-        TriangleAndVertices current_triangle_and_vertices = {source_provenance, source_vertices, source_uvs, 0};
-        triangles_left_to_clip.clear();
-
-        // This outer loop iterates over the intermediate triangles potentially produced in the 2 inside 1 outside case
-        // The current_triangle_and_vertices is updated inside or at the end of the loop
-        while (true) {
-            const auto &[vertex_provenance, vertices, uvs, next_plane_to_clip] = current_triangle_and_vertices;
-            bool skip_triangle = false;
-
-            // Clip the current triangle against all planes
-            for (uint8_t plane_index = next_plane_to_clip; plane_index < planes.size(); plane_index++) {
-                const Plane &plane = planes[plane_index];
-
-                // Check the distance of each vertex to the plane
-                // and determine how many vertices are inside or outside the plane
-                const std::array<double, 3> distance_to_plane = {
-                    radix::geometry::distance(plane, vertices[0]),
-                    radix::geometry::distance(plane, vertices[1]),
-                    radix::geometry::distance(plane, vertices[2])};
-
-                const std::array<bool, 3> vertex_inside = {
-                    distance_to_plane[0] >= 0,
-                    distance_to_plane[1] >= 0,
-                    distance_to_plane[2] >= 0};
-                const uint32_t inside_count = vertex_inside[0] + vertex_inside[1] + vertex_inside[2];
-
-                // We need to use an if chain here since C++ does not like variable declarations in switch cases
-                if (inside_count == 0) {
-                    // All vertices are on the outside of the plane, so we skip the triangle
-                    skip_triangle = true;
-                    break;
-                } else if (inside_count == 3) {
-                    // All vertices are on the inside of the plane, so we keep the triangle as is
-                    // and continue with the next plane
-                    continue;
-                } else if (inside_count == 1) {
-                    // A single vertex is inside the plane, cut the other two off.
-
-                    // inside_count guarantees exactly one entry is true.
-                    const uint32_t inside_tri_index =
-                        vertex_inside[0] ? 0u : vertex_inside[1] ? 1u : 2u;
-                    const uint32_t outside1_tri_index = (inside_tri_index + 1) % 3;
-                    const uint32_t outside2_tri_index = (inside_tri_index + 2) % 3;
-
-                    // Skip the triangle if it only touches the plane
-                    if (distance_to_plane[inside_tri_index] == 0) {
-                        skip_triangle = true;
-                        break;
-                    }
-
-                    // Then compute the intersections
-                    const glm::dvec3 inside_vertex = vertices[inside_tri_index];
-                    const glm::dvec3 outside1_vertex = vertices[outside1_tri_index];
-                    const glm::dvec3 outside2_vertex = vertices[outside2_tri_index];
-
-                    const Intersection intersection1 = compute_intersection(radix::geometry::Edge{inside_vertex, outside1_vertex}, plane).value();
-                    const Intersection intersection2 = compute_intersection(radix::geometry::Edge{inside_vertex, outside2_vertex}, plane).value();
-
-                    // Compute the uvs for the vertices and intersection points
-                    const glm::dvec2 inside_uv = uvs[inside_tri_index];
-                    const glm::dvec2 outside1_uv = uvs[outside1_tri_index];
-                    const glm::dvec2 outside2_uv = uvs[outside2_tri_index];
-                    const glm::dvec2 intersection1_uv = glm::mix(inside_uv, outside1_uv, intersection1.t);
-                    const glm::dvec2 intersection2_uv = glm::mix(inside_uv, outside2_uv, intersection2.t);
-
-                    // Compute the provenances
-                    const VertexProvenance inside_prov = vertex_provenance[inside_tri_index];
-                    const VertexProvenance outside1_prov = vertex_provenance[outside1_tri_index];
-                    const VertexProvenance outside2_prov = vertex_provenance[outside2_tri_index];
-                    const VertexProvenance intersection1_prov = VertexProvenance::make_intersection(inside_prov, outside1_prov, plane_index, intersection1.t);
-                    const VertexProvenance intersection2_prov = VertexProvenance::make_intersection(inside_prov, outside2_prov, plane_index, intersection2.t);
-
-                    // Finally create the new triangle and use it as the current triangle
-                    // The intersection vertices are marked as invalid, since they have not yet been added to the output.
-                    const std::array<VertexProvenance, 3> new_vertex_provenance = {inside_prov, intersection1_prov, intersection2_prov};
-                    const std::array<glm::dvec3, 3> new_vertices = {inside_vertex, intersection1.point, intersection2.point};
-                    const std::array<glm::dvec2, 3> new_uvs = {inside_uv, intersection1_uv, intersection2_uv};
-
-                    if (geometry::is_empty_triangle(new_vertices)) {
-                        skip_triangle = true;
-                        break;
-                    }
-
-                    const uint8_t next_plane_index = static_cast<uint8_t>(plane_index + 1);
-                    current_triangle_and_vertices = {new_vertex_provenance, new_vertices, new_uvs, next_plane_index};
-                } else if (inside_count == 2) {
-                    // Two vertices is inside the plane, cut the last one off and split the triangle.
-
-                    // inside_count guarantees exactly one entry is false.
-                    const uint32_t outside_tri_index =
-                        !vertex_inside[0] ? 0u : !vertex_inside[1] ? 1u : 2u;
-                    const uint32_t inside1_tri_index = (outside_tri_index + 1) % 3;
-                    const uint32_t inside2_tri_index = (outside_tri_index + 2) % 3;
-
-                    // Then compute the intersections
-                    const glm::dvec3 outside_vertex = vertices[outside_tri_index];
-                    const glm::dvec3 inside1_vertex = vertices[inside1_tri_index];
-                    const glm::dvec3 inside2_vertex = vertices[inside2_tri_index];
-
-                    const Intersection intersection1 = compute_intersection(radix::geometry::Edge{outside_vertex, inside1_vertex}, plane).value();
-                    const Intersection intersection2 = compute_intersection(radix::geometry::Edge{outside_vertex, inside2_vertex}, plane).value();
-
-                    // Compute the Uvs for the vertices and intersection points
-                    const glm::dvec2 outside_uv = uvs[outside_tri_index];
-                    const glm::dvec2 inside1_uv = uvs[inside1_tri_index];
-                    const glm::dvec2 inside2_uv = uvs[inside2_tri_index];
-                    const glm::dvec2 intersection1_uv = glm::mix(outside_uv, inside1_uv, intersection1.t);
-                    const glm::dvec2 intersection2_uv = glm::mix(outside_uv, inside2_uv, intersection2.t);
-
-                    // Compute the provenances
-                    const VertexProvenance outside_prov = vertex_provenance[outside_tri_index];
-                    const VertexProvenance inside1_prov = vertex_provenance[inside1_tri_index];
-                    const VertexProvenance inside2_prov = vertex_provenance[inside2_tri_index];
-                    const VertexProvenance intersection1_prov = VertexProvenance::make_intersection(outside_prov, inside1_prov, plane_index, intersection1.t);
-                    const VertexProvenance intersection2_prov = VertexProvenance::make_intersection(outside_prov, inside2_prov, plane_index, intersection2.t);
-
-                    // Finally create the new triangles
-                    // quad order: outside - int1 - inside1 - inside2 - int2
-                    const std::array<VertexProvenance, 3> new_vertex_provenance1 = {inside1_prov, inside2_prov, intersection1_prov};
-                    const std::array<VertexProvenance, 3> new_vertex_provenance2 = {inside2_prov, intersection2_prov, intersection1_prov};
-                    const std::array<glm::dvec3, 3> new_vertices1 = {inside1_vertex, inside2_vertex, intersection1.point};
-                    const std::array<glm::dvec3, 3> new_vertices2 = {inside2_vertex, intersection2.point, intersection1.point};
-                    const std::array<glm::dvec2, 3> new_uvs1 = {inside1_uv, inside2_uv, intersection1_uv};
-                    const std::array<glm::dvec2, 3> new_uvs2 = {inside2_uv, intersection2_uv, intersection1_uv};
-
-                    const uint8_t next_plane_index = static_cast<uint8_t>(plane_index + 1);
-                    const TriangleAndVertices new_triangle1{new_vertex_provenance1, new_vertices1, new_uvs1, next_plane_index};
-                    const TriangleAndVertices new_triangle2{new_vertex_provenance2, new_vertices2, new_uvs2, next_plane_index};
-
-                    // Set the first triangle as the current one
-                    // Push the second triangle to the list of triangles left to clip
-                    const bool empty1 = geometry::is_empty_triangle(new_triangle1.positions);
-                    const bool empty2 = geometry::is_empty_triangle(new_triangle2.positions);
-                    if (empty2) {
-                        if (empty1) {
-                            skip_triangle = true;
-                            break;
-                        } else {
-                            current_triangle_and_vertices = new_triangle1;
-                        }
-                    }
-                    else {
-                        if (empty1) {
-                            current_triangle_and_vertices = new_triangle2;
-                        } else {
-                            current_triangle_and_vertices = new_triangle1;
-                            triangles_left_to_clip.push_back(new_triangle2);
-                        }
-                    }
-                } else {
-                    UNREACHABLE();
-                }
-            }
-
-            if (skip_triangle) {
-                // Discarding this piece must not abandon the pieces an earlier split left queued
-                if (triangles_left_to_clip.empty()) {
-                    break;
-                }
-                current_triangle_and_vertices = triangles_left_to_clip.back();
-                triangles_left_to_clip.pop_back();
-                continue;
-            }
-
-            // If we reached here we have a clipped triangle that was not discarded
-            // However since it may contain new vertices not in the original mesh
-            // we need to add them to the output mesh while avoiding duplicates
-            glm::uvec3 indices;
-            for (uint8_t k = 0; k < 3; k++) {
-                const VertexProvenance &provenance = vertex_provenance[k];
-                const auto &position = vertices[k];
-                const auto &uv = uvs[k];
-                indices[k] = provenance.visit([&](const auto &v) -> uint32_t {
-                    using V = std::decay_t<decltype(v)>;
-                    if constexpr (std::is_same_v<V, VertexProvenance::Original>) {
-                        // We have a vertex in the original mesh -> look up in the boolean vector
-                        return add_original_vertex(v.vertex_index);
-                    } else {
-                        // We have a vertex not in the original mesh -> look up in the spatial hash map
-                        return add_intersection_vertex(v, position, uv);
-                    }
-                });
-            }
-
-            DEBUG_ASSERT(!is_degenerate(indices));
-            new_triangles.push_back(indices);
-
-            // Continue with the next triangle if there are any left to clip
-            if (triangles_left_to_clip.empty()) {
-                break;
-            } else {
-                current_triangle_and_vertices = triangles_left_to_clip.back();
-                triangles_left_to_clip.pop_back();
-            }
+    ClippedMeshBuilder clipped(mesh);
+    for (const glm::uvec3 &triangle : mesh.triangles) {
+        const std::array<glm::dvec3, 3> positions = {mesh.positions[triangle.x], mesh.positions[triangle.y], mesh.positions[triangle.z]};
+        switch (check_placement_in_bounds(bounds, positions)) {
+        case Placement::Inside:
+            clipped.add_triangle(triangle);
+            break;
+        case Placement::Partial:
+            clipped.add_polygon(clip_triangle(mesh, triangle, planes));
+            break;
+        case Placement::Outside:
+            break;
         }
     }
 
-    SimpleMesh clipped_mesh(new_triangles, new_positions, new_uvs, mesh.texture);
+    SimpleMesh clipped_mesh = std::move(clipped).build();
     validate(clipped_mesh);
     return Cow<SimpleMesh>::owned(std::move(clipped_mesh));
 }
