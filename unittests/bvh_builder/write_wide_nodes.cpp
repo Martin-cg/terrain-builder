@@ -1,4 +1,5 @@
 #include "../catch2_helpers.h"
+#include "../result_helpers.h"
 #include "../temp_directory.h"
 
 #include <array>
@@ -72,6 +73,7 @@ TEST_CASE("a kept root collects every leaf its dissolved children held", "[widen
     bvh::NodeCache cache(nodes, 1);
     const auto wide_root = widen::write_wide_nodes(splits, cache, root, output, widen::Options{.arity = 4});
     REQUIRE(wide_root.has_value());
+    REQUIRE_VALUE(output.save_index());
 
     const auto root_batch = output.read(wide_root->batch);
     REQUIRE(root_batch.has_value());
@@ -103,6 +105,7 @@ TEST_CASE("a kept node keeps the header it had", "[widen][write_wide_nodes]") {
     bvh::NodeCache cache(nodes, 1);
     const auto wide_root = widen::write_wide_nodes(splits, cache, root, output, widen::Options{.arity = 4});
     REQUIRE(wide_root.has_value());
+    REQUIRE_VALUE(output.save_index());
 
     const auto root_batch = output.read(wide_root->batch);
     REQUIRE(root_batch.has_value());
@@ -123,6 +126,7 @@ TEST_CASE("children that keep their slot stay nodes of their own", "[widen][writ
     bvh::NodeCache cache(nodes, 1);
     const auto wide_root = widen::write_wide_nodes(splits, cache, root, output, widen::Options{.arity = 2});
     REQUIRE(wide_root.has_value());
+    REQUIRE_VALUE(output.save_index());
 
     const auto root_batch = output.read(wide_root->batch);
     REQUIRE(root_batch.has_value());

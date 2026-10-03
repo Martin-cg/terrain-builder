@@ -1,4 +1,5 @@
 #include "../catch2_helpers.h"
+#include "../result_helpers.h"
 #include "../temp_directory.h"
 
 #include <algorithm>
@@ -189,9 +190,11 @@ TEST_CASE("scatter over more buckets than it may hold open takes several passes"
 
     frontier::Storage wide(directory.path() / "wide");
     REQUIRE(frontier::scatter(input, buckets, wide, 8).has_value());
+    REQUIRE_VALUE(wide.save_index());
 
     frontier::Storage narrow(directory.path() / "narrow");
     REQUIRE(frontier::scatter(input, buckets, narrow, 1).has_value());
+    REQUIRE_VALUE(narrow.save_index());
 
     CHECK(wide.size() == narrow.size());
     CHECK(read_codes(wide) == read_codes(narrow));

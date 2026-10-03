@@ -1,4 +1,5 @@
 #include "../catch2_helpers.h"
+#include "../result_helpers.h"
 #include "../temp_directory.h"
 
 #include <array>
@@ -138,6 +139,7 @@ TEST_CASE("two entries are joined under a parent carrying both their headers", "
     const auto root = lbvh::detail::build_subtree(std::array{left, right}, writer);
     REQUIRE(root.has_value());
     REQUIRE(writer.flush().has_value());
+    REQUIRE_VALUE(nodes.save_index());
 
     CHECK(root->morton == left.morton);
     CHECK(root->header == bvh::NodeHeader{.min_child_error = 1.0, .max_parent_error = 4.0, .bounds = {glm::dvec3{0.0}, glm::dvec3{7.0}}});
@@ -158,6 +160,7 @@ TEST_CASE("entries whose codes differ in the top bit end up in separate subtrees
     const auto root = lbvh::detail::build_subtree(entries, writer);
     REQUIRE(root.has_value());
     REQUIRE(writer.flush().has_value());
+    REQUIRE_VALUE(nodes.save_index());
 
     const std::vector<bvh::Reference> children = read_children(nodes, root->ref);
     REQUIRE(children.size() == 2);
@@ -178,6 +181,7 @@ TEST_CASE("entries with equal codes are still all joined, halving the run", "[bu
     const auto root = lbvh::detail::build_subtree(entries, writer);
     REQUIRE(root.has_value());
     REQUIRE(writer.flush().has_value());
+    REQUIRE_VALUE(nodes.save_index());
 
     const std::vector<bvh::Reference> children = read_children(nodes, root->ref);
     REQUIRE(children.size() == 2);
@@ -204,6 +208,7 @@ TEST_CASE("each batch of a run gets a subtree of its own before their roots are 
     const auto root = lbvh::build(run, writer);
     REQUIRE(root.has_value());
     REQUIRE(writer.flush().has_value());
+    REQUIRE_VALUE(nodes.save_index());
 
     const std::vector<bvh::Reference> children = read_children(nodes, root->ref);
     REQUIRE(children.size() == 2);
