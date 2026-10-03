@@ -13,7 +13,9 @@
 #include <libassert/assert.hpp>
 #include <radix/geometry.h>
 
+#include "containers/FixedVector.h"
 #include "geometry/bounds.h"
+#include "numeric/ExactSum.h"
 
 namespace geometry {
 
@@ -73,6 +75,44 @@ radix::geometry::Triangle<n_dims, T> corners(const glm::uvec3 &triangle, const s
 template <typename T>
 T orient(const glm::vec<2, T> &a, const glm::vec<2, T> &b, const glm::vec<2, T> &p) {
     return cross(b - a, p - a);
+}
+
+template <glm::length_t n_dims, typename T>
+bool is_collinear(const glm::vec<n_dims, T> &a, const glm::vec<n_dims, T> &b, const glm::vec<n_dims, T> &c, const T epsilon) {
+    static_assert(n_dims == 2 || n_dims == 3, "is_collinear is only defined for 2D and 3D points");
+
+    // (b - a) x (c - a) equals a x b + b x c + c x a, whose products need no subtraction first and can be summed exactly.
+    const auto sum_component = [&](const glm::length_t i, const glm::length_t j) {
+        ExactSum<T, 12> component;
+        component.add_product(a[i], b[j]);
+        component.add_product(-a[j], b[i]);
+        component.add_product(b[i], c[j]);
+        component.add_product(-b[j], c[i]);
+        component.add_product(c[i], a[j]);
+        component.add_product(-c[j], a[i]);
+        return component;
+    };
+    FixedVector<ExactSum<T, 12>, 3> components;
+    components.push_back(sum_component(0, 1));
+    if constexpr (n_dims == 3) {
+        components.push_back(sum_component(1, 2));
+        components.push_back(sum_component(2, 0));
+    }
+    if (std::ranges::all_of(components, [](const ExactSum<T, 12> &component) { return component.is_zero(); })) {
+        return true;
+    }
+
+    // The cross product's length is twice the area, and twice the area over the longest edge is the smallest altitude.
+    T cross_length_squared = T(0);
+    for (const ExactSum<T, 12> &component : components) {
+        cross_length_squared += component.estimate() * component.estimate();
+    }
+    const T longest_edge = std::max({glm::distance(a, b), glm::distance(b, c), glm::distance(c, a)});
+    return epsilon > T(0) && std::sqrt(cross_length_squared) <= epsilon * longest_edge;
+}
+template <glm::length_t n_dims, typename T>
+bool is_collinear(const radix::geometry::Triangle<n_dims, T> &triangle, const T epsilon) {
+    return is_collinear(triangle[0], triangle[1], triangle[2], epsilon);
 }
 
 template <glm::length_t n_dims, typename T>
