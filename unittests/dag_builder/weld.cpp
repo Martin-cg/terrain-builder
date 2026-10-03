@@ -1,18 +1,22 @@
 #include "../catch2_helpers.h"
 
 #include <cstdint>
+#include <limits>
 #include <stdexcept>
 #include <utility>
 #include <vector>
 
 #include <glm/glm.hpp>
+#include <glm/gtc/epsilon.hpp>
 
 #include "cluster.h"
+#include "geometry/geometry.h"
 #include "merge/weld.h"
+#include "mesh/TriangleSoup.h"
+#include "range_utils.h"
+#include "utils.h"
 
 namespace {
-
-constexpr double position_tolerance = 1e-9;
 
 Cluster make_cluster(std::vector<uint32_t> vertex_indices, std::vector<glm::uvec3> local_triangles) {
     Cluster cluster;
@@ -22,90 +26,106 @@ Cluster make_cluster(std::vector<uint32_t> vertex_indices, std::vector<glm::uvec
     return cluster;
 }
 
-// Two triangles sharing a position but not a vertex index: a crack inside a single clustering.
-Clustering make_cracked_clustering() {
+std::vector<TriangleSoup> to_cluster_soups(const Clustering &clustering) {
+    return transform_vector(clustering.clusters, [&](const Cluster &cluster) {
+        return to_triangle_soup(materialize_cluster(cluster, clustering.positions));
+    });
+}
+} // namespace
+
+TEST_CASE("weld_clustering welds positions within epsilon and keeps the rest apart", "[merge][weld]") {
+    // near is within epsilon of anchor, far is beyond epsilon of both.
+    const glm::dvec3 anchor(0.1, 0.0, 0.0);
+    const glm::dvec3 near(1.0, 0.0, 0.0);
+    const glm::dvec3 far(0.1, -1.1, 0.0);
+
     Clustering clustering;
     clustering.positions = {
-        glm::dvec3(0.0, 0.0, 0.0),
-        glm::dvec3(10.0, 0.0, 0.0),
-        glm::dvec3(5.0, 10.0, 0.0),
-        glm::dvec3(0.0, 0.0, 0.0),
-        glm::dvec3(-10.0, 0.0, 0.0),
-        glm::dvec3(-5.0, 10.0, 0.0),
+        anchor, glm::dvec3(10.0, 0.0, 0.0), glm::dvec3(5.0, 10.0, 0.0),
+        near, glm::dvec3(-10.0, 0.0, 0.0), glm::dvec3(-5.0, 10.0, 0.0),
+        far, glm::dvec3(5.0, -10.0, 0.0), glm::dvec3(-5.0, -10.0, 0.0),
+    };
+    clustering.clusters.push_back(make_cluster({0, 1, 2}, {glm::uvec3(0, 1, 2)}));
+    clustering.clusters.push_back(make_cluster({3, 4, 5}, {glm::uvec3(0, 1, 2)}));
+    clustering.clusters.push_back(make_cluster({6, 7, 8}, {glm::uvec3(0, 1, 2)}));
+
+    // The last writer places the welded vertex exactly at near.
+    const Clustering welded = weld_clustering(clustering, 1.0, false);
+
+    CHECK_THAT(welded.positions, Catch::Matchers::UnorderedEquals<glm::dvec3>({
+        near, glm::dvec3(10.0, 0.0, 0.0), glm::dvec3(5.0, 10.0, 0.0),
+        glm::dvec3(-10.0, 0.0, 0.0), glm::dvec3(-5.0, 10.0, 0.0),
+        far, glm::dvec3(5.0, -10.0, 0.0), glm::dvec3(-5.0, -10.0, 0.0),
+    }));
+    CHECK(to_cluster_soups(welded) == std::vector<TriangleSoup>{
+        {{near, glm::dvec3(10.0, 0.0, 0.0), glm::dvec3(5.0, 10.0, 0.0)}},
+        {{near, glm::dvec3(-10.0, 0.0, 0.0), glm::dvec3(-5.0, 10.0, 0.0)}},
+        {{far, glm::dvec3(5.0, -10.0, 0.0), glm::dvec3(-5.0, -10.0, 0.0)}},
+    });
+}
+
+TEST_CASE("weld_clustering places the welded vertex by averaging or last writer", "[merge][weld]") {
+    struct Case {
+        bool average_positions;
+        glm::dvec3 welded;
+    };
+    const Case c = GENERATE(
+        Case{true, glm::dvec3(0.25, 0.0, 0.0)},
+        Case{false, glm::dvec3(0.4, 0.0, 0.0)});
+
+    Clustering clustering;
+    clustering.positions = {
+        glm::dvec3(0.1, 0.0, 0.0), glm::dvec3(10.0, 0.0, 0.0), glm::dvec3(5.0, 10.0, 0.0),
+        glm::dvec3(0.4, 0.0, 0.0), glm::dvec3(-10.0, 0.0, 0.0), glm::dvec3(-5.0, 10.0, 0.0),
     };
     clustering.clusters.push_back(make_cluster({0, 1, 2}, {glm::uvec3(0, 1, 2)}));
     clustering.clusters.push_back(make_cluster({3, 4, 5}, {glm::uvec3(0, 1, 2)}));
 
-    return clustering;
-}
+    const Clustering welded = weld_clustering(clustering, 1.0, c.average_positions);
 
-uint32_t global_vertex_index(
-    const Clustering &clustering,
-    const uint32_t cluster_index,
-    const uint32_t local_vertex_index) {
-    return clustering.clusters.at(cluster_index).vertex_indices.at(local_vertex_index);
-}
-} // namespace
-
-TEST_CASE("weld_clustering closes a crack inside one clustering", "[merge][weld]") {
-    const Clustering welded = weld_clustering(make_cracked_clustering(), 1.0);
-
-    REQUIRE(welded.clusters.size() == 2);
-    CHECK(welded.vertex_count() == 5);
-    CHECK(global_vertex_index(welded, 0, 0) == global_vertex_index(welded, 1, 0));
-}
-
-TEST_CASE("weld_clustering leaves distinct vertices apart", "[merge][weld]") {
-    Clustering clustering = make_cracked_clustering();
-    clustering.positions[3] = glm::dvec3(0.0, -5.0, 0.0);
-
-    const Clustering welded = weld_clustering(clustering, 1.0);
-
-    CHECK(welded.vertex_count() == 6);
-    CHECK(global_vertex_index(welded, 0, 0) != global_vertex_index(welded, 1, 0));
-}
-
-TEST_CASE("weld_clustering places the welded vertex by averaging or last writer", "[merge][weld]") {
-    const bool average_positions = GENERATE(true, false);
-
-    Clustering clustering = make_cracked_clustering();
-    clustering.positions[3] = glm::dvec3(0.4, 0.0, 0.0);
-
-    const Clustering welded = weld_clustering(clustering, 1.0, average_positions);
-
-    REQUIRE(welded.vertex_count() == 5);
-    const glm::dvec3 &position = welded.positions[global_vertex_index(welded, 0, 0)];
-    const glm::dvec3 expected = average_positions ? glm::dvec3(0.2, 0.0, 0.0) : glm::dvec3(0.4, 0.0, 0.0);
-    CHECK(glm::distance(position, expected) <= position_tolerance);
+    const auto is_close = [](const glm::dvec3 &a, const glm::dvec3 &b) {
+        return glm::all(glm::epsilonEqual(a, b, geometry::epsilon<double>()));
+    };
+    CHECK_THAT(welded.positions, Catch::Matchers::UnorderedRangeEquals(std::vector<glm::dvec3>{
+        c.welded, glm::dvec3(10.0, 0.0, 0.0), glm::dvec3(5.0, 10.0, 0.0),
+        glm::dvec3(-10.0, 0.0, 0.0), glm::dvec3(-5.0, 10.0, 0.0),
+    }, is_close));
 }
 
 TEST_CASE("weld_clustering drops triangles collapsed by welding", "[merge][weld]") {
+    const glm::dvec3 duplicate(0.1, 0.0, 0.0);
+
     Clustering clustering;
-    clustering.positions = {
-        glm::dvec3(0.0, 0.0, 0.0),
-        glm::dvec3(10.0, 0.0, 0.0),
-        glm::dvec3(5.0, 10.0, 0.0),
-        glm::dvec3(0.1, 0.0, 0.0),
-    };
+    clustering.positions = {duplicate, glm::dvec3(10.0, 0.0, 0.0), glm::dvec3(5.0, 10.0, 0.0), duplicate};
     clustering.clusters.push_back(make_cluster({0, 1, 2, 3}, {glm::uvec3(0, 1, 2), glm::uvec3(0, 3, 1)}));
 
     const Clustering welded = weld_clustering(clustering, 1.0);
 
-    REQUIRE(welded.clusters.size() == 1);
-    CHECK(welded.vertex_count() == 3);
-    CHECK(welded.clusters[0].local_triangles.size() == 1);
-    CHECK(welded.clusters[0].vertex_indices.size() == 3);
+    CHECK_THAT(welded.positions, Catch::Matchers::UnorderedEquals<glm::dvec3>({
+        duplicate, glm::dvec3(10.0, 0.0, 0.0), glm::dvec3(5.0, 10.0, 0.0),
+    }));
+    CHECK(to_cluster_soups(welded) == std::vector<TriangleSoup>{
+        {{duplicate, glm::dvec3(10.0, 0.0, 0.0), glm::dvec3(5.0, 10.0, 0.0)}},
+    });
 }
 
-TEST_CASE("weld_clustering rejects a non positive epsilon", "[merge][weld]") {
-    const Clustering clustering = make_cracked_clustering();
+TEST_CASE("weld_clustering rejects a non positive or non finite epsilon", "[merge][weld]") {
+    const double epsilon = GENERATE(
+        0.0,
+        -1.0,
+        std::numeric_limits<double>::quiet_NaN(),
+        std::numeric_limits<double>::infinity());
 
-    CHECK_THROWS_AS(weld_clustering(clustering, 0.0), std::invalid_argument);
-    CHECK_THROWS_AS(weld_clustering(clustering, -1.0), std::invalid_argument);
+    Clustering clustering;
+    clustering.positions = {glm::dvec3(0.0, 0.0, 0.0), glm::dvec3(1.0, 0.0, 0.0), glm::dvec3(0.0, 1.0, 0.0)};
+    clustering.clusters.push_back(make_cluster({0, 1, 2}, {glm::uvec3(0, 1, 2)}));
+
+    CHECK_THROWS_AS(weld_clustering(clustering, epsilon), std::invalid_argument);
 }
 
 TEST_CASE("weld_clustering returns an empty clustering unchanged", "[merge][weld]") {
     const Clustering welded = weld_clustering(Clustering{}, 1.0);
 
-    CHECK(welded.is_empty());
+    CHECK(welded.positions.empty());
+    CHECK(welded.clusters.empty());
 }
