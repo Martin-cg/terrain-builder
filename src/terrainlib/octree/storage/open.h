@@ -4,9 +4,10 @@
 #include <memory>
 #include <optional>
 
-#include <tl/expected.hpp>
-
+#include "error/Error.h"
+#include "error/Result.h"
 #include "io/Error.h"
+#include "octree/disk/layout/UnknownLayoutStrategy.h"
 #include "octree/disk/layout/strategy/Default.h"
 #include "octree/storage/IndexedStorage.h"
 #include "octree/storage/Storage.h"
@@ -20,15 +21,21 @@ struct OpenOptions {
     std::optional<std::string> preferred_extension_with_dot = {};
 };
 
+// An error from opening a storage.
+using OpenError = alp::Error<io::FileError, io::SerdeError, disk::layout::UnknownLayoutStrategy>;
+
 template <typename T = DefaultT, CodecFor<T> Codec = DefaultCodecFor<T>>
-tl::expected<IndexedStorage_<T, Codec>, io::Error> open_index(const std::filesystem::path &index_path);
+[[nodiscard]]
+alp::Result<IndexedStorage_<T, Codec>, OpenError> open_index(const std::filesystem::path &index_path);
 template <typename T = DefaultT, CodecFor<T> Codec = DefaultCodecFor<T>>
-Storage_<T, Codec> open_folder(
+[[nodiscard]]
+alp::Result<Storage_<T, Codec>, OpenError> open_folder(
     const std::filesystem::path &base_path,
     const bool create_index = false,
     OpenOptions options = {});
 template <typename T = DefaultT, CodecFor<T> Codec = DefaultCodecFor<T>>
-IndexedStorage_<T, Codec> open_folder_indexed(
+[[nodiscard]]
+alp::Result<IndexedStorage_<T, Codec>, OpenError> open_folder_indexed(
     const std::filesystem::path &base_path,
     OpenOptions options = {});
 }

@@ -88,7 +88,7 @@ public:
         // or merge if right has a non-missing parent
         if constexpr (LeftStatus == Status::Leaf && RightStatus == Status::Missing) {
             if (ctx.has_right_parent) {
-                return this->merge_meshes(left.mesh(), right.mesh().value(), true, false, mask);
+                return this->merge_meshes(left.mesh(), *ASSERT_VAL(right.mesh()), true, false, mask);
             }
 
             // Right node is actually missing, just return the clipped left node
@@ -106,7 +106,7 @@ public:
         // or merge if left has a non-missing parent
         if constexpr (LeftStatus == Status::Missing && RightStatus == Status::Leaf) {
             if (ctx.has_left_parent) {
-                return this->merge_meshes(left.mesh().value(), right.mesh(), false, true, mask);
+                return this->merge_meshes(*ASSERT_VAL(left.mesh()), right.mesh(), false, true, mask);
             }
 
             // Left node is actually missing, just return the clipped right node
@@ -123,7 +123,7 @@ public:
         if constexpr (LeftStatus == Status::Missing && RightStatus == Status::Missing) {
             DEBUG_ASSERT(ctx.has_left_parent || ctx.has_right_parent);
             if (ctx.has_left_parent) {
-                auto result = clip_on_mask(left.mesh().value(), mask, false);
+                auto result = clip_on_mask(*ASSERT_VAL(left.mesh()), mask, false);
                 if (result->is_empty()) {
                     return Ignore{};
                 } else {
@@ -131,7 +131,7 @@ public:
                 }
             }
             if (ctx.has_right_parent) {
-                auto result = clip_on_mask(right.mesh().value(), mask, true);
+                auto result = clip_on_mask(*ASSERT_VAL(right.mesh()), mask, true);
                 if (result->is_empty()) {
                     return Ignore{};
                 } else {

@@ -3,43 +3,50 @@
 #include <filesystem>
 #include <optional>
 
+#include <fmt/format.h>
 #include <opencv2/opencv.hpp>
 #include <radix/tile.h>
+
+#include "error/Error.h"
+#include "error/Result.h"
+#include "error/utils.h"
+#include "texture/io.h"
+
+// A tile that a provider does not have.
+struct MissingTile {
+    radix::tile::Id tile;
+
+    bool operator==(const MissingTile &) const = default;
+};
+
+inline std::string format_as(const MissingTile &error) {
+    return fmt::format("the provider has no tile {}", radix::tile::to_string(error.tile));
+}
+
+// An error from getting a tile from a provider.
+using TileError = alp::Error<MissingTile, texture::io::ReadError>;
 
 class TileProvider {
 public:
     virtual ~TileProvider() = default;
-    virtual std::optional<cv::Mat> get_tile(const radix::tile::Id tile) const = 0;
-    virtual bool has_tile(const radix::tile::Id tile) const {
-        return this->get_tile(tile).has_value();
-    }
+    virtual bool has_tile(const radix::tile::Id tile) const = 0;
+    virtual alp::Result<cv::Mat, TileError> get_tile(const radix::tile::Id tile) const = 0;
 };
 
 class TilePathProvider : public TileProvider {
 public:
     virtual std::optional<std::filesystem::path> get_tile_path(const radix::tile::Id tile) const = 0;
 
-    std::optional<cv::Mat> get_tile(const radix::tile::Id tile) const override {
+    alp::Result<cv::Mat, TileError> get_tile(const radix::tile::Id tile) const override {
         const std::optional<std::filesystem::path> tile_path = this->get_tile_path(tile);
         if (!tile_path.has_value() || !TilePathProvider::is_usable_tile_path(tile_path.value())) {
-            return std::nullopt;
+            return alp::make_unexpected(MissingTile{tile});
         }
-        auto tile_img = cv::imread(tile_path.value());
-        if (tile_img.empty()) {
-            return std::nullopt;
-        }
-        return tile_img;
+        return texture::io::read_from_path(tile_path.value());
     }
     virtual bool has_tile(const radix::tile::Id tile) const override {
         const std::optional<std::filesystem::path> tile_path = this->get_tile_path(tile);
         return tile_path.has_value() && TilePathProvider::is_usable_tile_path(tile_path.value());
-    }
-
-    virtual std::optional<cv::Mat> load_tile_from_path(const std::filesystem::path& tile_path) const {
-        if (TilePathProvider::is_usable_tile_path(tile_path)) {
-            return cv::imread(tile_path);
-        }
-        return std::nullopt;
     }
 
 private:
@@ -60,12 +67,12 @@ public:
         }
     }
 
-    virtual std::optional<cv::Mat> get_tile(const radix::tile::Id tile_id) const override {
+    virtual alp::Result<cv::Mat, TileError> get_tile(const radix::tile::Id tile_id) const override {
         const auto tile = this->tiles.find(tile_id.to(radix::tile::Scheme::SlippyMap));
         if (tile != this->tiles.end()) {
             return tile->second;
         } else {
-            return std::nullopt;
+            return alp::make_unexpected(MissingTile{tile_id});
         }
     }
 
@@ -76,8 +83,8 @@ public:
 
 class EmptyTileProvider final : public TileProvider {
 public:
-    virtual std::optional<cv::Mat> get_tile(const radix::tile::Id) const override {
-        return std::nullopt;
+    virtual alp::Result<cv::Mat, TileError> get_tile(const radix::tile::Id tile_id) const override {
+        return alp::make_unexpected(MissingTile{tile_id});
     }
 
     virtual bool has_tile(const radix::tile::Id) const override {
@@ -97,9 +104,9 @@ public:
           _min_zoom(min_zoom.value_or(std::numeric_limits<uint32_t>::min())),
           _max_zoom(max_zoom.value_or(std::numeric_limits<uint32_t>::max())) {}
 
-    std::optional<cv::Mat> get_tile(const radix::tile::Id tile_id) const override {
+    alp::Result<cv::Mat, TileError> get_tile(const radix::tile::Id tile_id) const override {
         if (!this->is_tile_in_range(tile_id)) {
-            return std::nullopt;
+            return alp::make_unexpected(MissingTile{tile_id});
         }
 
         return this->inner().get_tile(tile_id);

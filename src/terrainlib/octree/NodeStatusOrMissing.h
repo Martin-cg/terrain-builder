@@ -2,6 +2,7 @@
 
 #include <optional>
 
+#include <libassert/assert.hpp>
 #include <magic_enum/magic_enum.hpp>
 
 #include "octree/NodeStatus.h"

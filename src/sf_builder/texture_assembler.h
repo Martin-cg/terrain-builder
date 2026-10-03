@@ -19,8 +19,10 @@
 #include "geometry/geometry.h"
 #include "numeric/glm_math.h"
 #include "numeric/int_math.h"
+#include "optional_utils.h"
 #include "srs.h"
 
+#include "error/try.h"
 #include "tile_provider.h"
 #include "log.h"
 
@@ -57,9 +59,9 @@ namespace terrainbuilder {
     // It can happen that the root tile is very large because the target tile was (slightly) over the tile border
     // at a high zoom level. So we try to estimate the actual zoom level of the target bounds and recurse at least
     // to that level to find relevant textures.
-    if (!min_zoom_level_to_examine.has_value()) {
-        min_zoom_level_to_examine = estimate_zoom_level(root_tile.zoom_level, grid.srsBounds(root_tile, false), target_bounds) + 1;
-    }
+    const uint32_t effective_min_zoom_level_to_examine = unwrap_or_else(min_zoom_level_to_examine, [&] {
+        return estimate_zoom_level(root_tile.zoom_level, grid.srsBounds(root_tile, false), target_bounds) + 1;
+    });
     
     // A list of tiles determined to be relevant for the target bounds.
     std::vector<radix::tile::Id> tiles_to_splatter;
@@ -81,7 +83,7 @@ namespace terrainbuilder {
 
         // If we are not deep enough yet, recurse further down.
         bool should_recurse;
-        if (tile.zoom_level + 1 <= min_zoom_level_to_examine.value()) {
+        if (tile.zoom_level + 1 <= effective_min_zoom_level_to_examine) {
             // Minimum zoom level to examine not yet reached.
             should_recurse = true;
         } else {
@@ -244,9 +246,7 @@ inline void copy_paste_image(
     const cv::Rect clipped_target_rect = target_rect & full_target_rect;
     if (!trim_excess) {
         // Must fit entirely
-        if (clipped_target_rect != target_rect) {
-            throw std::runtime_error("Target rectangle out of bounds and trim_excess is false");
-        }
+        ASSERT(clipped_target_rect == target_rect);
     } else {
         target_rect = clipped_target_rect;
         if (target_rect.empty()) {
@@ -311,16 +311,6 @@ inline void copy_paste_image(
     copy_paste_image(target, source, radix::geometry::Aabb2i(target_position, target_position + glm::ivec2(source.cols, source.rows)), trim_excess, rescale_filter);
 }
 
-namespace {
-inline std::optional<std::filesystem::path> try_get_tile_path(const radix::tile::Id tile, const TileProvider &tile_provider) {
-    const TilePathProvider *tile_path_provider = dynamic_cast<const TilePathProvider *>(&tile_provider);
-    if (tile_path_provider != nullptr) {
-        return tile_path_provider->get_tile_path(tile).value();
-    }
-    return std::nullopt;
-}
-}
-
 struct AssembledTexture {
     cv::Mat image;
 
@@ -350,7 +340,7 @@ inline uint32_t find_max_zoom_level(const std::span<const radix::tile::Id> tiles
 }
 
 [[nodiscard]]
-inline AssembledTexture splatter_tiles_to_texture(
+inline alp::Result<AssembledTexture, TileError> splatter_tiles_to_texture(
     const radix::tile::Id root_tile,
     /// Specifes the grid used to organize the image tiles.
     const ctb::Grid &grid,
@@ -376,7 +366,7 @@ inline AssembledTexture splatter_tiles_to_texture(
 
     // Choose any tile to infer tile size and format to allocate our texture buffer accordingly.
     const radix::tile::Id &any_tile = tiles_to_splatter.front();
-    const cv::Mat any_tile_image = tile_provider.get_tile(any_tile).value();
+    ALP_TRY(const cv::Mat any_tile_image, tile_provider.get_tile(any_tile));
     const glm::uvec2 tile_image_size(any_tile_image.cols, any_tile_image.rows);
 
     // Calculate the offset and size of the target bounds inside the smallest encompassing tile.
@@ -397,16 +387,8 @@ inline AssembledTexture splatter_tiles_to_texture(
     cv::Mat image = cv::Mat::zeros(image_size.y, image_size.x, any_tile_image.type());
 
     for (const radix::tile::Id &tile : tiles_to_splatter) {
-        const cv::Mat tile_image = tile_provider.get_tile(tile).value();
-        if (tile_image.empty()) {
-            const std::optional<std::filesystem::path> tile_path = try_get_tile_path(tile, tile_provider);
-            if (tile_path.has_value()) {
-                LOG_ERROR("Failed to load image from path {}", tile_path.value());
-            } else {
-                LOG_ERROR("Failed to load tile texture");
-            }
-            throw std::runtime_error("failed to load image");
-        }
+        ALP_TRY(const cv::Mat tile_image, tile_provider.get_tile(tile));
+        DEBUG_ASSERT(!tile_image.empty());
 
         const glm::uvec2 current_tile_image_size(tile_image.cols, tile_image.rows);
         if (current_tile_image_size != tile_image_size) {
@@ -444,7 +426,7 @@ inline AssembledTexture splatter_tiles_to_texture(
 
 /// Creates a texture for the given region.
 [[nodiscard]]
-inline std::optional<AssembledTexture> assemble_texture_from_tiles(
+inline alp::Result<std::optional<AssembledTexture>, TileError> assemble_texture_from_tiles(
     /// Specifes the grid used to organize the image tiles.
     const ctb::Grid &grid,
     /// Specifies the srs the target bounds are in.
@@ -469,7 +451,12 @@ inline std::optional<AssembledTexture> assemble_texture_from_tiles(
     // Start by transforming the input bounds into the srs the tiles are in.
     const radix::tile::SrsBounds encompassing_bounds = srs::encompassing_bounds_transfer(target_srs, grid.getSRS(), target_bounds);
     // Then we find the smallest tile (id) that encompasses these bounds.
-    radix::tile::Id smallest_encompassing_tile = grid.findSmallestEncompassingTile(encompassing_bounds).value().to(radix::tile::Scheme::SlippyMap);
+    const std::optional<radix::tile::Id> encompassing_tile_opt = grid.findSmallestEncompassingTile(encompassing_bounds);
+    if (!encompassing_tile_opt.has_value()) {
+        LOG_WARN("Texture target bounds lie outside the tile grid");
+        return std::nullopt;
+    }
+    radix::tile::Id smallest_encompassing_tile = encompassing_tile_opt.value().to(radix::tile::Scheme::SlippyMap);
     LOG_TRACE("Smallest encompassing tile for texture bounds is {}", radix::tile::to_string(smallest_encompassing_tile));
 
     if (max_zoom.has_value() && smallest_encompassing_tile.zoom_level > max_zoom.value()) {
@@ -503,6 +490,17 @@ inline std::optional<AssembledTexture> assemble_texture_from_tiles(
     }
 
     // Splatter tiles into texture buffer
-    return splatter_tiles_to_texture(smallest_encompassing_tile, grid, encompassing_bounds, tile_provider, tiles_to_splatter, rescale_filter, min_padding, alignment);
+    ALP_TRY(
+        AssembledTexture texture,
+        splatter_tiles_to_texture(
+            smallest_encompassing_tile,
+            grid,
+            encompassing_bounds,
+            tile_provider,
+            tiles_to_splatter,
+            rescale_filter,
+            min_padding,
+            alignment));
+    return texture;
 }
 }

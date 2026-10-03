@@ -3,6 +3,8 @@
 #include <functional>
 #include <queue>
 
+#include <libassert/assert.hpp>
+
 #include "octree/Id.h"
 #include "octree/Storage.h"
 #include "log.h"

@@ -9,13 +9,17 @@
 #include <glm/gtx/norm.hpp>
 
 #include "Dataset.h"
+#include "error/Error.h"
+#include "error/Result.h"
+#include "error/try.h"
+#include "error/utils.h"
+#include "gdal/CplError.h"
 #include "mesh/SimpleMesh.h"
 #include "mesh/cgal.h"
 #include "mesh/convert.h"
 #include "mesh/validate.h"
 #include "mesh/bounds.h"
 #include "srs.h"
-#include "try.h"
 #include "SphereProjector.h"
 
 #include <CGAL/Boolean_set_operations_2.h>
@@ -67,48 +71,22 @@ namespace {
     }
 }
 
-enum class LoadErrorKind {
-    UnsupportedFormat,
-    FileNotFound,
-    EmptySource
+// A mask dataset whose contents cannot form a mask.
+enum class ContentError {
+    NoPolygons
 };
 
-class LoadError {
-public:
-    LoadError() = default;
-    constexpr LoadError(LoadErrorKind kind)
-        : kind(kind) {}
+inline std::string_view format_as(const ContentError error) {
+    switch (error) {
+    case ContentError::NoPolygons:
+        return "the dataset holds no valid polygons";
+    default:
+        return "an unknown mask content error";
+    }
+}
 
-    operator LoadErrorKind() const {
-        return this->kind;
-    }
-    constexpr bool operator==(LoadError other) const {
-        return this->kind == other.kind;
-    }
-    constexpr bool operator!=(LoadError other) const {
-        return this->kind != other.kind;
-    }
-
-    std::string description() const {
-        switch (kind) {
-        case LoadErrorKind::UnsupportedFormat:
-            return "format not supported";
-        case LoadErrorKind::FileNotFound:
-            return "file not found";
-        case LoadErrorKind::EmptySource:
-            return "empty input source";
-        default:
-            return "unknown error";
-        }
-    }
-
-    friend std::ostream &operator<<(std::ostream &os, const LoadError &err) {
-        return os << err.description();
-    }
-
-private:
-    LoadErrorKind kind;
-};
+// An error from loading a mask.
+using LoadError = alp::Error<gdal::CplError, ContentError>;
 
 namespace {
 std::optional<Polygon2> convert_ring(const OGRLinearRing &ring, bool is_outer) {
@@ -142,7 +120,7 @@ std::optional<PolygonWithHoles2> convert_polygon(const OGRPolygon &ogr_polygon) 
     const OGRLinearRing *outer_ring = ogr_polygon.getExteriorRing();
     DEBUG_ASSERT(outer_ring);
 
-    TRY(const Polygon2 outer, convert_ring(*outer_ring, true));
+    ALP_TRY(const Polygon2 outer, convert_ring(*outer_ring, true));
 
     PolygonWithHoles2 polygon(outer);
     const uint32_t num_holes = static_cast<uint32_t>(ogr_polygon.getNumInteriorRings());
@@ -247,7 +225,10 @@ glm::dvec2 calculate_radius_range(const std::span<const SimpleMesh3d> meshes) {
 
 } // namespace
 
-inline tl::expected<ReferencedPolygonMask, LoadError> load_referenced_from_dataset(Dataset& mask_dataset) {
+namespace detail {
+
+[[nodiscard]]
+inline alp::Result<ReferencedPolygonMask, ContentError> load_referenced_from_dataset(Dataset& mask_dataset) {
     GDALDataset *dataset = mask_dataset.gdalDataset();
 
     MultipolygonWithHoles2 polygons;
@@ -258,8 +239,7 @@ inline tl::expected<ReferencedPolygonMask, LoadError> load_referenced_from_datas
     }
 
     if (polygons.is_empty()) {
-        LOG_ERROR("No valid polygons found in mask dataset '{}'", mask_dataset.name());
-        return tl::unexpected(LoadErrorKind::EmptySource);
+        return alp::make_unexpected(ContentError::NoPolygons);
     }
 
     OGRSpatialReference srs;
@@ -273,6 +253,17 @@ inline tl::expected<ReferencedPolygonMask, LoadError> load_referenced_from_datas
     }
 
     return ReferencedPolygonMask{.polygons = std::move(polygons), .srs = std::move(srs)};
+}
+
+} // namespace detail
+
+[[nodiscard]]
+inline alp::Result<ReferencedPolygonMask, ContentError> load_referenced_from_dataset(Dataset& mask_dataset) {
+    ALP_TRY_CONTEXT(
+        ReferencedPolygonMask referenced_mask,
+        detail::load_referenced_from_dataset(mask_dataset),
+        fmt::format("reading a mask from {}", mask_dataset.name()));
+    return referenced_mask;
 }
 
 inline SpherePolygonMask project_onto_sphere(ReferencedPolygonMask ref_mask, const double radius) {
@@ -432,27 +423,17 @@ inline MeshMask extrude(
     return extrude(mask, padded_radius_range);
 }
 
-inline tl::expected<ReferencedPolygonMask, LoadError> load_referenced_from_path(const std::filesystem::path &path) {
-    if (!std::filesystem::exists(path)) {
-        LOG_ERROR("Mask file does not exist: {}", path);
-        return tl::unexpected(LoadErrorKind::FileNotFound);
-    }
-
-    auto ds_opt = Dataset::open_vector(path);
-    if (!ds_opt.has_value()) {
-        LOG_ERROR("Failed to load mask datset: {}", path);
-        return tl::unexpected(LoadErrorKind::FileNotFound);
-    }
-    Dataset dataset = std::move(ds_opt.value());
-    return load_referenced_from_dataset(dataset);
+[[nodiscard]]
+inline alp::Result<ReferencedPolygonMask, LoadError> load_referenced_from_path(const std::filesystem::path &path) {
+    const auto context = alp::make_context("loading a mask from {}", path);
+    ALP_TRY_CONTEXT(Dataset dataset, Dataset::open_vector(path), context);
+    ALP_TRY_CONTEXT(ReferencedPolygonMask referenced_mask, detail::load_referenced_from_dataset(dataset), context);
+    return referenced_mask;
 }
 
-inline tl::expected<MeshMask, LoadError> load_from_path(const std::filesystem::path &path, const glm::dvec2& radius_range) {
-    auto ref_mask_res = load_referenced_from_path(path);
-    if (!ref_mask_res.has_value()) {
-        return tl::unexpected(ref_mask_res.error());
-    }
-    ReferencedPolygonMask ref_polygon_mask = std::move(ref_mask_res.value());
+[[nodiscard]]
+inline alp::Result<MeshMask, LoadError> load_from_path(const std::filesystem::path &path, const glm::dvec2& radius_range) {
+    ALP_TRY(ReferencedPolygonMask ref_polygon_mask, load_referenced_from_path(path));
     SpherePolygonMask sphere_polygon_mask = project_onto_sphere(std::move(ref_polygon_mask), radius_range.x);
     SphereMeshMask sphere_mesh_mask = triangulate(sphere_polygon_mask);
     MeshMask mesh_mask = extrude(sphere_mesh_mask, radius_range);

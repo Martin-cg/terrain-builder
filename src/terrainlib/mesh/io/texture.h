@@ -7,18 +7,15 @@
 
 #include <opencv2/opencv.hpp>
 
+#include "texture/io.h"
+#include "zpp_bits_utils.h"
+
 namespace mesh::io {
 
 struct ImageAndExt {
     cv::Mat image;
     std::string ext;
 };
-
-cv::Mat read_texture_from_encoded_bytes(std::span<const uint8_t> buffer);
-void write_texture_to_encoded_buffer(const ImageAndExt& item, std::vector<uint8_t> &buffer);
-void write_texture_to_encoded_buffer(const cv::Mat &image, std::vector<uint8_t> &buffer, const std::string &extension);
-std::vector<uint8_t> write_texture_to_encoded_buffer(const cv::Mat &image, const std::string &extension);
-std::vector<uint8_t> write_texture_to_encoded_buffer(const ImageAndExt &item);
 
 }
 
@@ -28,8 +25,14 @@ namespace mesh::io {
 
 template <typename Archive>
 auto serialize(Archive &archive, const mesh::io::ImageAndExt &item) {
-    const std::vector<uint8_t> encoded = mesh::io::write_texture_to_encoded_buffer(item.image, item.ext);
-    return archive(item.ext, encoded);
+    const auto encode_result = texture::io::encode_to_bytes(item.image, item.ext);
+    using Result = decltype(archive(item.ext, encode_result.value()));
+    if constexpr (zpp::bits::ArchiveResult<Result>) {
+        if (!encode_result.has_value()) {
+            return Result(std::errc::bad_message);
+        }
+    }
+    return archive(item.ext, encode_result.value());
 }
 
 template <typename Archive>
@@ -37,17 +40,18 @@ auto serialize(Archive &archive, mesh::io::ImageAndExt &item) {
     std::vector<uint8_t> encoded;
 
     auto result = archive(item.ext, encoded);
-    using Result = std::remove_cvref_t<decltype(result)>;
-    if constexpr (!std::is_same_v<Result, zpp::bits::errc> && !std::is_same_v<Result, std::errc>) {
-        return result;
-    } else {
+    if constexpr (zpp::bits::ArchiveResult<decltype(result)>) {
         if (zpp::bits::failure(result)) {
             return result;
         }
 
-        item.image = mesh::io::read_texture_from_encoded_bytes(encoded);
-        return result;
+        auto decode_result = texture::io::decode_bytes(encoded, cv::IMREAD_UNCHANGED);
+        if (!decode_result.has_value()) {
+            return decltype(result)(std::errc::bad_message);
+        }
+        item.image = std::move(decode_result).value();
     }
+    return result;
 }
 
 } // namespace mesh::io

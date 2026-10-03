@@ -21,8 +21,16 @@
 
 #include <catch2/catch_approx.hpp>
 #include <gdal_priv.h>
+#include <cpl_error.h>
+#include <fmt/format.h>
+
+#include <filesystem>
+#include <optional>
+#include <string>
 
 #include "Dataset.h"
+#include "error/format.h"
+#include "gdal/CplError.h"
 #include "ctb/GlobalGeodetic.hpp"
 #include "ctb/GlobalMercator.hpp"
 #include "ctb/types.hpp"
@@ -100,6 +108,10 @@ TEST_CASE("datasets are as expected") {
         CHECK(d_mgi.pixelHeightIn(wgs84) == Approx((northern - southern) / 350));
         CHECK(d_mgi.gridResolution(wgs84) == Approx((northern - southern) / 350));
 
+        const glm::dvec2 pixel_size = d_mgi.pixelSizeIn(wgs84);
+        CHECK(pixel_size.x == Approx((eastern - western) / 620));
+        CHECK(pixel_size.y == Approx((northern - southern) / 350));
+
         const auto wgs84_grid = ctb::GlobalGeodetic(256);
         CHECK(wgs84_grid.zoomForResolution(d_mgi.gridResolution(wgs84)) == 7);
 
@@ -157,4 +169,30 @@ TEST_CASE("bbox width pixels") {
     const auto webmercator_adjusted_bounds = adjust_bounds(webmercator_bounds);
     CHECK(d_wgs84.widthInPixels(webmercator_adjusted_bounds, webmercator) == Approx(620.0 * 0.7));
     CHECK(d_wgs84.heightInPixels(webmercator_adjusted_bounds, webmercator) == Approx(350.0 * 0.5));
+}
+
+TEST_CASE("Opening a missing dataset fails, keeping the message GDAL reported", "[dataset]") {
+    const std::filesystem::path path = ALP_TEST_DATA_DIR "/missing.tif";
+    std::optional<gdal::CplError> error;
+
+    SECTION("raster") {
+        const auto result = Dataset::open_raster(path);
+        REQUIRE(!result.has_value());
+        error = result.error().code();
+    }
+
+    SECTION("vector") {
+        const auto result = Dataset::open_vector(path);
+        REQUIRE(!result.has_value());
+        error = result.error().code();
+    }
+
+    SECTION("shared raster") {
+        const auto result = Dataset::open_shared_raster(path);
+        REQUIRE(!result.has_value());
+        error = result.error().code();
+    }
+
+    CPLErrorReset();
+    CHECK(error->message() != gdal::CplError::from_last_error().message());
 }

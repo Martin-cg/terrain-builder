@@ -4,6 +4,7 @@
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <expected>
 #include <limits>
 #include <type_traits>
 #include <functional>
@@ -11,7 +12,6 @@
 #include <vector>
 
 #include <libassert/assert.hpp>
-#include <tl/expected.hpp>
 
 #include "io/Error.h"
 #include "octree/Id.h"
@@ -23,8 +23,9 @@
 #include "metadata.h"
 #include "parent_child_nodes.h"
 #include "../dag_builder/storage.h"
+#include "error/Result.h"
+#include "error/try.h"
 #include "storage/BoundedCache.h"
-#include "try.h"
 #include "visitor.h"
 
 namespace dag {
@@ -65,9 +66,10 @@ public:
         : _dag(dag), _cache(max_resident_bytes) {}
 
     // The parent errors `node`'s groups give their child clusters, read if not resident, valid until the next read.
-    tl::expected<std::reference_wrapper<const ParentErrors>, io::Error> read_parent_errors(const octree::Id &node) {
-        return this->_cache.get_or_try_insert_with(node, [&]() -> tl::expected<Cache::Entry, io::Error> {
-            TRY(const NodeMetadata &metadata, this->_dag.load(node));
+    [[nodiscard]]
+    alp::Result<std::reference_wrapper<const ParentErrors>, io::Error> read_parent_errors(const octree::Id &node) {
+        return this->_cache.get_or_try_insert_with(node, [&]() -> alp::Result<Cache::Entry, io::Error> {
+            ALP_TRY(const NodeMetadata &metadata, this->_dag.load(node));
             ParentErrors parent_errors = collect_parent_errors(metadata);
             const size_t cost = estimate_bytes(parent_errors);
             return Cache::Entry{.value = std::move(parent_errors), .cost = cost};
@@ -114,7 +116,8 @@ public:
         : _dag(dag), _space(shifted_space), _cache(dag, max_resident_bytes) {}
 
     // The parent error of each of `node`'s `cluster_count` clusters, infinity for those no group lists.
-    tl::expected<std::vector<double>, io::Error> find_parent_errors(const octree::Id &node, const uint32_t cluster_count) {
+    [[nodiscard]]
+    alp::Result<std::vector<double>, io::Error> find_parent_errors(const octree::Id &node, const uint32_t cluster_count) {
         const double infinity = std::numeric_limits<double>::infinity();
         std::vector<double> parent_error_by_cluster(cluster_count, infinity);
 
@@ -123,7 +126,7 @@ public:
                 continue;
             }
 
-            TRY(const ParentErrors &parent_errors, this->_cache.read_parent_errors(parent_id));
+            ALP_TRY(const ParentErrors &parent_errors, this->_cache.read_parent_errors(parent_id));
             const auto entry = parent_errors.find(node);
             if (entry == parent_errors.end()) {
                 continue;
@@ -147,7 +150,8 @@ private:
 
 // Visits every cluster in the dag with its own group and the error of the group listing it, or infinity if none does. False if the visitor stopped the walk before its end.
 template <typename F>
-tl::expected<bool, io::Error> traverse_nodes(
+[[nodiscard]]
+alp::Result<bool, io::Error> traverse_nodes(
     const octree::IndexedDagMetaStorage &dag, const octree::OddLevelShifted &shifted_space,
     const size_t max_resident_bytes, F &&v) {
     visitor::FallibleVisitor<io::Error, F &> visitor(v);
@@ -164,9 +168,9 @@ tl::expected<bool, io::Error> traverse_nodes(
             continue;
         }
 
-        TRY(const auto &node, dag.load(node_id));
+        ALP_TRY(const auto &node, dag.load(node_id));
         const auto cluster_count = static_cast<uint32_t>(node.group_assignment.size());
-        TRY(const std::vector<double> parent_error_by_cluster, lookup.find_parent_errors(node_id, cluster_count));
+        ALP_TRY(const std::vector<double> parent_error_by_cluster, lookup.find_parent_errors(node_id, cluster_count));
 
         for (const Group &group : node.groups) {
             child_count += group.children.size();
@@ -182,7 +186,7 @@ tl::expected<bool, io::Error> traverse_nodes(
                 .source_batch = node_id,
                 .cluster_index = cluster_index};
             const FlatNode flat_node = detail::make_flat_node(id, node, parent_error_by_cluster[cluster_index]);
-            TRY(const bool keep_going, visitor(flat_node));
+            ALP_TRY(const bool keep_going, visitor(flat_node));
             if (!keep_going) {
                 return false;
             }

@@ -18,7 +18,6 @@
 #include <ogr_spatialref.h>
 #include <opencv2/core/mat.hpp>
 #include <radix/geometry.h>
-#include <tl/expected.hpp>
 
 #include <tbb/concurrent_vector.h>
 #include <tbb/enumerable_thread_specific.h>
@@ -31,6 +30,9 @@
 #include "srs.h"
 
 #include "ProgressIndicator.h"
+#include "error/log.h"
+#include "error/try.h"
+#include "error/utils.h"
 #include "log.h"
 #include "mesh/SimpleMesh.h"
 #include "mesh/io.h"
@@ -58,7 +60,7 @@ std::string format_secs_since(const std::chrono::high_resolution_clock::time_poi
 }
 }
 
-std::optional<SimpleMesh> build_patch(
+alp::Result<std::optional<SimpleMesh>, gdal::CplError, TileError> build_patch(
     Dataset &dataset,
     const OGRSpatialReference &target_bounds_srs,
     const radix::geometry::Aabb3d &target_bounds,
@@ -71,29 +73,18 @@ std::optional<SimpleMesh> build_patch(
     std::chrono::high_resolution_clock::time_point start;
     start = std::chrono::high_resolution_clock::now();
     LOG_INFO("Building mesh...");
-    tl::expected<SimpleMesh, BuildMeshError> mesh_result = build_reference_mesh_patch(
+    alp::Result<SimpleMesh, BuildMeshError> mesh_result = build_reference_mesh_patch(
         dataset,
         mesh_srs,
         target_bounds_srs, target_bounds,
         texture_srs, texture_bounds);
     if (!mesh_result.has_value()) {
-        const BuildMeshError error = mesh_result.error();
-        if (error == BuildMeshError::OutOfBounds) {
-            const radix::tile::SrsBounds dataset_bounds = dataset.bounds();
-            LOG_ERROR("Target bounds are fully outside of dataset region\n"
-                      "Dataset {{\n"
-                      "\t x={}, y={}, w={}, h={}.\n"
-                      "}}\n"
-                      "Target {{\n"
-                      "\t x={}, y={}, w={}, h={}.\n"
-                      "}}",
-                      dataset_bounds.min.x, dataset_bounds.min.y, dataset_bounds.width(), dataset_bounds.height(),
-                      target_bounds.min.x, target_bounds.min.y, target_bounds.size().x, target_bounds.size().y);
-            return std::nullopt;
-        } else if (error == BuildMeshError::EmptyRegion) {
-            LOG_WARN("Target bounds are inside dataset, but the region is empty");
-            return std::nullopt;
+        auto narrow_result = std::move(mesh_result).error().narrow<gdal::CplError>();
+        if (narrow_result.has_value()) {
+            return alp::propagate(std::move(narrow_result).value());
         }
+        LOG_WARN("{:#}", narrow_result.error());
+        return std::nullopt;
     }
     SimpleMesh mesh = mesh_result.value();
     LOG_DEBUG("Mesh building took {}s", format_secs_since(start));
@@ -102,11 +93,14 @@ std::optional<SimpleMesh> build_patch(
     if (tile_provider != nullptr) {
         start = std::chrono::high_resolution_clock::now();
         LOG_INFO("Assembling mesh texture");
-        std::optional<AssembledTexture> texture = assemble_texture_from_tiles(grid, texture_srs, texture_bounds, *tile_provider);
-        if (!texture.has_value()) {
-            LOG_ERROR("Failed to assemble texture");
-            // TODO: should we return nullopt here?
-        } else {
+        ALP_TRY(
+            std::optional<AssembledTexture> texture,
+            assemble_texture_from_tiles(
+                grid,
+                texture_srs,
+                texture_bounds,
+                *tile_provider));
+        if (texture.has_value()) {
             // The uvs address the requested bounds, the texture holds padding around them.
             texture.value().remap_uvs(mesh.uvs);
             mesh.texture = texture.value().image;
@@ -120,7 +114,7 @@ std::optional<SimpleMesh> build_patch(
     return mesh;
 }
 
-void build_and_save_patch(
+alp::Result<void, gdal::CplError, TileError, mesh::io::Error> build_and_save_patch(
     Dataset &dataset,
     const OGRSpatialReference &target_bounds_srs,
     const radix::geometry::Aabb3d &target_bounds,
@@ -128,17 +122,19 @@ void build_and_save_patch(
     const TileProvider *tile_provider,
     const OGRSpatialReference &mesh_srs,
     const std::filesystem::path &output_path) {
-    auto mesh_result = build_patch(
-        dataset,
-        target_bounds_srs,
-        target_bounds,
-        texture_srs,
-        tile_provider,
-        mesh_srs);
-    if (!mesh_result.has_value()) {
-        return;
+    ALP_TRY(
+        std::optional<SimpleMesh> mesh_opt,
+        build_patch(
+            dataset,
+            target_bounds_srs,
+            target_bounds,
+            texture_srs,
+            tile_provider,
+            mesh_srs));
+    if (!mesh_opt.has_value()) {
+        return {};
     }
-    const SimpleMesh mesh = std::move(mesh_result.value());
+    const SimpleMesh mesh = std::move(mesh_opt).value();
 
     LOG_INFO("Writing mesh to output path {}", output_path);
 
@@ -155,25 +151,48 @@ void build_and_save_patch(
     // metadata["texture_bounds"] = fmt::format(
     //     "{{ \"min\": {{ \"x\": {}, \"y\": {} }}, \"max\": {{ \"x\": {}, \"y\": {} }} }}",
     //    texture_bounds.min.x, texture_bounds.min.y, texture_bounds.max.x, texture_bounds.max.y);
-    if (!mesh::io::save_to_path(mesh, output_path, mesh::io::SaveOptions{.metadata = metadata}).has_value()) {
-        LOG_ERROR("Failed to save mesh to file {}", output_path);
-        std::exit(2);
-    }
+    ALP_TRY(mesh::io::save_to_path(mesh, output_path, mesh::io::SaveOptions{.metadata = metadata}));
     LOG_DEBUG("Writing mesh took {}s", format_secs_since(start));
     LOG_INFO("Done writing mesh to {}", output_path);
+    return {};
 }
 
 namespace {
-template <typename T>
-T expect(const std::optional<T> &opt, const std::string &msg) {
-    if (!opt) {
-        LOG_ERROR_AND_EXIT(msg);
+// An error from building and saving a node.
+using BuildError = alp::Error<gdal::CplError, TileError, octree::Storage::save_error>;
+
+// Builds the mesh for `node` and saves it to `storage`, or saves nothing if the dataset holds no terrain there.
+alp::BasicResult<void, BuildError> build_and_save_node(
+    Dataset &dataset,
+    const octree::Space &space,
+    const octree::Id &node,
+    const OGRSpatialReference &ecef_srs,
+    const OGRSpatialReference &texture_srs,
+    const TileProvider *tile_provider,
+    const OGRSpatialReference &mesh_srs,
+    octree::Storage &storage) {
+    ALP_TRY_CONTEXT(
+        std::optional<SimpleMesh> mesh_opt,
+        build_patch(
+            dataset,
+            ecef_srs,
+            space.get_node_bounds(node),
+            texture_srs,
+            tile_provider,
+            mesh_srs),
+        fmt::format("building node {}", node));
+    if (!mesh_opt.has_value()) {
+        return {};
     }
-    return *opt;
+
+    const SimpleMesh mesh = std::move(mesh_opt).value();
+    mesh::validate(mesh);
+    ALP_TRY(storage.save(node, mesh));
+    return {};
 }
 }
 
-void build_all_patches(
+alp::Result<void> build_all_patches(
     Dataset &dataset,
     const octree::Id::Level target_level,
     const OGRSpatialReference &texture_srs,
@@ -183,20 +202,13 @@ void build_all_patches(
     const std::string &output_format,
     const bool overwrite_existing
 ) {
-    if (!std::filesystem::exists(output_base_path)) {
-        LOG_TRACE("Output base path {} does not exist, creating it", output_base_path);
-        std::filesystem::create_directories(output_base_path);
-    } else if (!std::filesystem::is_directory(output_base_path)) {
-        LOG_ERROR_AND_EXIT("Output base path {} exists but is not a directory", output_base_path);
-    }
-
-    octree::Storage storage = octree::open_folder(
+    ALP_TRY(octree::Storage storage, octree::open_folder(
         output_base_path,
         false,
         octree::OpenOptions {
             .preferred_extension_with_dot = output_format
         }
-    );
+    ));
     storage.settings().allow_overwrite = overwrite_existing;
 
     const auto dataset_srs = dataset.srs();
@@ -206,9 +218,11 @@ void build_all_patches(
     const auto ecef_bounds = srs::encompassing_bounds_transfer(
         dataset_srs, ecef_srs, dataset_bounds);
     const auto space = octree::Space::earth();
-    const auto root_node = expect(
-        space.find_smallest_node_encompassing_bounds(ecef_bounds),
-        "Dataset is outside the octree root node.");
+    ALP_TRY(
+        const octree::Id root_node,
+        alp::to_expected(
+            space.find_smallest_node_encompassing_bounds(ecef_bounds),
+            "the dataset lies outside the octree root node"));
 
     tbb::concurrent_vector<octree::Id> concurrent_targets;
 
@@ -279,6 +293,8 @@ void build_all_patches(
         logger->set_level(new_level);
     }
 
+    tbb::task_group_context context;
+    std::optional<BuildError> first_error;
     tbb::parallel_for(size_t(0), target_nodes.size(), [&](size_t i) {
         const auto &node = target_nodes[i];
         if (!overwrite_existing && storage.has(node)) {
@@ -291,28 +307,36 @@ void build_all_patches(
         auto &texture_srs = *local_texture_srs.local();
         auto &mesh_srs = *local_mesh_srs.local();
 
-        const auto node_bounds = space.get_node_bounds(node);
-        auto mesh_result = terrainbuilder::build_patch(
+        auto result = build_and_save_node(
             dataset,
+            space,
+            node,
             ecef_srs,
-            node_bounds,
             texture_srs,
             tile_provider,
-            mesh_srs);
-
-        if (mesh_result.has_value()) {
-            const auto mesh = std::move(mesh_result.value());
-            mesh::validate(mesh);
-            storage.save(node, mesh);
+            mesh_srs,
+            storage);
+        if (!result.has_value()) {
+            if (context.cancel_group_execution()) {
+                first_error = std::move(result).error();
+            } else {
+                LOG_UNEXPECTED(result.error());
+            }
         }
 
         progress.task_finished();
-    });
+    }, context);
 
     // Restore original level
     logger->set_level(original_level);
 
+    progress_thread.request_stop();
     progress_thread.join();
-    storage.save_or_create_index();
+
+    if (first_error.has_value()) {
+        return alp::propagate(std::move(first_error).value());
+    }
+    ALP_TRY(storage.save_or_create_index());
+    return {};
 }
 }

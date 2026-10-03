@@ -10,16 +10,30 @@
 #undef CGLTF_IMPLEMENTATION
 #undef CGLTF_WRITE_IMPLEMENTATION
 
+#include "error/try.h"
+#include "error/utils.h"
+#include "io/bytes.h"
+#include "io/filesystem.h"
 #include "log.h"
-#include "mesh/io/utils.h"
 #include "mesh/io/gltf.h"
-#include "mesh/io/texture.h"
-
-using namespace mesh::io::utils;
+#include "texture/io.h"
 
 namespace mesh::io::gltf {
 
 namespace {
+// Releases the bytes `load_raw_from_path` hands to cgltf, and any other file buffer with cgltf's default release.
+void release_file(
+    const cgltf_memory_options *memory_options,
+    const cgltf_file_options *file_options,
+    void *data,
+    cgltf_size size) {
+    if (data == file_options->user_data) {
+        delete static_cast<std::vector<uint8_t> *>(data);
+    } else {
+        cgltf_default_file_release(memory_options, file_options, data, size);
+    }
+}
+
 cgltf_attribute *find_attribute_with_type(cgltf_attribute *attributes, size_t attribute_count, cgltf_attribute_type type) {
     for (unsigned int i = 0; i < attribute_count; i++) {
         cgltf_attribute *attribute = &attributes[i];
@@ -178,7 +192,7 @@ std::string data_uri_encode(unsigned char const *bytes_to_encode, unsigned int i
     return "data:application/octet-stream;base64," + base64_encode(bytes_to_encode, in_len);
 }
 
-std::optional<cv::Mat> load_texture_from_material(const cgltf_material &material) {
+alp::Result<std::optional<cv::Mat>, texture::io::DecodeError> load_texture_from_material(const cgltf_material &material) {
     if (!material.has_pbr_metallic_roughness || material.pbr_metallic_roughness.base_color_texture.texture == nullptr) {
         LOG_WARN("mesh material has no texture");
         return std::nullopt;
@@ -193,52 +207,19 @@ std::optional<cv::Mat> load_texture_from_material(const cgltf_material &material
     }
 
     const std::span<const uint8_t> raw_texture{cgltf_buffer_view_data(albedo_image.buffer_view), albedo_image.buffer_view->size};
-    cv::Mat texture = mesh::io::read_texture_from_encoded_bytes(raw_texture);
+    ALP_TRY(cv::Mat texture, texture::io::decode_bytes(raw_texture, cv::IMREAD_UNCHANGED));
     return texture;
 }
 
-#define GET_OR_INVALID_FORMAT(var, opt)                              \
-    do {                                                             \
-        if (!(opt).has_value()) {                                    \
-            return tl::unexpected(LoadMeshErrorKind::InvalidFormat); \
-        } else {                                                     \
-            var = opt.value();                                       \
-        }                                                            \
-    } while (false)
-
 template <typename T>
-static std::optional<std::reference_wrapper<const T>> get_single_element(const char *name, cgltf_size count, T const *items) {
-    if (count == 0) {
-        LOG_ERROR("file contains no {}", name);
-        return std::nullopt;
-    }
-    if (count > 1) {
-        LOG_WARN("file contains more than one {}", name);
+static std::optional<std::reference_wrapper<const T>> get_single_element(cgltf_size count, T const *items) {
+    if (count != 1) {
         return std::nullopt;
     }
 
     const T &ref = items[0];
 
     return ref;
-}
-
-LoadMeshError map_cgltf_error(cgltf_result result) {
-    switch (result) {
-    case cgltf_result::cgltf_result_data_too_short:
-    case cgltf_result::cgltf_result_unknown_format:
-    case cgltf_result::cgltf_result_invalid_json:
-    case cgltf_result::cgltf_result_invalid_gltf:
-    case cgltf_result::cgltf_result_legacy_gltf:
-        return LoadMeshErrorKind::InvalidFormat;
-    case cgltf_result::cgltf_result_file_not_found:
-    case cgltf_result::cgltf_result_io_error:
-        return LoadMeshErrorKind::FileNotFound;
-    case cgltf_result::cgltf_result_out_of_memory:
-        return LoadMeshErrorKind::OutOfMemory;
-    default:
-        UNREACHABLE();
-        break;
-    }
 }
 
 /// Calculates the size of the data of a vector in bytes.
@@ -265,56 +246,58 @@ static std::string image_ext_to_mime(std::string_view extension) {
 }
 }
 
-tl::expected<RawMesh, cgltf_result> load_raw_from_path(const std::filesystem::path &path) {
+namespace detail {
+
+[[nodiscard]]
+alp::Result<RawMesh, ::io::FileError, GltfError> load_raw_from_path(const std::filesystem::path &path) {
+    ALP_TRY(std::vector<uint8_t> bytes, ::io::read_bytes_from_path(path));
+    auto file_data = std::make_unique<std::vector<uint8_t>>(std::move(bytes));
+
     cgltf_options options = {};
     cgltf_data *data = NULL;
     const std::string path_str = path.string();
     const char *path_ptr = path_str.c_str();
-    cgltf_result result = cgltf_parse_file(&options, path_ptr, &data);
+    cgltf_result result = cgltf_parse(&options, file_data->data(), file_data->size(), &data);
     if (result != cgltf_result::cgltf_result_success) {
-        return tl::unexpected(result);
+        return alp::make_unexpected(GltfError(result));
     }
+
+    // cgltf_free releases the bytes through `release_file`.
+    data->file.release = release_file;
+    data->file.user_data = file_data.get();
+    data->file_data = file_data.release();
 
     result = cgltf_load_buffers(&options, data, path_ptr);
     if (result != cgltf_result::cgltf_result_success) {
         cgltf_free(data);
-        return tl::unexpected(result);
+        return alp::make_unexpected(GltfError(result));
     }
 
     result = cgltf_validate(data);
     if (result != cgltf_result_success) {
         cgltf_free(data);
-        return tl::unexpected(result);
+        return alp::make_unexpected(GltfError(result));
     }
 
     return RawMesh(data, cgltf_free);
 }
 
-tl::expected<SimpleMesh, LoadMeshError> load_from_raw(const RawMesh &raw, const LoadOptions& /* options */) {
+[[nodiscard]]
+Result<SimpleMesh> load_from_raw(const RawMesh &raw, const LoadOptions& /* options */) {
     LOG_TRACE("Loading mesh from gltf data");
 
     const cgltf_data &data = *raw;
 
-    const auto mesh_opt = get_single_element("mesh", data.meshes_count, data.meshes);
-    if (!mesh_opt.has_value()) {
-        return tl::unexpected(LoadMeshErrorKind::InvalidFormat);
-    }
-    const cgltf_mesh &mesh = mesh_opt.value();
+    ALP_TRY(const cgltf_mesh &mesh, alp::to_expected(get_single_element(data.meshes_count, data.meshes), UnsupportedGltf{.reason = "expected exactly one mesh"}));
 
-    const auto mesh_primitive_opt = get_single_element("mesh primitive", mesh.primitives_count, mesh.primitives);
-    if (!mesh_primitive_opt.has_value()) {
-        return tl::unexpected(LoadMeshErrorKind::InvalidFormat);
-    }
-    const cgltf_primitive &mesh_primitive = mesh_primitive_opt.value();
+    ALP_TRY(const cgltf_primitive &mesh_primitive, alp::to_expected(get_single_element(mesh.primitives_count, mesh.primitives), UnsupportedGltf{.reason = "expected exactly one mesh primitive"}));
     if (mesh_primitive.type != cgltf_primitive_type::cgltf_primitive_type_triangles) {
-        LOG_ERROR("mesh has invalid primitive type");
-        return tl::unexpected(LoadMeshErrorKind::InvalidFormat);
+        return alp::make_unexpected(UnsupportedGltf{.reason = "the mesh primitive is not made of triangles"});
     }
 
     // indices
     if (mesh_primitive.indices == nullptr) {
-        LOG_ERROR("mesh primitive has no indices");
-        return tl::unexpected(LoadMeshErrorKind::InvalidFormat);
+        return alp::make_unexpected(UnsupportedGltf{.reason = "the mesh primitive has no indices"});
     }
     cgltf_accessor &index_accessor = *mesh_primitive.indices;
     std::vector<glm::uvec3> indices;
@@ -329,14 +312,12 @@ tl::expected<SimpleMesh, LoadMeshError> load_from_raw(const RawMesh &raw, const 
     // positions
     cgltf_attribute *position_attr = find_attribute_with_type(mesh_primitive.attributes, mesh_primitive.attributes_count, cgltf_attribute_type_position);
     if (position_attr == nullptr) {
-        LOG_ERROR("mesh has no position attribute");
-        return tl::unexpected(LoadMeshErrorKind::InvalidFormat);
+        return alp::make_unexpected(UnsupportedGltf{.reason = "the mesh has no position attribute"});
     }
 
     cgltf_accessor &position_accessor = *position_attr->data;
     if (position_accessor.type != cgltf_type_vec3) {
-        LOG_WARN("mesh positions are not vec3");
-        return tl::unexpected(LoadMeshErrorKind::InvalidFormat);
+        return alp::make_unexpected(UnsupportedGltf{.reason = "the mesh positions are not vec3"});
     }
     std::vector<glm::vec3> positions;
     positions.resize(position_accessor.count);
@@ -350,8 +331,7 @@ tl::expected<SimpleMesh, LoadMeshError> load_from_raw(const RawMesh &raw, const 
     } else {
         cgltf_accessor &uv_accessor = *uv_attr->data;
         if (uv_accessor.type != cgltf_type_vec2) {
-            LOG_WARN("mesh uvss are not vec2");
-            return tl::unexpected(LoadMeshErrorKind::InvalidFormat);
+            return alp::make_unexpected(UnsupportedGltf{.reason = "the mesh uvs are not vec2"});
         }
         uvs.resize(uv_accessor.count);
         cgltf_accessor_unpack_floats(&uv_accessor, reinterpret_cast<float *>(uvs.data()), uvs.size() * 2);
@@ -374,14 +354,26 @@ tl::expected<SimpleMesh, LoadMeshError> load_from_raw(const RawMesh &raw, const 
 
     std::optional<cv::Mat> texture;
     if (mesh_primitive.material != nullptr) {
-        texture = load_texture_from_material(*mesh_primitive.material);
+        ALP_TRY_CONTEXT(texture, load_texture_from_material(*mesh_primitive.material), "decoding the mesh texture");
     }
 
     return SimpleMesh(indices, positionsd, uvsd, texture);
 }
 
+} // namespace detail
+
+alp::Result<RawMesh, ::io::FileError, GltfError> load_raw_from_path(const std::filesystem::path &path) {
+    ALP_TRY_CONTEXT(RawMesh raw, detail::load_raw_from_path(path), fmt::format("parsing a glTF file at {}", path));
+    return raw;
+}
+
+Result<SimpleMesh> load_from_raw(const RawMesh &raw, const LoadOptions &options) {
+    ALP_TRY_CONTEXT(SimpleMesh mesh, detail::load_from_raw(raw, options), "converting a glTF mesh");
+    return mesh;
+}
+
 /// Saves the mesh as a .gltf or .glb file at the given path.
-tl::expected<void, SaveMeshError> save_to_path(
+Result<void> save_to_path(
     const SimpleMesh &terrain_mesh,
     const std::filesystem::path &path,
     const SaveOptions& options) {
@@ -423,7 +415,7 @@ tl::expected<void, SaveMeshError> save_to_path(
     const bool has_texture = terrain_mesh.has_texture();
     std::vector<uint8_t> texture_bytes;
     if (has_texture) {
-        texture_bytes = mesh::io::write_texture_to_encoded_buffer(terrain_mesh.texture.value(), options.texture_format);
+        ALP_TRY_CONTEXT(texture_bytes, texture::io::encode_to_bytes(terrain_mesh.texture.value(), options.texture_format), "encoding the mesh texture");
     }
 
     // Create a single buffer that holds all binary data (indices, vertices, textures)
@@ -707,24 +699,25 @@ tl::expected<void, SaveMeshError> save_to_path(
     }
 
     // ********************* Save the GLTF data to a file ********************* //
-    create_parent_directories(path);
+    const auto context = alp::make_context("saving a glTF mesh to {}", path);
+    ALP_TRY_CONTEXT(::io::filesystem::create_parent_directories(path), context);
     cgltf_options gltf_options = {};
     if (binary_output) {
         gltf_options.type = cgltf_file_type_glb;
     }
-    if (cgltf_write_file(&gltf_options, path.string().c_str(), &data) != cgltf_result_success) {
-        throw std::runtime_error("Failed to save GLTF file");
+    const cgltf_result write_result = cgltf_write_file(&gltf_options, path.string().c_str(), &data);
+    if (write_result != cgltf_result_success) {
+        return alp::make_unexpected(GltfError(write_result), context);
     }
 
     return {};
 }
 
-tl::expected<SimpleMesh, LoadMeshError> load_from_path(const std::filesystem::path &path, const LoadOptions &options) {
-    tl::expected<RawMesh, cgltf_result> raw_mesh = load_raw_from_path(path);
-    if (!raw_mesh) {
-        return tl::unexpected(map_cgltf_error(raw_mesh.error()));
-    }
-    return load_from_raw(*raw_mesh, options);
+Result<SimpleMesh> load_from_path(const std::filesystem::path &path, const LoadOptions &options) {
+    const auto context = alp::make_context("loading a glTF mesh from {}", path);
+    ALP_TRY_CONTEXT(const RawMesh &raw_mesh, detail::load_raw_from_path(path), context);
+    ALP_TRY_CONTEXT(SimpleMesh mesh, detail::load_from_raw(raw_mesh, options), context);
+    return mesh;
 }
 
 } // namespace mesh::io::gltf

@@ -5,6 +5,7 @@
 
 #include "NodeLoader.h"
 #include "NodeWriter.h"
+#include "error/log.h"
 #include "mask.h"
 #include "merge/NodeData.h"
 #include "merge/Result.h"
@@ -69,8 +70,7 @@ public:
             using Result = std::decay_t<decltype(result)>;
             if constexpr (std::is_same_v<Result, merge::Recurse<Context>>) {
                 LOG_DEBUG("[{}] needs recursion", id);
-                DEBUG_ASSERT(id.has_children());
-                const auto children = id.children().value();
+                const auto children = *ASSERT_VAL(id.children());
                 for (const auto &child_id : children) {
                     this->merge_node(child_id, result.context);
                 }
@@ -177,5 +177,5 @@ inline void merge_datasets(
         merger.merge_root();
     }
 
-    output_dataset.save_or_create_index();
+    LOG_UNEXPECTED_OF(output_dataset.save_or_create_index());
 }

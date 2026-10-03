@@ -3,16 +3,21 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
-#include <optional>
-#include <stdexcept>
 
 #include <cpl_error.h>
-#include <fmt/core.h>
+#include <fmt/format.h>
 #include <gdal.h>
 #include <gdal_priv.h>
 #include <glm/glm.hpp>
+#include <libassert/assert.hpp>
 #include <radix/geometry.h>
 
+#include "error/Result.h"
+#include "error/unwrap.h"
+#include "error/utils.h"
+#include "fmt_impls.h"
+#include "gdal/CplError.h"
+#include "gdal/GeoTransform.h"
 #include "log.h"
 #include "raster.h"
 
@@ -21,21 +26,7 @@ namespace terrainbuilder {
 class RawDatasetReader {
 public:
     RawDatasetReader(Dataset &target_dataset)
-        : RawDatasetReader(target_dataset.gdalDataset()) {}
-    RawDatasetReader(GDALDataset *target_dataset)
-        : dataset(target_dataset) {
-        if (!dataset) {
-            throw std::invalid_argument("Invalid GDAL dataset provided");
-        }
-
-        if (dataset->GetGeoTransform(this->geo_transform.data()) != CE_None) {
-            throw std::runtime_error("Failed to retrieve the GeoTransform");
-        }
-
-        if (GDALInvGeoTransform(this->geo_transform.data(), this->inv_geo_transform.data()) != TRUE) {
-            throw std::runtime_error("Failed to invert the GeoTransform");
-        }
-    }
+        : dataset(target_dataset.gdalDataset()), geo_transform(alp::unwrap(target_dataset.geo_transform())) {}
 
     GDALDataset *gdal_dataset() {
         return this->dataset;
@@ -53,7 +44,7 @@ public:
     }
 
     // TODO: support reading other data types
-    std::optional<raster::HeightMap> read_data_in_pixel_bounds(const radix::geometry::Aabb2i& bounds) {
+    alp::Result<raster::HeightMap, gdal::CplError> read_data_in_pixel_bounds(const radix::geometry::Aabb2i& bounds) {
         DEBUG_ASSERT(glm::all(glm::greaterThanEqual(bounds.min, glm::ivec2(0))));
         DEBUG_ASSERT(glm::all(glm::greaterThanEqual(bounds.max, glm::ivec2(0))));
         DEBUG_ASSERT(glm::all(glm::lessThan(bounds.min, glm::ivec2(this->dataset_size()))));
@@ -70,19 +61,18 @@ public:
         }
 
         // Read data from the heights band into heights_data
+        CPLErrorReset();
         const int32_t read_result = height_band->RasterIO(
             GF_Read, bounds.min.x, bounds.min.y, bounds.width(), bounds.height(),
             static_cast<void *>(height_data.data()), bounds.width(), bounds.height(), GDT_Float32, 0, 0);
 
         if (read_result != CE_None) {
-            const char * message = CPLGetLastErrorMsg();
-            LOG_ERROR("Failed to read height data from {}: [{}] {}", dataset->GetDescription(), read_result, message);
-            return std::nullopt;
+            return alp::make_unexpected(gdal::CplError::from_last_error(), fmt::format("reading pixels {} from {}", bounds, this->dataset->GetDescription()));
         }
 
         return height_data;
     }
-    std::optional<raster::HeightMap> read_data_in_pixel_bounds_clamped(radix::geometry::Aabb2i &bounds) {
+    alp::Result<raster::HeightMap, gdal::CplError> read_data_in_pixel_bounds_clamped(radix::geometry::Aabb2i &bounds) {
         const auto original_bounds = bounds;
 
         const glm::ivec2 max_in_bounds = glm::ivec2(this->dataset_size()) - glm::ivec2(1);
@@ -103,7 +93,7 @@ public:
         return this->read_data_in_pixel_bounds(bounds);
     }
 
-    std::optional<raster::HeightMap> read_data_in_srs_bounds(const radix::tile::SrsBounds &bounds) {
+    alp::Result<raster::HeightMap, gdal::CplError> read_data_in_srs_bounds(const radix::tile::SrsBounds &bounds) {
         // Transform the SrsBounds to pixel space
         radix::geometry::Aabb2i pixel_bounds = this->transform_srs_bounds_to_pixel_bounds(bounds);
 
@@ -151,22 +141,17 @@ public:
 
     template <typename T>
     inline glm::dvec2 transform_srs_point_to_pixel_exact(const glm::tvec2<T> &p) const {
-        glm::dvec2 result;
-        GDALApplyGeoTransform(this->inv_geo_transform.data(), p.x, p.y, &result.x, &result.y);
-        return result;
+        return this->geo_transform.apply_inverse(glm::dvec2(p));
     }
 
     template <typename T>
     inline glm::dvec2 transform_pixel_to_srs_point(const glm::tvec2<T> &p) const {
-        glm::dvec2 result;
-        GDALApplyGeoTransform(this->geo_transform.data(), p.x, p.y, &result.x, &result.y);
-        return result;
+        return this->geo_transform.apply(glm::dvec2(p));
     }
 
 private:
     GDALDataset *dataset;
-    mutable std::array<double, 6> geo_transform;     // transform from pixel space to source srs.
-    mutable std::array<double, 6> inv_geo_transform; // transform from source srs to pixel space.
+    gdal::GeoTransform geo_transform;
 };
 
 }

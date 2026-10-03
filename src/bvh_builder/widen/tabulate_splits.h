@@ -4,18 +4,21 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <expected>
 #include <limits>
 #include <span>
 #include <utility>
 #include <vector>
 
+#include <fmt/format.h>
 #include <libassert/assert.hpp>
-#include <tl/expected.hpp>
 
 #include "array_utils.h"
 #include "io/Error.h"
 #include "mem.h"
-#include "try.h"
+#include "error/Result.h"
+#include "error/try.h"
+#include "error/utils.h"
 
 #include "containers/SegmentedBuffer.h"
 
@@ -91,7 +94,8 @@ public:
     using Base::compute_buffered_bytes;
 
     // Appends `row`, writing the batch out once it is full.
-    tl::expected<void, io::Error> write(const std::span<const Split> row) {
+    [[nodiscard]]
+    alp::Result<void, io::Error> write(const std::span<const Split> row) {
         this->open_batch().splits.push_row(row);
         return this->flush_if_full();
     }
@@ -112,13 +116,13 @@ public:
     explicit SplitReader(const SplitStorage &splits) : _splits(splits), _unread_batches(splits.size()) {}
 
     // The row before the one popped last, valid until the next pop.
-    [[nodiscard]] tl::expected<std::span<const Split>, io::Error> pop_row() {
+    [[nodiscard]] alp::Result<std::span<const Split>, io::Error> pop_row() {
         // A batch may hold no rows at all, so keep going back until one does.
         while (this->_row == this->_rows.splits.begin()) {
             ASSERT(this->_unread_batches > 0, "the rows ran out before the tree did");
 
             this->_unread_batches--;
-            TRY(this->_rows, this->_splits.read(this->_unread_batches));
+            ALP_TRY(this->_rows, this->_splits.read(this->_unread_batches));
             this->_row = this->_rows.splits.end();
         }
 
@@ -204,27 +208,27 @@ inline void tabulate_inner_node(
 
 // Tabulates the subtree at `reference` post-order, writing a row per inner node and leaving the subtree's cost row on top of `scratch.cost_stack`.
 [[nodiscard]]
-inline tl::expected<void, io::Error> tabulate_subtree(
+inline alp::Result<void, io::Error> tabulate_subtree(
     bvh::NodeCache &input, const bvh::Reference &reference, const Options &options,
     BatchWriter &writer, Scratch &scratch) {
-    TRY(const bvh::Batch &batch, input.read_batch(reference.batch));
+    ALP_TRY(const bvh::Batch &batch, input.read_batch(reference.batch));
     ASSERT(reference.node < batch.nodes().size());
     const bvh::Node node = batch.nodes()[reference.node];
 
     return batch.visit(
         node,
-        [&](const dag::Id &) -> tl::expected<void, io::Error> {
+        [&](const dag::Id &) -> alp::Result<void, io::Error> {
             // A leaf fills one slot and costs nothing at any number of them, so its row is empty.
             scratch.cost_stack.push_empty_segment();
             return {};
         },
-        [&](const std::span<const bvh::Reference> children) -> tl::expected<void, io::Error> {
+        [&](const std::span<const bvh::Reference> children) -> alp::Result<void, io::Error> {
             // The batch stays resident only until the next read, and the children are about to make several.
             const std::array<bvh::Reference, 2> child_references = to_array<2>(children);
 
             // The rows are read back to front, so walking the right child first leaves the left one first there.
             for (const bvh::Reference &child : std::views::reverse(child_references)) {
-                TRY(tabulate_subtree(input, child, options, writer, scratch));
+                ALP_TRY(tabulate_subtree(input, child, options, writer, scratch));
             }
 
             // Both children left their row behind, the right one first.
@@ -245,15 +249,19 @@ inline tl::expected<void, io::Error> tabulate_subtree(
 
 // Fills `splits` with what every node of the tree at `root` does at each number of slots it might be offered.
 [[nodiscard]]
-inline tl::expected<void, io::Error> tabulate_splits(bvh::NodeCache &input, const bvh::Reference &root, SplitStorage &splits, const Options &options) {
+inline alp::Result<void, io::Error> tabulate_splits(bvh::NodeCache &input, const bvh::Reference &root, SplitStorage &splits, const Options &options) {
     ASSERT(options.arity >= 2 && options.arity <= max_arity);
 
-    BatchWriter writer(splits, options.max_batch_bytes);
+    return alp::run_with_context(
+        alp::make_context("tabulating splits for a tree at batch {} node {}", root.batch, root.node),
+        [&] -> alp::Result<void, io::Error> {
+            BatchWriter writer(splits, options.max_batch_bytes);
 
-    detail::Scratch scratch;
-    TRY(detail::tabulate_subtree(input, root, options, writer, scratch));
+            detail::Scratch scratch;
+            ALP_TRY(detail::tabulate_subtree(input, root, options, writer, scratch));
 
-    return writer.flush();
+            return writer.flush();
+        });
 }
 
 }

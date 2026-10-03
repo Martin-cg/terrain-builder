@@ -10,6 +10,10 @@
 #include <fmt/core.h>
 #include <fmt/format.h>
 
+#include "error/try.h"
+#include "error/unwrap.h"
+#include "io/Error.h"
+#include "io/filesystem.h"
 #include "log.h"
 #include "octree/Id.h"
 #include "octree/NodeStatus.h"
@@ -85,7 +89,7 @@ public:
                 const auto &mesh = result.value();
                 entry = MeshNode{parent.id, mesh.vertex_count(), mesh.face_count()};
             } else {
-                entry = ErrorNode{parent.id, result.error().description()};
+                entry = ErrorNode{parent.id, fmt::format("{:#}", result.error())};
             }
             it++;
             it = this->_view.emplace(it, entry);
@@ -183,11 +187,12 @@ const octree::Id find_deepest_root(const octree::IndexMap &index, const octree::
 
 } // namespace
 
-octree::IndexedStorage open_path_indexed(const std::filesystem::path& path) {
-    if (std::filesystem::is_directory(path)) {
+alp::Result<octree::IndexedStorage, octree::OpenError> open_path_indexed(const std::filesystem::path& path) {
+    ALP_TRY(const bool is_directory, io::filesystem::is_directory(path));
+    if (is_directory) {
         return octree::open_folder_indexed(path);
     } else {
-        return octree::open_index(path).value();
+        return octree::open_index(path);
     }
 }
 
@@ -219,7 +224,7 @@ ftxui::Element render_line(const DisplayEntry &entry, size_t base_level, bool is
 }
 
 int run(const cli::Args &args) {
-    const octree::IndexedStorage storage = open_path_indexed(args.dataset_path);
+    const octree::IndexedStorage storage = alp::unwrap(open_path_indexed(args.dataset_path));
     const octree::IndexMap &index = storage.index();
     const octree::Id root_id = args.full_view ? octree::Id::root() : find_deepest_root(index);
 

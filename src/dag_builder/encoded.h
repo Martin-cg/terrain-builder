@@ -1,12 +1,12 @@
 #pragma once
 
 #include <cstdint>
+#include <expected>
 #include <filesystem>
 #include <span>
 #include <type_traits>
 #include <vector>
 
-#include <tl/expected.hpp>
 #include <zpp_bits.h>
 #include <glm/glm.hpp>
 #include <opencv2/core.hpp>
@@ -165,14 +165,16 @@ auto serialize(Archive &archive, Clustering &clustering) {
     }
 }
 
-inline tl::expected<void, ::io::Error>
+[[nodiscard]]
+inline std::expected<void, ::io::Error>
 save_clustering(const Clustering &clustering,
                  const std::filesystem::path &path,
                  const bool make_dirs = true) {
     return ::io::write_to_path(clustering, path, make_dirs);
 }
 
-inline tl::expected<Clustering, ::io::Error>
+[[nodiscard]]
+inline std::expected<Clustering, ::io::Error>
 load_clustering(const std::filesystem::path &path) {
     return ::io::read_from_path<Clustering>(path);
 }

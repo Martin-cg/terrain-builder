@@ -1,3 +1,4 @@
+#include <expected>
 #include <memory>
 #include <optional>
 #include <filesystem>
@@ -5,9 +6,12 @@
 #include <algorithm>
 #include <unordered_set>
 
-#include <tl/expected.hpp>
+#include <fmt/format.h>
 
 #include "octree/storage/helpers.h"
+#include "error/Context.h"
+#include "error/try.h"
+#include "io/filesystem.h"
 #include "io/serialize.h"
 #include "octree/NodeStatus.h"
 #include "octree/IndexMap.h"
@@ -35,33 +39,35 @@ std::optional<Key> find_max_key(const std::unordered_map<Key, Value>& map) {
 }
 }
 
-std::optional<LayoutWithoutBase> guess_layout_strategy(
+alp::Result<std::optional<LayoutWithoutBase>, io::FileError> guess_layout_strategy(
     const std::filesystem::path &base_path,
     size_t max_files_to_check) {
 
-    if (!std::filesystem::is_directory(base_path)) {
+    const auto context = alp::make_context("guessing the layout of storage at {}", base_path);
+
+    ALP_TRY_CONTEXT(const bool is_directory, io::filesystem::is_directory(base_path), context);
+    if (!is_directory) {
         return std::nullopt;
     }
 
     std::vector<std::filesystem::path> candidate_paths;
     std::unordered_map<std::string, size_t> extension_counters;
-    for (const auto &entry : std::filesystem::recursive_directory_iterator(base_path)) {
+    const auto visit = [&](const std::filesystem::path &path) {
         if (max_files_to_check == 0) {
-            break;
-        }
-        if (!entry.is_regular_file() && !entry.is_symlink()) {
-            continue;
+            return false;
         }
 
-        const auto ext = entry.path().extension();
+        const auto ext = path.extension();
         if (ext == disk::v1::index_extension()) {
-            continue;
+            return true;
         }
         extension_counters[ext]++;
 
-        candidate_paths.emplace_back(std::filesystem::relative(entry.path(), base_path));
+        candidate_paths.emplace_back(path.lexically_relative(base_path));
         max_files_to_check--;
-    }
+        return true;
+    };
+    ALP_TRY_CONTEXT(io::filesystem::visit_files_recursively(base_path, visit), context);
     std::optional<std::string> most_common_ext = find_max_key(extension_counters);
 
     std::unique_ptr<disk::layout::Strategy> best_strategy;
@@ -90,7 +96,7 @@ std::optional<LayoutWithoutBase> guess_layout_strategy(
     return std::nullopt;
 }
 
-tl::expected<void, io::Error> save_index_map(const IndexMap& index, const disk::Layout& layout) {
+std::expected<void, io::Error> save_index_map(const IndexMap& index, const disk::Layout& layout) {
     const auto index_path = layout.base_path() / disk::v1::index_file_name();
     LOG_TRACE("Saving octree storage index to {}", index_path);
 
@@ -99,38 +105,34 @@ tl::expected<void, io::Error> save_index_map(const IndexMap& index, const disk::
     index_file.preferred_extension = layout.extension_with_dot();
     index_file.layout_strategy_id = disk::layout::StrategyRegister::instance().get_id(layout.strategy());
 
-    const auto result = io::write_to_path(index_file, index_path);
-    if (!result.has_value()) {
-        LOG_ERROR("Failed to save octree storage index to {}", index_path);
-        return tl::unexpected(result.error());
-    }
+    ALP_TRY_CONTEXT(io::write_to_path(index_file, index_path), fmt::format("saving an index to {}", index_path));
     return {};
 }
 
-void update_index_map(IndexMap &index, const disk::Layout &layout) {
+alp::Result<void, io::FileError> update_index_map(IndexMap &index, const disk::Layout &layout) {
     index.clear();
     const auto &base_path = layout.base_path();
+    const auto context = alp::make_context("indexing the nodes of storage at {}", base_path);
 
-    std::filesystem::create_directories(base_path);
+    ALP_TRY_CONTEXT(io::filesystem::create_directories(base_path), context);
 
-    for (const auto &entry : std::filesystem::recursive_directory_iterator(base_path)) {
-        if (!entry.is_regular_file() && !entry.is_symlink()) {
-            continue;
-        }
-
-        const auto ext = entry.path().extension();
+    const auto visit = [&](const std::filesystem::path &path) {
+        const auto ext = path.extension();
         if (ext == disk::v1::index_extension()) {
-            continue;
+            return true;
         }
 
-        auto id_opt = layout.get_id_from_node_path(entry.path());
+        auto id_opt = layout.get_id_from_node_path(path);
         if (!id_opt) {
-            continue;
+            return true;
         }
 
         const Id id = *id_opt;
         index.add(id);
-    }
+        return true;
+    };
+    ALP_TRY_CONTEXT(io::filesystem::visit_files_recursively(base_path, visit), context);
+    return {};
 }
 
 }

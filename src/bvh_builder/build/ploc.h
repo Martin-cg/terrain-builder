@@ -3,18 +3,18 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <expected>
 #include <filesystem>
 #include <iterator>
 #include <limits>
 #include <optional>
 #include <span>
+#include <string_view>
 #include <utility>
-#include <variant>
 #include <vector>
 
 #include <fmt/format.h>
 #include <libassert/assert.hpp>
-#include <tl/expected.hpp>
 
 #include "containers/ChunkedRingBuffer.h"
 #include "containers/ChunkedRingWriter.h"
@@ -23,7 +23,9 @@
 #include "log.h"
 #include "numeric/int_math.h"
 #include "range_utils.h"
-#include "try.h"
+#include "error/Result.h"
+#include "error/try.h"
+#include "error/utils.h"
 #include "WorkerGroup.h"
 
 #include "storage/batch_limits.h"
@@ -69,10 +71,16 @@ using EntryRing = ChunkedRingBuffer<frontier::Entry>;
 using EntryWriter = ChunkedRingWriter<frontier::Entry>;
 
 // The round ended under this worker before it finished.
-struct Cancelled {};
+struct Cancelled {
+    bool operator==(const Cancelled &) const = default;
 
-// Why a worker stopped: its own failure, or the round ending around it.
-using WorkerError = std::variant<io::Error, Cancelled>;
+    friend std::string_view format_as(const Cancelled) {
+        return "cancelled";
+    }
+};
+
+// What a worker hands back: its count, its own failure, or the round ending around it.
+using WorkerResult = alp::Result<uint64_t, io::Error, Cancelled>;
 
 // The extent up to which a region admits: enough for its two smallest nodes to find each other, and as much more around them as the tolerance allows.
 [[nodiscard]]
@@ -117,7 +125,7 @@ public:
 
     // Merges one chunk, writes what it owns, and returns how many pairs it merged. `chunk` needs a halo of twice the search radius.
     [[nodiscard]]
-    tl::expected<uint64_t, io::Error> merge_chunk(const PaddedSpan<const frontier::Entry> chunk) {
+    alp::Result<uint64_t, io::Error> merge_chunk(const PaddedSpan<const frontier::Entry> chunk) {
         const std::span<const frontier::Entry> window = chunk.span();
         const std::span<const radix::geometry::Aabb<4, double>> bounds = this->extend_bounds(window);
         const std::span<const Nearest> nearest = this->find_nearest(bounds);
@@ -131,7 +139,7 @@ public:
             const bool is_pair = partner.has_value() && nearest[partner.value()].index == current;
 
             if (!is_pair) {
-                TRY(this->_next_run.write(window[current]));
+                ALP_TRY(this->_next_run.write(window[current]));
                 continue;
             }
             // The chunk holding the left member of a pair is the one that writes it.
@@ -141,8 +149,8 @@ public:
 
             const frontier::Entry &left = window[current];
             const frontier::Entry &right = window[partner.value()];
-            TRY(const frontier::Entry merged, frontier::merge_entries(this->_sink, this->_scene_bounds, left, right));
-            TRY(this->_next_run.write(merged));
+            ALP_TRY(const frontier::Entry merged, frontier::merge_entries(this->_sink, this->_scene_bounds, left, right));
+            ALP_TRY(this->_next_run.write(merged));
             merges++;
         }
         return merges;
@@ -198,7 +206,7 @@ public:
 
     // Takes a batch, splitting off every region it completes. Reports whether the admitted sink is still taking entries.
     [[nodiscard]]
-    tl::expected<bool, io::Error> push(const std::span<const frontier::Entry> entries) {
+    alp::Result<bool, io::Error> push(const std::span<const frontier::Entry> entries) {
         std::span<const frontier::Entry> remaining = entries;
         while (!remaining.empty()) {
             const size_t room = this->_options.region_size - this->_region.size();
@@ -208,7 +216,7 @@ public:
             remaining = remaining.subspan(taken);
 
             if (this->_region.size() == this->_options.region_size) {
-                TRY(const bool keep_going, this->drain_region());
+                ALP_TRY(const bool keep_going, this->drain_region());
                 if (!keep_going) {
                     return false;
                 }
@@ -219,18 +227,18 @@ public:
 
     // Splits the region left at the end of the run.
     [[nodiscard]]
-    tl::expected<void, io::Error> flush() {
+    alp::Result<void, io::Error> flush() {
         if (this->_region.empty()) {
             return {};
         }
-        TRY(this->drain_region());
+        ALP_TRY(this->drain_region());
         return {};
     }
 
 private:
     // Sends the buffered region to both sinks, cut at the limit the region asks for. Reports whether the admitted sink is still taking entries.
     [[nodiscard]]
-    tl::expected<bool, io::Error> drain_region() {
+    alp::Result<bool, io::Error> drain_region() {
         this->_metrics.clear();
         std::ranges::transform(this->_region, std::back_inserter(this->_metrics), [](const frontier::Entry &e) {
             return geometry::compute_mean_extent(e.header.bounds);
@@ -241,11 +249,11 @@ private:
             return geometry::compute_mean_extent(entry.header.bounds) <= limit;
         });
 
-        TRY(const bool keep_going, this->_admitted(std::span<const frontier::Entry>(this->_region.begin(), held.begin())));
+        ALP_TRY(const bool keep_going, this->_admitted(std::span<const frontier::Entry>(this->_region.begin(), held.begin())));
         if (!keep_going) {
             return false;
         }
-        TRY(this->_held(std::span<const frontier::Entry>(held.begin(), this->_region.end())));
+        ALP_TRY(this->_held(std::span<const frontier::Entry>(held.begin(), this->_region.end())));
 
         this->_region.clear();
         return true;
@@ -260,43 +268,43 @@ private:
 
 // Reads the run, gives the ring what this round admits and keeps the rest out of it, and returns how many entries it read.
 [[nodiscard]]
-inline tl::expected<uint64_t, WorkerError> run_producer(
+inline WorkerResult run_producer(
     const frontier::Storage &input, frontier::Storage &merged, EntryRing &ring, const Options &options) {
     frontier::BatchWriter next_run(merged, options.max_batch_bytes);
     EntryWriter admitted(ring);
 
     AdmissionGate gate(
-        [&admitted](const std::span<const frontier::Entry> entries) -> tl::expected<bool, io::Error> {
+        [&admitted](const std::span<const frontier::Entry> entries) -> alp::Result<bool, io::Error> {
             return admitted.write(entries).has_value();
         },
-        [&next_run](const std::span<const frontier::Entry> entries) -> tl::expected<void, io::Error> {
+        [&next_run](const std::span<const frontier::Entry> entries) -> alp::Result<void, io::Error> {
             for (const frontier::Entry &entry : entries) {
-                TRY(next_run.write(entry));
+                ALP_TRY(next_run.write(entry));
             }
             return {};
         },
         options.admission);
 
     uint64_t entries = 0;
-    TRY(const bool completed, frontier::traverse_batches(input, [&](const frontier::Batch &batch) -> tl::expected<bool, io::Error> {
+    ALP_TRY(const bool completed, frontier::traverse_batches(input, [&](const frontier::Batch &batch) -> alp::Result<bool, io::Error> {
         entries += batch.entries.size();
         return gate.push(batch.entries);
     }));
 
     if (!completed) {
-        return tl::make_unexpected(Cancelled{});
+        return alp::make_unexpected(Cancelled{});
     }
 
-    TRY(gate.flush());
+    ALP_TRY(gate.flush());
     std::move(admitted).finish();
 
-    TRY(next_run.flush());
+    ALP_TRY(next_run.flush());
     return entries;
 }
 
 // Pairs chunks as they arrive, and returns how many pairs it merged.
 [[nodiscard]]
-inline tl::expected<uint64_t, WorkerError> run_consumer(
+inline WorkerResult run_consumer(
     EntryRing &ring, frontier::Storage &merged, bvh::Storage &output, const Options &options) {
     bvh::BatchWriter sink(output, options.max_batch_bytes);
     frontier::BatchWriter next_run(merged, options.max_batch_bytes);
@@ -304,30 +312,30 @@ inline tl::expected<uint64_t, WorkerError> run_consumer(
 
     uint64_t merges = 0;
     while (true) {
-        const tl::expected<EntryRing::ReadLease, EntryRing::StreamEnd> lease_result = ring.rent_for_reading();
+        const std::expected<EntryRing::ReadLease, EntryRing::StreamEnd> lease_result = ring.rent_for_reading();
         if (!lease_result.has_value()) {
             if (lease_result.error() == EntryRing::StreamEnd::Aborted) {
-                return tl::make_unexpected(Cancelled{});
+                return alp::make_unexpected(Cancelled{});
             }
             break;
         }
 
-        const tl::expected<uint64_t, io::Error> count_result = merger.merge_chunk(lease_result->view());
+        alp::Result<uint64_t, io::Error> count_result = merger.merge_chunk(lease_result->view());
         if (!count_result.has_value()) {
             ring.abort();
-            return tl::make_unexpected(count_result.error());
+            return alp::propagate(std::move(count_result).error());
         }
         merges += count_result.value();
     }
 
-    TRY(next_run.flush());
-    TRY(sink.flush());
+    ALP_TRY(next_run.flush());
+    ALP_TRY(sink.flush());
     return merges;
 }
 
 // Merges what the round admits, and returns how many entries the frontier is left with.
 [[nodiscard]]
-inline tl::expected<uint64_t, io::Error> run_round(
+inline alp::Result<uint64_t, io::Error> run_round(
     const frontier::Storage &input, frontier::Storage &merged, bvh::Storage &output,
     const Options &options) {
     EntryRing ring(options.chunk_size, options.chunk_count, 2 * options.search_radius);
@@ -336,14 +344,14 @@ inline tl::expected<uint64_t, io::Error> run_round(
         return run_consumer(ring, merged, output, options);
     });
 
-    const tl::expected<uint64_t, WorkerError> read_result = run_producer(input, merged, ring, options);
+    const WorkerResult read_result = run_producer(input, merged, ring, options);
 
     uint64_t merges = 0;
-    for (const tl::expected<uint64_t, WorkerError> &result : workers.join()) {
+    for (const WorkerResult &result : workers.join()) {
         if (!result.has_value()) {
-            const io::Error *failure = std::get_if<io::Error>(&result.error());
-            if (failure != nullptr) {
-                return tl::make_unexpected(*failure);
+            auto narrow_result = result.error().narrow<io::Error>();
+            if (narrow_result.has_value()) {
+                return alp::propagate(std::move(narrow_result).value());
             }
             continue;
         }
@@ -351,9 +359,10 @@ inline tl::expected<uint64_t, io::Error> run_round(
     }
 
     if (!read_result.has_value()) {
-        const io::Error *failure = std::get_if<io::Error>(&read_result.error());
-        ASSERT(failure != nullptr, "the round was cancelled without any worker failing");
-        return tl::make_unexpected(*failure);
+        io::Error io_error = *ASSERT_VAL(
+            read_result.error().narrow<io::Error>(),
+            "the round was cancelled without any worker failing");
+        return alp::propagate(std::move(io_error));
     }
 
     ASSERT(ring.stream_state() != EntryRing::StreamState::Aborted, "the round aborted without any worker failing");
@@ -391,10 +400,12 @@ private:
 // Builds the tree by PLOC, pairing nearest neighbours on the frontier round by round until one node is left.
 // The frontier must be non-empty and in morton order.
 [[nodiscard]]
-inline tl::expected<bvh::Reference, io::Error> build(
+inline alp::Result<bvh::Reference, io::Error> build(
     frontier::Storage input, bvh::Storage &output,
     const std::filesystem::path &scratch_root, const Options &options) {
     ASSERT(input.size() > 0, "the frontier is empty");
+
+    const auto context = alp::make_context("building a tree from {} to {}", std::filesystem::path(input.directory()), output.directory());
 
     const detail::RoundLayout layout(scratch_root);
     const frontier::SortOptions sort_options{
@@ -407,20 +418,23 @@ inline tl::expected<bvh::Reference, io::Error> build(
     uint64_t previous = std::numeric_limits<uint64_t>::max();
     for (uint32_t round = 0;; round++) {
         frontier::Storage merged = layout.open_merged(round);
-        TRY(const uint64_t remaining, detail::run_round(current, merged, output, options));
+        ALP_TRY_CONTEXT(
+            const uint64_t remaining,
+            alp::with_context(detail::run_round(current, merged, output, options), alp::make_context("merging round {}", round)),
+            context);
         ASSERT(remaining < previous, "a ploc round left the frontier no smaller than it found it");
         previous = remaining;
 
-        TRY(merged.save_index());
+        ALP_TRY_CONTEXT(merged.save_index(), context);
         LOG_DEBUG("ploc round {} left {} entries on the frontier", round, remaining);
 
         frontier::Storage sorted = layout.open_sorted(round);
-        TRY(frontier::sort_by_morton(merged, sorted, sort_options));
-        TRY(sorted.save_index());
+        ALP_TRY_CONTEXT(frontier::sort_by_morton(merged, sorted, sort_options), context);
+        ALP_TRY_CONTEXT(sorted.save_index(), context);
 
         if (remaining == 1) {
-            TRY(const frontier::Batch batch, sorted.read(0));
-            TRY(output.save_index());
+            ALP_TRY_CONTEXT(const frontier::Batch batch, sorted.read(0), context);
+            ALP_TRY_CONTEXT(output.save_index(), context);
             return batch.entries.front().ref;
         }
 

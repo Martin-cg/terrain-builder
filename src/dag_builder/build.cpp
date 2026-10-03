@@ -18,6 +18,8 @@
 #include "encoded.h"
 #include "geometry/geometry.h"
 #include "numeric/int_math.h"
+#include "error/log.h"
+#include "error/unwrap.h"
 #include "log.h"
 #include "merge/clusterings.h"
 #include "mesh/SimpleMesh.h"
@@ -53,8 +55,8 @@ std::optional<Clustering> load_and_clusterize_mesh(
     const auto result = storage.load(id);
 
     if (!result) {
-        if (result.error() != mesh::io::LoadMeshErrorKind::FileNotFound) {
-            LOG_ERROR("Failed to read node {}: {}", id, result.error());
+        if (!result.error().holds_and<::io::FileError>(&::io::FileError::is_not_found)) {
+            LOG_UNEXPECTED(result.error());
         }
         return std::nullopt;
     }
@@ -206,7 +208,7 @@ dag::ClusterBatch load_and_simplify_dag_nodes(
         // Load dag node clusters
         auto dag_node = ctx.output_storage.load(id);
         if (!dag_node) {
-            LOG_WARN("Failed to load DAG node {}, skipping", id);
+            LOG_UNEXPECTED(dag_node.error());
             continue;
         }
         auto &[metadata, clustering] = dag_node.value();
@@ -504,10 +506,10 @@ std::unordered_set<octree::Id> build_level(
     // Initialize debug storage if requested (contains .glb meshes)
     std::optional<octree::MeshStorage> debug_storage;
     if (ctx.options.write_debug_meshes) {
-        debug_storage = octree::open_folder(
+        debug_storage = alp::unwrap(octree::open_folder(
             ctx.output_storage.base_path().string() + "-debug",
             false,
-            octree::OpenOptions{.preferred_extension_with_dot = ".glb"});
+            octree::OpenOptions{.preferred_extension_with_dot = ".glb"}));
     }
 
     tbb::concurrent_vector<octree::Id> saved_ids;
@@ -529,11 +531,11 @@ std::unordered_set<octree::Id> build_level(
             const auto save_result = ctx.output_storage.save(target, *result);
             if (save_result) {
                 if (debug_storage) {
-                    debug_storage->save(target, clustering_to_mesh(result->clustering));
+                    LOG_UNEXPECTED_OF(debug_storage->save(target, clustering_to_mesh(result->clustering)));
                 }
                 saved_ids.push_back(target);
             } else {
-                LOG_ERROR("Failed to save node {}: {}", target, save_result.error());
+                LOG_UNEXPECTED(save_result.error());
             }
         }
         progress.task_finished();
@@ -598,7 +600,7 @@ void build_levels(
 
         // Persist per level so a finished level can be read back before the whole run completes
         if (const auto result = ctx.output_storage.save_or_create_index(); !result.has_value()) {
-            LOG_WARN("Could not save index after level {}: {}", level, result.error());
+            LOG_UNEXPECTED(result.error(), "building level {}", level);
         }
     }
 

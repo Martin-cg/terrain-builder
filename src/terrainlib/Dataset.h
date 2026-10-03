@@ -24,7 +24,12 @@
 #include <optional>
 #include <filesystem>
 
+#include <glm/vec2.hpp>
 #include <radix/tile.h>
+
+#include "error/Result.h"
+#include "gdal/CplError.h"
+#include "gdal/GeoTransform.h"
 #include "log.h"
 
 class GDALDataset;
@@ -39,9 +44,12 @@ public:
     Dataset(std::filesystem::path path);
     Dataset(GDALDataset* dataset); // takes over ownership
     ~Dataset();
-    static std::optional<Dataset> open_raster(std::filesystem::path path);
-    static std::optional<Dataset> open_vector(std::filesystem::path path);
-    static std::optional<std::shared_ptr<Dataset>> open_shared_raster(std::filesystem::path path);
+    [[nodiscard]]
+    static alp::Result<Dataset, gdal::CplError> open_raster(std::filesystem::path path);
+    [[nodiscard]]
+    static alp::Result<Dataset, gdal::CplError> open_vector(std::filesystem::path path);
+    [[nodiscard]]
+    static alp::Result<std::shared_ptr<Dataset>, gdal::CplError> open_shared_raster(std::filesystem::path path);
     Dataset clone();
 
     Dataset(Dataset &&) noexcept = default;
@@ -51,6 +59,8 @@ public:
     Dataset &operator=(const Dataset &) = delete;
 
     [[nodiscard]] std::string name() const;
+
+    [[nodiscard]] alp::Result<gdal::GeoTransform, gdal::GeoTransformError> geo_transform() const;
 
     [[nodiscard]] radix::tile::SrsBounds bounds() const;
     [[nodiscard]] radix::tile::SrsAndHeightBounds bounds3d(bool approx_ok = false) const;
@@ -67,6 +77,7 @@ public:
     [[nodiscard]] double gridResolution(const OGRSpatialReference &target_srs) const;
     [[nodiscard]] double pixelWidthIn(const OGRSpatialReference &target_srs) const;
     [[nodiscard]] double pixelHeightIn(const OGRSpatialReference &target_srs) const;
+    [[nodiscard]] glm::dvec2 pixelSizeIn(const OGRSpatialReference &target_srs) const;
 
 private:
     Dataset(const std::filesystem::path path, GDALDataset *dataset);

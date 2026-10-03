@@ -1,13 +1,13 @@
 #pragma once
 
+#include <expected>
 #include <ranges>
 #include <span>
 #include <vector>
 
-#include <tl/expected.hpp>
-
+#include "error/Result.h"
+#include "error/try.h"
 #include "io/Error.h"
-#include "try.h"
 
 #include "bvh/NodeCache.h"
 #include "bvh/layout.h"
@@ -17,7 +17,8 @@ namespace bvh {
 
 // Visits every node of the tree from `root` with the reference naming it in pre-order.
 template <typename F>
-[[nodiscard]] tl::expected<bool, io::Error> traverse_tree(NodeCache &nodes, const Reference &root, F &&v) {
+[[nodiscard]]
+alp::Result<bool, io::Error> traverse_tree(NodeCache &nodes, const Reference &root, F &&v) {
     visitor::FallibleVisitor<io::Error, F &> visitor(v);
 
     std::vector<Reference> stack{root};
@@ -28,7 +29,7 @@ template <typename F>
         const Reference reference = stack.back();
         stack.pop_back();
 
-        TRY(const Batch &batch, nodes.read_batch(reference.batch));
+        ALP_TRY(const Batch &batch, nodes.read_batch(reference.batch));
         const Node &node = batch.node(reference.node);
         const NodeView view = batch.visit(
             node,
@@ -40,7 +41,7 @@ template <typename F>
                 return NodeView{node.header, std::span<const Reference>(children)};
             });
 
-        TRY(const bool keep_going, visitor(reference, view));
+        ALP_TRY(const bool keep_going, visitor(reference, view));
         if (!keep_going) {
             return false;
         }

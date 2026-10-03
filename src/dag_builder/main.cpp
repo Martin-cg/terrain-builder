@@ -4,6 +4,8 @@
 
 #include "cli.h"
 #include "build.h"
+#include "error/log.h"
+#include "error/unwrap.h"
 #include "log.h"
 #include "octree/storage/Storage.h"
 #include "octree/storage/MeshStorage.h"
@@ -17,8 +19,8 @@ int main(int argc, char **argv) {
     Log::init(args.log_level);
 
     try {
-        const octree::IndexedMeshStorage input_storage = octree::open_folder_indexed(args.input_path);
-        octree::IndexedDagStorage output_storage = octree::open_folder_indexed<dag::ClusterBatch>(args.output_path);
+        const octree::IndexedMeshStorage input_storage = alp::unwrap(octree::open_folder_indexed(args.input_path));
+        octree::IndexedDagStorage output_storage = alp::unwrap(octree::open_folder_indexed<dag::ClusterBatch>(args.output_path));
         output_storage.settings().allow_overwrite = args.continuation_mode == ContinuationMode::Overwrite;
 
         dag::BuildOptions options{
@@ -44,7 +46,12 @@ int main(int argc, char **argv) {
         }
 
         dag::build_levels(input_storage, output_storage, options, args.level_range);
-        output_storage.save_index();
+
+        const auto index_result = output_storage.save_index();
+        if (!index_result.has_value()) {
+            LOG_UNEXPECTED(index_result.error());
+            return EXIT_FAILURE;
+        }
 
         return EXIT_SUCCESS;
     } catch (const std::exception &e) {

@@ -103,5 +103,5 @@ TEST_CASE("BatchReader::next reports the first batch it cannot read", "[frontier
 
     const auto third = reader.next();
     REQUIRE_FALSE(third.has_value());
-    CHECK(third.error() == io::Error(io::Error::OpenFile));
+    CHECK(third.error().holds_and<io::FileError>([](const io::FileError &error) { return error.is_not_found(); }));
 }

@@ -2,15 +2,14 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <expected>
 #include <optional>
 #include <span>
 #include <utility>
 
-#include <tl/expected.hpp>
-
 #include "containers/ChunkedRingBuffer.h"
 #include "containers/UniqueResource.h"
-#include "try.h"
+#include "error/try.h"
 
 // Fills a ring's chunks from a stream of elements, ending the stream on finish().
 // A writer that goes away before that aborts the stream.
@@ -23,11 +22,11 @@ public:
 
     // Reports how the stream ended if it did, leaving the rest of `elements` unwritten.
     [[nodiscard]]
-    tl::expected<void, typename Ring::StreamEnd> write(const std::span<const T> elements) {
+    std::expected<void, typename Ring::StreamEnd> write(const std::span<const T> elements) {
         std::span<const T> remaining = elements;
         while (!remaining.empty()) {
             if (this->_stream->unwritten.empty()) {
-                TRY(this->advance_chunk());
+                ALP_TRY(this->advance_chunk());
             }
 
             const size_t taken = std::min(this->_stream->unwritten.size(), remaining.size());
@@ -69,13 +68,14 @@ private:
     };
 
     // Publishes the chunk in hand and rents the next one.
-    tl::expected<void, typename Ring::StreamEnd> advance_chunk() {
+    [[nodiscard]]
+    std::expected<void, typename Ring::StreamEnd> advance_chunk() {
         if (this->_stream->chunk.has_value()) {
             std::move(this->_stream->chunk).value().commit();
             this->_stream->chunk.reset();
         }
 
-        TRY(this->_stream->chunk, this->_stream->ring->rent_for_writing());
+        ALP_TRY(this->_stream->chunk, this->_stream->ring->rent_for_writing());
         this->_stream->unwritten = this->_stream->chunk->span();
         return {};
     }

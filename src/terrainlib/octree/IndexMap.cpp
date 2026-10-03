@@ -153,8 +153,7 @@ void IndexMap::update_parent_after_remove(Id id) {
     DEBUG_ASSERT(parent_status != nullptr);
 
     // We know there are children since we just removed one
-    DEBUG_ASSERT(parent.has_children());
-    const auto siblings = parent.children().value();
+    const auto siblings = *ASSERT_VAL(parent.children());
     for (const auto& sibling : siblings) {
         if (this->is_present(sibling) && sibling != id) {
             return;

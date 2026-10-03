@@ -3,11 +3,13 @@
 #include <libassert/assert.hpp>
 
 #include "NodeLoader.h"
+#include "error/unwrap.h"
 #include "mesh/SimpleMesh.h"
 #include "octree/Id.h"
 #include "octree/NodeStatus.h"
 #include "octree/storage/Storage.h"
 #include "octree/traverse.h"
+#include "texture/io.h"
 
 // TODO: make thread safe
 class NodeWriter {
@@ -20,11 +22,11 @@ public:
 
     void write_node(const octree::Id &id, const SimpleMesh &mesh) {
         mesh::validate(mesh);
-        DEBUG_ASSERT_VAL(this->_storage.save(id, mesh));
+        alp::unwrap(this->_storage.save(id, mesh));
         auto p = this->_storage.path_for(id);
         // change extension to .png
         p.replace_extension(".png");
-        cv::imwrite(p, mesh.texture.value_or(cv::Mat()));
+        alp::unwrap(texture::io::write_to_path(mesh.texture.value(), p));
     }
 
     void copy_subtree_to_output(
@@ -38,7 +40,7 @@ public:
                 }
                 DEBUG_ASSERT(status == octree::NodeStatus::Leaf);
 
-                DEBUG_ASSERT_VAL(this->_storage.copy_from(child_id, loader.storage()));
+                alp::unwrap(this->_storage.copy_from(child_id, loader.storage()));
             },
             octree::always_refine,
             id);

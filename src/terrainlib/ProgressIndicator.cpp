@@ -50,7 +50,7 @@ std::jthread ProgressIndicator::start_monitoring() const {
     };
 
     const auto t0 = std::chrono::steady_clock::now();
-    std::jthread thread([=, this]() {
+    std::jthread thread([=, this](const std::stop_token stop) {
         const auto delta_t = 500ms;
         auto v_t_minus_1 = this->m_step.load();
         do {
@@ -59,7 +59,7 @@ std::jthread ProgressIndicator::start_monitoring() const {
             v_t_minus_1 = v_t;
             print(delta_v, delta_t);
             std::this_thread::sleep_for(delta_t);
-        } while (this->m_step < this->m_n_steps);
+        } while (!stop.stop_requested() && this->m_step < this->m_n_steps);
         const auto t1 = std::chrono::steady_clock::now();
         print(this->m_n_steps, std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0));
         std::cout << std::endl;

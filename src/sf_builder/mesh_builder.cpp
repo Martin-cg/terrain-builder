@@ -11,6 +11,8 @@
 #include <libassert/assert.hpp>
 
 #include "Dataset.h"
+#include "error/try.h"
+#include "error/utils.h"
 #include "log.h"
 #include "mesh/SimpleMesh.h"
 #include "mesh/cleanup.h"
@@ -25,32 +27,9 @@
 // TODO: fix namespace
 namespace terrainbuilder {
 
-std::ostream &operator<<(std::ostream &os, BuildMeshError error) {
-    switch (error) {
-    case BuildMeshError::OutOfBounds:
-        os << "out of bounds";
-        break;
-    case BuildMeshError::EmptyRegion:
-        os << "empty region";
-        break;
-    default:
-        os << "unknown build error";
-        break;
-    }
-    return os;
-}
-
 namespace {
 using PixelBounds = radix::geometry::Aabb2i;
     
-template <typename T>
-[[maybe_unused]]
-glm::dvec2 apply_transform(std::array<double, 6> transform, const glm::tvec2<T> &v) {
-    glm::dvec2 result;
-    GDALApplyGeoTransform(transform.data(), v.x, v.y, &result.x, &result.y);
-    return result;
-}
-
 glm::dvec3 convert_pixel_to_vertex(const float height, const raster::Coords pixel_coords, const RawDatasetReader& reader, const PixelBounds& pixel_bounds) {
     const glm::dvec2 point_offset_in_raster(0.5); // Convert pixel coordinates into a point in the dataset's srs.
     const glm::dvec2 coords_raster_relative = glm::dvec2(pixel_coords) + point_offset_in_raster;
@@ -134,28 +113,14 @@ std::vector<glm::dvec2> generate_uv_space(const std::vector<glm::dvec3>& positio
 
     return uvs;
 }
-
-radix::geometry::Aabb3d extend_bounds_to_3d(radix::geometry::Aabb2d bounds2d) {
-    const double infinity = std::numeric_limits<double>::infinity();
-    const glm::dvec3 min(bounds2d.min, -infinity);
-    const glm::dvec3 max(bounds2d.max, infinity);
-    return radix::geometry::Aabb3d(min, max);
-}
 }
 
-tl::expected<SimpleMesh, BuildMeshError> build_reference_mesh_tile(
-    Dataset &dataset,
-    const OGRSpatialReference &mesh_srs,
-    const OGRSpatialReference &tile_srs, const radix::tile::SrsBounds &tile_bounds,
-    const OGRSpatialReference &texture_srs, radix::tile::SrsBounds &texture_bounds) {
-    return build_reference_mesh_patch(dataset, mesh_srs, tile_srs, extend_bounds_to_3d(tile_bounds), texture_srs, texture_bounds);
-}
-
-tl::expected<SimpleMesh, BuildMeshError> build_reference_mesh_patch(
+alp::Result<SimpleMesh, BuildMeshError> build_reference_mesh_patch(
     Dataset &dataset,
     const OGRSpatialReference &mesh_srs,
     const OGRSpatialReference &clip_srs, const radix::geometry::Aabb3d &clip_bounds,
     const OGRSpatialReference &texture_srs, radix::tile::SrsBounds &texture_bounds) {
+    const auto context = alp::make_context("building a mesh for {} from {}", clip_bounds, dataset.name());
     const OGRSpatialReference &source_srs = dataset.srs();
 
     // Translate tile bounds from tile srs into the source srs, so we know what data to read.
@@ -172,11 +137,10 @@ tl::expected<SimpleMesh, BuildMeshError> build_reference_mesh_patch(
     radix::geometry::Aabb2i pixel_bounds = reader.transform_srs_bounds_to_pixel_bounds(target_bounds_in_source_srs);
     add_border_to_aabb(pixel_bounds, Border(1));
     LOG_TRACE("Reading pixels [({}, {})-({}, {})] from dataset", pixel_bounds.min.x, pixel_bounds.min.y, pixel_bounds.max.x, pixel_bounds.max.y);
-    const std::optional<raster::HeightMap> read_result = reader.read_data_in_pixel_bounds_clamped(pixel_bounds);
-    if (!read_result.has_value() || read_result->size() == 0) {
-        return tl::unexpected(BuildMeshError::OutOfBounds);
+    ALP_TRY_CONTEXT(const raster::HeightMap height_map, reader.read_data_in_pixel_bounds_clamped(pixel_bounds), context);
+    if (height_map.size() == 0) {
+        return alp::make_unexpected(OutOfBounds{.requested = target_bounds_in_source_srs, .available = dataset.bounds()}, context);
     }
-    const raster::HeightMap height_map = read_result.value();
 
     LOG_TRACE("Finding valid pixels");
     const float no_data_value = reader.get_no_data_value();
@@ -193,14 +157,14 @@ tl::expected<SimpleMesh, BuildMeshError> build_reference_mesh_patch(
     SimpleMesh mesh_in_source_srs = meshify(source_points, valid_mask);
     // Check if we even have any valid vertices. Can happen if all of the region is padding.
     if (mesh_in_source_srs.vertex_count() == 0 || mesh_in_source_srs.face_count() == 0) {
-        return tl::unexpected(BuildMeshError::EmptyRegion);
+        return alp::make_unexpected(EmptyRegion{}, context);
     }
 
     // Fast check if all vertices will be clipped
     const radix::geometry::Aabb3d actual_source_bounds = calculate_bounds(mesh_in_source_srs);
     const radix::geometry::Aabb3d approx_clip_bounds = srs::encompassing_bounds_transfer(source_srs, clip_srs, actual_source_bounds);
     if (!radix::geometry::intersect(approx_clip_bounds, clip_bounds)) {
-        return tl::unexpected(BuildMeshError::EmptyRegion);
+        return alp::make_unexpected(EmptyRegion{}, context);
     }
 
     LOG_TRACE("Clipping mesh based on target bounds");
@@ -208,7 +172,7 @@ tl::expected<SimpleMesh, BuildMeshError> build_reference_mesh_patch(
     SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh_in_clip_srs, clip_bounds);
     // Check if there are any vertices left
     if (clipped_mesh.vertex_count() == 0 || clipped_mesh.face_count() == 0) {
-        return tl::unexpected(BuildMeshError::EmptyRegion);
+        return alp::make_unexpected(EmptyRegion{}, context);
     }
 
     // TODO: move this to another function?

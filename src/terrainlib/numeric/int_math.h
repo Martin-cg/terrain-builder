@@ -133,7 +133,7 @@ template <std::integral T>
 
 template <std::integral T>
 [[nodiscard]] constexpr bool add_overflow(const T lhs, const T rhs, T &result) noexcept {
-#if HAS_BUILTIN(__builtin_add_overflow)
+#if ALP_HAS_BUILTIN(__builtin_add_overflow)
     if (!std::is_constant_evaluated()) {
         T temporary;
 
@@ -152,7 +152,7 @@ template <std::integral T>
 template <std::integral T>
 [[nodiscard]]
 constexpr bool sub_overflow(const T lhs, const T rhs, T &result) noexcept {
-#if HAS_BUILTIN(__builtin_sub_overflow)
+#if ALP_HAS_BUILTIN(__builtin_sub_overflow)
     if (!std::is_constant_evaluated()) {
         T temporary;
 

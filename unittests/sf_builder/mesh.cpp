@@ -18,9 +18,10 @@
  *****************************************************************************/
 
 #include <filesystem>
+#include <limits>
 #include <unordered_set>
 
-#include <fmt/core.h>
+#include <fmt/format.h>
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Polygon_mesh_processing/border.h>
@@ -31,6 +32,7 @@
 
 #include "../catch2_helpers.h"
 #include "Dataset.h"
+#include "error/format.h"
 #include "mesh/merge.h"
 #include "mesh/SimpleMesh.h"
 #include "mesh_builder.h"
@@ -171,7 +173,7 @@ TEST_CASE("can build reference mesh patches for various datasets", "[terrainbuil
                 target_srs, target_bounds,
                 source_srs, texture_bounds);
             if (!result) {
-                FAIL("Failed to build mesh: " << result.error());
+                FAIL(fmt::to_string(result.error()));
             }
             const SimpleMesh mesh = result.value();
 
@@ -278,4 +280,37 @@ TEST_CASE("neighbouring patches fit together", "[terrainbuilder]") {
     check_non_empty(merged_mesh);
     check_no_holes(merged_mesh);
     CHECK(mesh::count_connected_components(merged_mesh) == 1);
+}
+
+TEST_CASE("Building a mesh for a region beside the dataset fails, holding both regions", "[mesh_builder]") {
+    Dataset dataset(std::filesystem::path(ALP_TEST_DATA_DIR) / "austria/at_mgi.tif");
+    const OGRSpatialReference srs = dataset.srs();
+    const radix::tile::SrsBounds available = dataset.bounds();
+    const double infinity = std::numeric_limits<double>::infinity();
+    const glm::dvec2 offset(10 * available.width(), 0);
+    const radix::geometry::Aabb3d requested(glm::dvec3(available.min + offset, -infinity), glm::dvec3(available.max + offset, infinity));
+
+    radix::tile::SrsBounds texture_bounds;
+    const auto result = terrainbuilder::build_reference_mesh_patch(dataset, srs, srs, requested, srs, texture_bounds);
+
+    REQUIRE(!result.has_value());
+    const terrainbuilder::OutOfBounds *error = result.error().get_if<terrainbuilder::OutOfBounds>();
+    REQUIRE(error != nullptr);
+    CHECK(error->available == available);
+    CHECK(error->requested.min.x > available.max.x);
+}
+
+TEST_CASE("Building a mesh for heights the terrain does not reach fails as an empty region", "[mesh_builder]") {
+    Dataset dataset(std::filesystem::path(ALP_TEST_DATA_DIR) / "austria/at_mgi.tif");
+    const OGRSpatialReference srs = dataset.srs();
+    const radix::tile::SrsBounds available = dataset.bounds();
+    const glm::dvec2 centre = (available.min + available.max) * 0.5;
+    const glm::dvec2 half_size(5000, 5000);
+    const radix::geometry::Aabb3d requested(glm::dvec3(centre - half_size, -2000), glm::dvec3(centre + half_size, -1000));
+
+    radix::tile::SrsBounds texture_bounds;
+    const auto result = terrainbuilder::build_reference_mesh_patch(dataset, srs, srs, requested, srs, texture_bounds);
+
+    REQUIRE(!result.has_value());
+    CHECK(result.error().holds<terrainbuilder::EmptyRegion>());
 }

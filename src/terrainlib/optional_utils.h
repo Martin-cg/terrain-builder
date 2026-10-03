@@ -41,9 +41,22 @@ T& get_or_insert_with(std::optional<T> &option, Func &&f) {
     return option.value();
 }
 
+template <typename T>
+T& get_or_insert(std::optional<T> &option, std::type_identity_t<T> value) {
+    return get_or_insert_with(option, [&] { return std::move(value); });
+}
+
 template <typename T, typename Func>
-T& get_or_insert(std::optional<T> &option, T value) {
-    return get_or_insert_with(option, [=]() { return std::move(value); });
+T unwrap_or_else(const std::optional<T> &option, Func &&f) {
+    if (option.has_value()) {
+        return option.value();
+    }
+    return std::forward<Func>(f)();
+}
+
+template <typename T>
+T unwrap_or(const std::optional<T> &option, std::type_identity_t<T> value) {
+    return unwrap_or_else(option, [&] { return std::move(value); });
 }
 
 template <typename T>

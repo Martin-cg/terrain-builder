@@ -25,11 +25,17 @@
 #include <mutex>
 #include <stdexcept>
 
+#include <cpl_error.h>
+#include <fmt/format.h>
 #include <gdal_priv.h>
 #include <libassert/assert.hpp>
 #include <ogrsf_frmts.h>
 
 #include "ctb/Grid.hpp"
+#include "error/log.h"
+#include "error/try.h"
+#include "error/unwrap.h"
+#include "error/utils.h"
 #include "init.h"
 #include "log.h"
 #include "srs.h"
@@ -40,42 +46,41 @@ void GDALDatasetDeleter::operator()(GDALDataset *dataset) const {
     }
 }
 
-static GDALDataset *open_gdal_dataset(const std::filesystem::path &path, unsigned int flags) {
+[[nodiscard]]
+static alp::Result<GDALDataset *, gdal::CplError> open_gdal_dataset(const std::filesystem::path &path, unsigned int flags) {
     initialize_gdal_once();
     const std::string path_str = path.string();
     static std::mutex gdal_open_mutex;
     const std::lock_guard lock(gdal_open_mutex);
-    return static_cast<GDALDataset *>(GDALOpenEx(path_str.c_str(), flags, nullptr, nullptr, nullptr));
+    // GDAL records why an open failed only with GDAL_OF_VERBOSE_ERROR, and a reset keeps an older error from standing in for it.
+    CPLErrorReset();
+    GDALDataset *dataset = static_cast<GDALDataset *>(GDALOpenEx(path_str.c_str(), flags | GDAL_OF_VERBOSE_ERROR, nullptr, nullptr, nullptr));
+    if (dataset == nullptr) {
+        return alp::make_unexpected(gdal::CplError::from_last_error(), fmt::format("opening a dataset at {}", path_str));
+    }
+    return dataset;
 }
 
-std::optional<Dataset> Dataset::open_raster(std::filesystem::path path) {
-    if (GDALDataset *dataset = open_gdal_dataset(path, GDAL_OF_RASTER)) {
-        return std::optional<Dataset>(Dataset(path, dataset));
-    }
-    LOG_ERROR("Couldn't open raster dataset {}.\n", path);
-    return std::nullopt;
+alp::Result<Dataset, gdal::CplError> Dataset::open_raster(std::filesystem::path path) {
+    ALP_TRY(GDALDataset *dataset, open_gdal_dataset(path, GDAL_OF_RASTER));
+    return Dataset(path, dataset);
 }
-std::optional<Dataset> Dataset::open_vector(std::filesystem::path path) {
-    if (GDALDataset *dataset = open_gdal_dataset(path, GDAL_OF_VECTOR)) {
-        return std::optional<Dataset>(Dataset(path, dataset));
-    }
-    LOG_ERROR("Couldn't open vector dataset {}.\n", path);
-    return std::nullopt;
+alp::Result<Dataset, gdal::CplError> Dataset::open_vector(std::filesystem::path path) {
+    ALP_TRY(GDALDataset *dataset, open_gdal_dataset(path, GDAL_OF_VECTOR));
+    return Dataset(path, dataset);
 }
-std::optional<std::shared_ptr<Dataset>> Dataset::open_shared_raster(std::filesystem::path path) {
-    if (GDALDataset *dataset = open_gdal_dataset(path, GDAL_OF_RASTER)) {
-        return std::make_shared<Dataset>(Dataset(path, dataset));
-    }
-    LOG_ERROR("Couldn't open shared raster dataset {}.\n", path);
-    return std::nullopt;
+alp::Result<std::shared_ptr<Dataset>, gdal::CplError> Dataset::open_shared_raster(std::filesystem::path path) {
+    ALP_TRY(GDALDataset *dataset, open_gdal_dataset(path, GDAL_OF_RASTER));
+    return std::make_shared<Dataset>(Dataset(path, dataset));
 }
 
 Dataset::Dataset(std::filesystem::path path) {
-    if (GDALDataset *dataset = open_gdal_dataset(path, 0)) {
+    const alp::Result<GDALDataset *, gdal::CplError> result = open_gdal_dataset(path, 0);
+    if (result.has_value()) {
         m_path = path;
-        m_gdal_dataset.reset(dataset);
+        m_gdal_dataset.reset(result.value());
     } else {
-        LOG_ERROR("Failed to open dataset at path: {}\n", path.string());
+        LOG_UNEXPECTED(result.error());
         throw std::runtime_error("Failed to open dataset at path: " + path.string());
     }
 }
@@ -100,6 +105,14 @@ Dataset Dataset::clone() {
     return Dataset(this->m_path.value());
 }
 
+alp::Result<gdal::GeoTransform, gdal::GeoTransformError> Dataset::geo_transform() const {
+    ALP_TRY_CONTEXT(
+        gdal::GeoTransform transform,
+        gdal::GeoTransform::from_dataset(*this->m_gdal_dataset),
+        fmt::format("reading the geotransform of {}", this->name()));
+    return transform;
+}
+
 std::string Dataset::name() const {
     if (m_path.has_value()) {
         return m_path->stem().string();
@@ -119,10 +132,7 @@ std::string Dataset::name() const {
 Dataset::~Dataset() = default;
 
 radix::tile::SrsBounds Dataset::bounds() const {
-    std::array<double, 6> adfGeoTransform = {};
-    if (m_gdal_dataset->GetGeoTransform(adfGeoTransform.data()) != CE_None) {
-        throw std::runtime_error("Could not get transformation information from source dataset");
-    }
+    const gdal::GeoTransform transform = alp::unwrap(this->geo_transform());
 
     // https://gdal.org/user/raster_data_model.html
     // gdal has a row/column raster format, where row 0 is the top most row.
@@ -130,16 +140,13 @@ radix::tile::SrsBounds Dataset::bounds() const {
     // computing bounds is going first from row/column to dataset SRS and then to target SRS
 
     // we don't support sheering or rotation for now
-    if (adfGeoTransform[2] != 0.0 || adfGeoTransform[4] != 0.0) {
+    if (!transform.is_axis_aligned()) {
         throw std::runtime_error("Dataset geo transform contains sheering or rotation. This is not supported!");
     }
 
-    const double westX = adfGeoTransform[0];
-    const double southY = adfGeoTransform[3] + (heightInPixels() * adfGeoTransform[5]);
-
-    const double eastX = adfGeoTransform[0] + (widthInPixels() * adfGeoTransform[1]);
-    const double northY = adfGeoTransform[3];
-    return {{westX, southY}, {eastX, northY}};
+    const glm::dvec2 north_west = transform.apply(glm::dvec2(0, 0));
+    const glm::dvec2 south_east = transform.apply(glm::dvec2(widthInPixels(), heightInPixels()));
+    return {{north_west.x, south_east.y}, {south_east.x, north_west.y}};
 }
 
 radix::tile::SrsAndHeightBounds Dataset::bounds3d(bool approx_ok) const {
@@ -270,4 +277,8 @@ double Dataset::pixelWidthIn(const OGRSpatialReference &target_srs) const {
 double Dataset::pixelHeightIn(const OGRSpatialReference &target_srs) const {
     const auto b = srs::non_exact_bounds_transform(bounds(), srs(), target_srs);
     return b.height() / heightInPixels();
+}
+
+glm::dvec2 Dataset::pixelSizeIn(const OGRSpatialReference &target_srs) const {
+    return glm::dvec2(this->pixelWidthIn(target_srs), this->pixelHeightIn(target_srs));
 }

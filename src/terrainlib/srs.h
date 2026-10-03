@@ -19,6 +19,7 @@
 #pragma once
 
 #include <cstddef>
+#include <expected>
 #include <memory>
 #include <string>
 #include <type_traits>
@@ -32,8 +33,12 @@
 #include <glm/glm.hpp>
 #include <ogr_spatialref.h>
 #include <radix/geometry.h>
-#include <tl/expected.hpp>
 #include <radix/tile.h>
+
+#include "error/Result.h"
+#include "error/unwrap.h"
+#include "error/utils.h"
+#include "gdal/OgrError.h"
 
 namespace srs {
 
@@ -352,35 +357,37 @@ inline radix::geometry::Aabb3d encompassing_bounds_transfer(
     return encompassing_bounds_transfer(transform.get(), source_bounds, intermediate_points_edges, intermediate_points_faces);
 }
 
-inline tl::expected<OGRSpatialReference, std::string> from_epsg(const uint32_t epsg) {
+[[nodiscard]]
+inline alp::Result<OGRSpatialReference, gdal::OgrError> from_epsg(const uint32_t epsg) {
     OGRSpatialReference srs;
-    if (srs.importFromEPSG(epsg) != OGRERR_NONE) {
-        return tl::unexpected(fmt::format("Failed to import spatial reference from EPSG code: {}", epsg));
+    if (const OGRErr code = srs.importFromEPSG(epsg); code != OGRERR_NONE) {
+        return alp::make_unexpected(gdal::OgrError(code), fmt::format("importing reference from EPSG code {}", epsg));
     }
     srs.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
     return srs;
 }
 
-inline tl::expected<OGRSpatialReference, std::string> from_user_input(const std::string &user_input) {
+[[nodiscard]]
+inline alp::Result<OGRSpatialReference, gdal::OgrError> from_user_input(const std::string &user_input) {
     OGRSpatialReference srs;
-    if (srs.SetFromUserInput(user_input.c_str()) != OGRERR_NONE) {
-        return tl::unexpected(fmt::format("Failed to set spatial reference from user input: {}", user_input));
+    if (const OGRErr code = srs.SetFromUserInput(user_input.c_str()); code != OGRERR_NONE) {
+        return alp::make_unexpected(gdal::OgrError(code), fmt::format("parsing a spatial reference from {}", user_input));
     }
     srs.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
     return srs;
 }
 
 inline OGRSpatialReference ecef() {
-    return from_epsg(4978).value();
+    return alp::unwrap(from_epsg(4978));
 }
 inline OGRSpatialReference webmercator() {
-    return from_epsg(3857).value();
+    return alp::unwrap(from_epsg(3857));
 }
 inline OGRSpatialReference wgs84() {
-    return from_epsg(4326).value();
+    return alp::unwrap(from_epsg(4326));
 }
 inline OGRSpatialReference mgi() {
-    return from_epsg(4312).value();
+    return alp::unwrap(from_epsg(4312));
 }
 
 }

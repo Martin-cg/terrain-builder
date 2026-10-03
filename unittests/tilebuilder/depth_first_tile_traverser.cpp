@@ -25,6 +25,7 @@
 #include "TopDownTiler.h"
 #include "ctb/GlobalMercator.hpp"
 #include "depth_first_tile_traverser.h"
+#include "../result_helpers.h"
 #include <radix/tile.h>
 
 using namespace radix;
@@ -116,7 +117,7 @@ TEST_CASE("depth_first_tile_traverser basics")
 TEST_CASE("depth_first_tile_traverser austrian heights")
 {
     const auto grid = ctb::GlobalMercator();
-    const auto dataset = Dataset::open_shared_raster(ALP_TEST_DATA_DIR "/austria/at_100m_mgi.tif").value();
+    const auto dataset = REQUIRE_VALUE(Dataset::open_shared_raster(ALP_TEST_DATA_DIR "/austria/at_100m_mgi.tif"));
     //    const auto dataset = Dataset::open_shared_raster(ALP_TEST_DATA_DIR "/austria/at_mgi.tif");
     const auto bounds = dataset->bounds(grid.getSRS());
     const auto tiler = TopDownTiler(grid, bounds, radix::tile::Border::No, radix::tile::Scheme::Tms);

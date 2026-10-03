@@ -2,8 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
-
-#include <tl/expected.hpp>
+#include <expected>
 
 #include "storage/BoundedCache.h"
 
@@ -17,7 +16,7 @@ using Cache = BoundedCache<uint32_t, uint32_t>;
 
 // A read that always yields `value` at `cost`.
 auto make_read(const uint32_t value, const size_t cost) {
-    return [value, cost]() -> tl::expected<Cache::Entry, ReadFailed> {
+    return [value, cost]() -> std::expected<Cache::Entry, ReadFailed> {
         return Cache::Entry{.value = value, .cost = cost};
     };
 }
@@ -27,7 +26,7 @@ auto make_read(const uint32_t value, const size_t cost) {
 TEST_CASE("a resident value is returned without being read again", "[storage][BoundedCache]") {
     Cache cache(10);
     uint32_t reads = 0;
-    const auto read = [&reads]() -> tl::expected<Cache::Entry, ReadFailed> {
+    const auto read = [&reads]() -> std::expected<Cache::Entry, ReadFailed> {
         reads++;
         return Cache::Entry{.value = 7, .cost = 1};
     };
@@ -84,8 +83,8 @@ TEST_CASE("a value over budget on its own is still admitted, evicting everything
 
 TEST_CASE("a failed read caches nothing and returns the error", "[storage][BoundedCache]") {
     Cache cache(10);
-    const auto fail = []() -> tl::expected<Cache::Entry, ReadFailed> {
-        return tl::make_unexpected(ReadFailed{});
+    const auto fail = []() -> std::expected<Cache::Entry, ReadFailed> {
+        return std::unexpected(ReadFailed{});
     };
 
     const auto failed_result = cache.get_or_try_insert_with(0, fail);

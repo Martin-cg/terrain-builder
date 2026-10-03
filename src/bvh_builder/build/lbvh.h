@@ -4,17 +4,20 @@
 #include <bit>
 #include <cstddef>
 #include <cstdint>
+#include <expected>
 #include <iterator>
 #include <limits>
 #include <span>
 #include <vector>
 
+#include <fmt/format.h>
 #include <libassert/assert.hpp>
-#include <tl/expected.hpp>
 
 #include "io/Error.h"
 #include "numeric/wide_integer.h"
-#include "try.h"
+#include "error/Result.h"
+#include "error/try.h"
+#include "error/utils.h"
 
 #include "storage/batch_limits.h"
 #include "bvh/BatchWriter.h"
@@ -82,7 +85,7 @@ inline size_t find_split(const std::span<const frontier::Entry> entries) {
 // Writes the subtree over `entries` and returns its root, at the first code of the run.
 // `entries` must be non-empty and in morton order.
 [[nodiscard]]
-inline tl::expected<frontier::Entry, io::Error> build_subtree(
+inline alp::Result<frontier::Entry, io::Error> build_subtree(
     const std::span<const frontier::Entry> entries, bvh::BatchWriter &sink) {
     ASSERT(!entries.empty());
 
@@ -91,8 +94,8 @@ inline tl::expected<frontier::Entry, io::Error> build_subtree(
     }
 
     const size_t split = find_split(entries);
-    TRY(const frontier::Entry left, build_subtree(entries.first(split), sink));
-    TRY(const frontier::Entry right, build_subtree(entries.subspan(split), sink));
+    ALP_TRY(const frontier::Entry left, build_subtree(entries.first(split), sink));
+    ALP_TRY(const frontier::Entry right, build_subtree(entries.subspan(split), sink));
     return frontier::merge_entries(sink, left.morton, left, right);
 }
 
@@ -101,15 +104,15 @@ inline tl::expected<frontier::Entry, io::Error> build_subtree(
 // Writes the tree over the run through `sink` and returns its root. The caller owns the writer.
 // The run must be non-empty and in morton order.
 [[nodiscard]]
-inline tl::expected<frontier::Entry, io::Error> build(
+inline alp::Result<frontier::Entry, io::Error> build(
     const frontier::Storage &input, bvh::BatchWriter &sink) {
     ASSERT(input.size() > 0);
 
     std::vector<frontier::Entry> batch_roots;
     batch_roots.reserve(input.size());
 
-    TRY(frontier::traverse_batches(input, [&](const frontier::Batch &batch) -> tl::expected<void, io::Error> {
-        TRY(const frontier::Entry root, detail::build_subtree(batch.entries, sink));
+    ALP_TRY(frontier::traverse_batches(input, [&](const frontier::Batch &batch) -> alp::Result<void, io::Error> {
+        ALP_TRY(const frontier::Entry root, detail::build_subtree(batch.entries, sink));
         batch_roots.push_back(root);
         return {};
     }));
@@ -120,14 +123,18 @@ inline tl::expected<frontier::Entry, io::Error> build(
 // Writes the tree over the run into `output`, saves its index, and returns the root reference.
 // The run must be non-empty and in morton order.
 [[nodiscard]]
-inline tl::expected<bvh::Reference, io::Error> build(
+inline alp::Result<bvh::Reference, io::Error> build(
     const frontier::Storage &input, bvh::Storage &output, const Options &options) {
-    bvh::BatchWriter sink(output, options.max_batch_bytes);
+    return alp::run_with_context(
+        alp::make_context("building a tree from {} to {}", input.directory(), output.directory()),
+        [&] -> alp::Result<bvh::Reference, io::Error> {
+            bvh::BatchWriter sink(output, options.max_batch_bytes);
 
-    TRY(const frontier::Entry root, build(input, sink));
-    TRY(sink.flush());
-    TRY(output.save_index());
-    return root.ref;
+            ALP_TRY(const frontier::Entry root, build(input, sink));
+            ALP_TRY(sink.flush());
+            ALP_TRY(output.save_index());
+            return root.ref;
+        });
 }
 
 } // namespace lbvh

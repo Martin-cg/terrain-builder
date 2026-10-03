@@ -6,8 +6,9 @@ add_library(terrainlib
     ctb/TileCoordinate.hpp
     ctb/types.hpp
 
+    gdal/GeoTransform.cpp
+
     io/bytes.cpp
-    io/utils.cpp
 
     mesh/connectivity/adjacency.cpp
     mesh/connectivity/boundary.cpp
@@ -19,8 +20,6 @@ add_library(terrainlib
 
     mesh/io/gltf.cpp
     mesh/io/terrain.cpp
-    mesh/io/texture.cpp
-    mesh/io/utils.cpp
 
     mesh/merging/mapping.cpp
 
@@ -45,6 +44,7 @@ add_library(terrainlib
     polygon/clip.cpp
 
     texture/dilate_colors.cpp
+    texture/io.cpp
 
     uv/unwrap.cpp
     uv/atlas.cpp
@@ -76,7 +76,6 @@ target_link_libraries(terrainlib PUBLIC
     zpp_bits
     cgltf
     TBB::tbb
-    tl_expected
     opencv_core
     opencv_imgproc
     opencv_imgcodecs

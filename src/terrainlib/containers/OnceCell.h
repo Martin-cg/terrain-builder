@@ -2,10 +2,9 @@
 
 #include <atomic>
 #include <cstdint>
+#include <expected>
 #include <type_traits>
 #include <utility>
-
-#include <tl/expected.hpp>
 
 #include "containers/UniqueResource.h"
 
@@ -66,8 +65,8 @@ public:
     // fails or throws leaves the cell empty, so the next caller tries again.
     template <typename Make>
     auto get_or_try_init(Make &&make) {
-        // A reference cannot be the value of a tl::expected, which stores it in a union.
-        using Result = tl::expected<const T *, typename std::invoke_result_t<Make>::error_type>;
+        // A reference cannot be the value of a std::expected, which stores it in a union.
+        using Result = std::expected<const T *, typename std::invoke_result_t<Make>::error_type>;
 
         Claim claim = this->try_claim();
         while (claim.is_empty()) {
@@ -81,7 +80,7 @@ public:
 
         auto made = std::forward<Make>(make)();
         if (!made.has_value()) {
-            return Result(tl::unexpect, std::move(made.error()));
+            return Result(std::unexpect, std::move(made.error()));
         }
 
         this->_value = std::move(made.value());

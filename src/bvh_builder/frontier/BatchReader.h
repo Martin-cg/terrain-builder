@@ -4,10 +4,9 @@
 #include <cstdint>
 #include <optional>
 
-#include <tl/expected.hpp>
-
+#include "error/Result.h"
+#include "error/try.h"
 #include "io/Error.h"
-#include "try.h"
 
 #include "frontier/Storage.h"
 #include "frontier/layout.h"
@@ -20,7 +19,8 @@ public:
     explicit BatchReader(const Storage &input) : _input(&input) {}
 
     // Takes the next entry, reading the following batch when the current one is used up. Nothing once the storage is exhausted.
-    [[nodiscard]] tl::expected<std::optional<Entry>, io::Error> next() {
+    [[nodiscard]]
+    alp::Result<std::optional<Entry>, io::Error> next() {
         while (true) {
             // If we have entries left in the current batch, return the next one.
             if (this->_position < this->_current_batch.entries.size()) {
@@ -34,7 +34,7 @@ public:
                 }
 
                 // Read the next batch.
-                TRY(this->_current_batch, this->_input->read(this->_next_batch_index));
+                ALP_TRY(this->_current_batch, this->_input->read(this->_next_batch_index));
                 this->_next_batch_index++;
                 this->_position = 0;
             }

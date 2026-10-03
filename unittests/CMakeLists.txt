@@ -21,7 +21,18 @@ add_executable(unittests_terrainlib
     terrainlib/cow.cpp
     terrainlib/dataset.cpp
     terrainlib/enumerate.cpp
+    terrainlib/error.cpp
+    terrainlib/error_error_code.cpp
+    terrainlib/error_format.cpp
+    terrainlib/error_result.cpp
+    terrainlib/error_trace.cpp
+    terrainlib/error_try.cpp
+    terrainlib/error_unwrap.cpp
+    terrainlib/error_utils.cpp
+    terrainlib/file_error.cpp
     terrainlib/fixed_vector.cpp
+    terrainlib/gdal_error.cpp
+    terrainlib/gdal_geo_transform.cpp
     terrainlib/geometry_frames.cpp
     terrainlib/grid.cpp
     terrainlib/hash_utils.cpp
@@ -32,6 +43,8 @@ add_executable(unittests_terrainlib
     terrainlib/stamp_set.cpp
     terrainlib/index_map.cpp
     terrainlib/index_traverse.cpp
+    terrainlib/io.cpp
+    terrainlib/io_filesystem.cpp
     terrainlib/mesh_boundary.cpp
     terrainlib/mesh_bounds.cpp
     terrainlib/mesh_cleanup.cpp
@@ -40,6 +53,7 @@ add_executable(unittests_terrainlib
     terrainlib/mesh_connected_components.cpp
     terrainlib/mesh_cut.cpp
     terrainlib/mesh_cut_to_disk.cpp
+    terrainlib/mesh_encode.cpp
     terrainlib/mesh_holes.cpp
     terrainlib/mesh_io.cpp
     terrainlib/mesh_manifold.cpp
@@ -51,6 +65,7 @@ add_executable(unittests_terrainlib
     terrainlib/octree_id.cpp
     terrainlib/octree_space.cpp
     terrainlib/octree_odd_level_shifted.cpp
+    terrainlib/octree_storage.cpp
     terrainlib/once_cell.cpp
     terrainlib/polygon_clip.cpp
     terrainlib/polygon_triangulate.cpp
@@ -60,10 +75,12 @@ add_executable(unittests_terrainlib
     terrainlib/range_utils.cpp
     terrainlib/spatial_lookup.cpp
     terrainlib/spsc_channel.cpp
+    terrainlib/srs.cpp
     terrainlib/string_utils.cpp
     terrainlib/texture_dilate_colors.cpp
+    terrainlib/texture_io.cpp
     terrainlib/tiny_vector.cpp
-    terrainlib/try.cpp
+    terrainlib/type_utils.cpp
     terrainlib/union_find.cpp
     terrainlib/unique_resource.cpp
     terrainlib/uv_atlas.cpp
@@ -93,6 +110,7 @@ if(TARGET sfbuilderlib)
         catch2_helpers.h
         sf_builder/mesh.cpp
         sf_builder/texture.cpp
+        sf_builder/tile_provider.cpp
     )
     target_link_libraries(unittests_sfbuilder PRIVATE sfbuilderlib Catch2::Catch2WithMain)
     atb_configure_test(unittests_sfbuilder)
@@ -146,6 +164,7 @@ endif()
 if(TARGET sfmergerlib)
     add_executable(unittests_sfmerger
         catch2_helpers.h
+        sf_merger/mask.cpp
         sf_merger/sphere_projector.cpp
     )
     target_link_libraries(unittests_sfmerger PRIVATE sfmergerlib Catch2::Catch2WithMain)

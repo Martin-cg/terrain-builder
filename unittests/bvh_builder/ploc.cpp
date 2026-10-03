@@ -13,6 +13,7 @@
 #include <glm/glm.hpp>
 
 #include "enumerate.h"
+#include "error/Result.h"
 #include "range_utils.h"
 
 #include "build/ploc.h"

@@ -3,6 +3,8 @@
 #include <libassert/assert.hpp>
 
 #include "mesh/SimpleMesh.h"
+#include "error/log.h"
+#include "error/unwrap.h"
 #include "log.h"
 #include "mask.h"
 #include "octree/Id.h"
@@ -33,19 +35,19 @@ inline void cut_leaf_node(
 ) {
     DEBUG_ASSERT(ctx.input.index().is(octree::NodeStatus::Leaf, id));
 
-    const SimpleMesh mesh = DEBUG_ASSERT_VAL(ctx.input.load(id)).value();
+    const SimpleMesh mesh = alp::unwrap(ctx.input.load(id));
     LOG_TRACE("Cutting mesh at {} using mask with {} vertices and {} triangles",
         id, mask.mesh.vertex_count(), mask.mesh.face_count());
     const Cow<const SimpleMesh> clipped = clip_on_mask(mesh, mask, ctx.keep_inside);
     if (clipped.is_ref()) {
         LOG_TRACE("Mesh was fully inside the mask");
-        DEBUG_ASSERT_VAL(ctx.output.copy_from(id, ctx.input));
+        alp::unwrap(ctx.output.copy_from(id, ctx.input));
     } else {
         const SimpleMesh &clipped_mesh = clipped;
         if (!clipped_mesh.is_empty()) {
             LOG_TRACE("Mesh was clipped from {} vertices and {} triangles to {} vertices and {} triangles",
                 mesh.vertex_count(), mesh.face_count(), clipped_mesh.vertex_count(), clipped_mesh.face_count());
-            DEBUG_ASSERT_VAL(ctx.output.save(id, clipped_mesh));
+            alp::unwrap(ctx.output.save(id, clipped_mesh));
         } else {
             LOG_TRACE("Mesh was fully outside the mask");
         }
@@ -58,9 +60,7 @@ inline void cut_virtual_node(
     const MeshMask& mask
 ) {
     DEBUG_ASSERT(ctx.input.index().is(octree::NodeStatus::Virtual, id));
-    DEBUG_ASSERT(id.has_children());
-
-    const auto children = id.children().value();
+    const auto children = *ASSERT_VAL(id.children());
     for (const octree::Id& child_id : children) {
         // TODO: split mask based on inner planes instead
         const auto child_bounds = geometry::pad_bounds_relative(ctx.space.get_node_bounds(child_id), 0.125);
@@ -114,7 +114,7 @@ inline void cut_dataset(
     const bool keep_inside) {
     Context ctx(input, output, octree::Space::earth(), keep_inside);
     cut_node(ctx, octree::Id::root(), mask);
-    output.save_or_create_index();
+    LOG_UNEXPECTED_OF(output.save_or_create_index());
 }
 
 inline void cut_dataset(
@@ -125,7 +125,7 @@ inline void cut_dataset(
     LOG_TRACE("Creating output dataset at {}", output_path);
     std::filesystem::create_directories(output_path);
 
-    octree::IndexedStorage output_dataset = octree::open_folder_indexed(output_path, octree::OpenOptions(octree::disk::layout::strategy::make_default(), ".glb"));
+    octree::IndexedStorage output_dataset = alp::unwrap(octree::open_folder_indexed(output_path, octree::OpenOptions(octree::disk::layout::strategy::make_default(), ".glb")));
     if (!output_dataset.index().empty()) {
         LOG_ERROR_AND_EXIT("Output dataset has to be empty.");
     }

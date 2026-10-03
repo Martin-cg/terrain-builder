@@ -2,15 +2,14 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <expected>
 #include <functional>
 #include <list>
 #include <type_traits>
 #include <unordered_map>
 #include <utility>
 
-#include <tl/expected.hpp>
-
-#include "try.h"
+#include "error/try.h"
 
 // A cache of values by key, evicting the least recently used once their total cost exceeds the budget.
 template <typename Key, typename Value>
@@ -26,14 +25,15 @@ public:
 
     // The value at `key`, taken from `read` if it is not resident, valid until the next call. A failed read caches nothing.
     template <typename F>
-    tl::expected<std::reference_wrapper<const Value>, typename std::invoke_result_t<F &>::error_type> get_or_try_insert_with(const Key &key, F &&read) {
+    [[nodiscard]]
+    std::expected<std::reference_wrapper<const Value>, typename std::invoke_result_t<F &>::error_type> get_or_try_insert_with(const Key &key, F &&read) {
         const auto resident = this->_resident.find(key);
         if (resident != this->_resident.end()) {
             this->_usage.splice(this->_usage.begin(), this->_usage, resident->second.usage_position);
             return std::cref(resident->second.entry.value);
         }
 
-        TRY(Entry entry, read());
+        ALP_TRY(Entry entry, read());
         this->_misses++;
         this->_resident_cost += entry.cost;
 

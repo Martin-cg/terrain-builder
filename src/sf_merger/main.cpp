@@ -5,6 +5,8 @@
 
 #include "cli.h"
 #include "cut.h"
+#include "error/log.h"
+#include "error/unwrap.h"
 #include "log.h"
 #include "mask.h"
 #include "merge.h"
@@ -23,7 +25,7 @@ std::optional<MeshMask> load_mask_from_path(const std::filesystem::path& path) {
                 mask.mesh.vertex_count(), mask.mesh.face_count());
             return mask;
         } else {
-            LOG_ERROR("Failed to load mask: {}", result.error().description());
+            LOG_UNEXPECTED(result.error());
         }
     } else {
         LOG_DEBUG("No mask file found at {}, proceeding without mask", path);
@@ -34,14 +36,14 @@ std::optional<MeshMask> load_mask_from_path(const std::filesystem::path& path) {
 
 void run(const cli::MergeArgs& args) {
     LOG_TRACE("Loading base dataset from {}", args.base_path);
-    octree::IndexedStorage base_dataset = octree::open_folder_indexed(args.base_path);
+    octree::IndexedStorage base_dataset = alp::unwrap(octree::open_folder_indexed(args.base_path));
 
     LOG_TRACE("Loading new dataset from {}", args.new_path);
-    octree::IndexedStorage new_dataset = octree::open_folder_indexed(args.new_path);
+    octree::IndexedStorage new_dataset = alp::unwrap(octree::open_folder_indexed(args.new_path));
 
     LOG_TRACE("Creating output dataset at {}", args.output_path);
     std::filesystem::create_directories(args.output_path);
-    octree::Storage output_dataset = octree::open_folder(args.output_path, false, octree::OpenOptions{.preferred_extension_with_dot = std::string(base_dataset.layout().extension_with_dot())});
+    octree::Storage output_dataset = alp::unwrap(octree::open_folder(args.output_path, false, octree::OpenOptions{.preferred_extension_with_dot = std::string(base_dataset.layout().extension_with_dot())}));
 
     std::optional<MeshMask> mask = flatten(map(args.mask_path, load_mask_from_path));
 
@@ -50,7 +52,7 @@ void run(const cli::MergeArgs& args) {
 
 void run(const cli::CutArgs& args) {
     LOG_TRACE("Loading input dataset from {}", args.input_path);
-    const octree::IndexedStorage input_dataset = octree::open_folder_indexed(args.input_path);
+    const octree::IndexedStorage input_dataset = alp::unwrap(octree::open_folder_indexed(args.input_path));
     const MeshMask mask = DEBUG_ASSERT_VAL(load_mask_from_path(args.mask_path)).value();
     cut_dataset(input_dataset, mask, args.output_path, args.keep_inside);
 }

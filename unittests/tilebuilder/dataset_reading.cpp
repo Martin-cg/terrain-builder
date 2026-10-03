@@ -28,6 +28,7 @@
 #include "DatasetReader.h"
 #include "ctb/types.hpp"
 #include "srs.h"
+#include "../result_helpers.h"
 
 using namespace radix;
 
@@ -106,7 +107,7 @@ TEST_CASE("reading")
             const auto [test_name, test_datasets, geodetic_bounds, limits] = test;
 
             for (std::string dataset_name : test_datasets) {
-                const auto dataset = Dataset::open_shared_raster(ALP_TEST_DATA_DIR + std::string(dataset_name)).value();
+                const auto dataset = REQUIRE_VALUE(Dataset::open_shared_raster(ALP_TEST_DATA_DIR + std::string(dataset_name)));
                 for (const auto& test_srs : test_srses) {
                     OGRSpatialReference srs;
                     srs.importFromEPSG(test_srs);
@@ -165,7 +166,7 @@ TEST_CASE("reading")
         for (const auto& test : test_data) {
             auto [test_name, datasets, ref_bounds, render_width, render_height, max_abs_diff, max_mse] = test;
 
-            const auto ref_dataset = Dataset::open_shared_raster(ALP_TEST_DATA_DIR + std::string(datasets.front())).value();
+            const auto ref_dataset = REQUIRE_VALUE(Dataset::open_shared_raster(ALP_TEST_DATA_DIR + std::string(datasets.front())));
             require_projection_available(*ref_dataset, geodetic_srs);
             const auto ref_reader = DatasetReader(ref_dataset, geodetic_srs, 1);
             const auto ref_heights = ref_reader.read(ref_bounds, render_width, render_height);
@@ -173,7 +174,7 @@ TEST_CASE("reading")
                 image::debugOut(ref_heights, fmt::format("./heights_ref.png"));
 
             for (std::string dataset_name : datasets) {
-                const auto dataset = Dataset::open_shared_raster(ALP_TEST_DATA_DIR + std::string(dataset_name)).value();
+                const auto dataset = REQUIRE_VALUE(Dataset::open_shared_raster(ALP_TEST_DATA_DIR + std::string(dataset_name)));
                 require_projection_available(*dataset, geodetic_srs);
                 const auto reader = DatasetReader(dataset, geodetic_srs, 1);
                 const auto heights = reader.read(ref_bounds, render_width, render_height);
@@ -207,8 +208,8 @@ TEST_CASE("reading")
     {
         REQUIRE(std::string(ALP_UNITTESTS_AUSTRIA_HIGHRES).length() > 5);
         const auto border = 5;
-        const auto low_res_ds = Dataset::open_shared_raster(ALP_TEST_DATA_DIR "/austria/at_100m_mgi.tif").value();
-        const auto high_res_ds = Dataset::open_shared_raster(ALP_UNITTESTS_AUSTRIA_HIGHRES).value();
+        const auto low_res_ds = REQUIRE_VALUE(Dataset::open_shared_raster(ALP_TEST_DATA_DIR "/austria/at_100m_mgi.tif"));
+        const auto high_res_ds = REQUIRE_VALUE(Dataset::open_shared_raster(ALP_UNITTESTS_AUSTRIA_HIGHRES));
         const auto srs = low_res_ds->srs();
 
         const auto low_res_reader = DatasetReader(low_res_ds, srs, 1);
@@ -266,8 +267,8 @@ TEST_CASE("reading")
     SECTION("overview with warping")
     {
         REQUIRE(std::string(ALP_UNITTESTS_AUSTRIA_HIGHRES).length() > 5);
-        const auto low_res_ds = Dataset::open_shared_raster(ALP_TEST_DATA_DIR "/austria/at_100m_epsg4326.tif").value();
-        const auto high_res_ds = Dataset::open_shared_raster(ALP_UNITTESTS_AUSTRIA_HIGHRES).value();
+        const auto low_res_ds = REQUIRE_VALUE(Dataset::open_shared_raster(ALP_TEST_DATA_DIR "/austria/at_100m_epsg4326.tif"));
+        const auto high_res_ds = REQUIRE_VALUE(Dataset::open_shared_raster(ALP_UNITTESTS_AUSTRIA_HIGHRES));
         const auto srs = low_res_ds->srs();
         const auto low_res_reader = DatasetReader(low_res_ds, srs, 1);
         const auto high_res_reader = DatasetReader(high_res_ds, srs, 1);
@@ -308,8 +309,8 @@ TEST_CASE("reading")
     SECTION("lowres overview with warping")
     {
         REQUIRE(std::string(ALP_UNITTESTS_AUSTRIA_HIGHRES).length() > 5);
-        const auto low_res_ds = Dataset::open_shared_raster(ALP_TEST_DATA_DIR "/austria/at_100m_epsg4326.tif").value();
-        const auto high_res_ds = Dataset::open_shared_raster(ALP_UNITTESTS_AUSTRIA_HIGHRES).value();
+        const auto low_res_ds = REQUIRE_VALUE(Dataset::open_shared_raster(ALP_TEST_DATA_DIR "/austria/at_100m_epsg4326.tif"));
+        const auto high_res_ds = REQUIRE_VALUE(Dataset::open_shared_raster(ALP_UNITTESTS_AUSTRIA_HIGHRES));
         const auto srs = low_res_ds->srs();
         const auto low_res_reader = DatasetReader(low_res_ds, srs, 1);
         const auto high_res_reader = DatasetReader(high_res_ds, srs, 1);

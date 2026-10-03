@@ -5,6 +5,7 @@
 
 #include <glm/geometric.hpp>
 #include <glm/glm.hpp>
+#include <glm/gtx/norm.hpp>
 
 namespace geometry {
 

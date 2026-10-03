@@ -1,4 +1,5 @@
 #include "../catch2_helpers.h"
+#include "../result_helpers.h"
 #include "../temp_directory.h"
 
 #include <cstddef>
@@ -41,7 +42,7 @@ struct Visited {
 
 // A dag folder holding exactly the given nodes.
 void write_dag(const std::filesystem::path &path, std::vector<std::pair<octree::Id, dag::NodeMetadata>> nodes) {
-    auto dag = octree::open_folder_indexed<dag::ClusterBatch>(path);
+    auto dag = REQUIRE_VALUE(octree::open_folder_indexed<dag::ClusterBatch>(path));
     for (auto &[id, metadata] : nodes) {
         REQUIRE(dag.save(id, dag::ClusterBatch{std::move(metadata), Clustering{}}).has_value());
     }
@@ -49,7 +50,7 @@ void write_dag(const std::filesystem::path &path, std::vector<std::pair<octree::
 }
 
 std::unordered_map<dag::Id, Visited> traverse(const std::filesystem::path &dag_path, const size_t max_resident_bytes = ample_resident_bytes) {
-    const auto dag = octree::open_folder_indexed<dag::NodeMetadata>(dag_path);
+    const auto dag = REQUIRE_VALUE(octree::open_folder_indexed<dag::NodeMetadata>(dag_path));
     const octree::OddLevelShifted shifted_space = octree::OddLevelShifted::earth();
 
     std::unordered_map<dag::Id, Visited> visited;
@@ -238,7 +239,7 @@ TEST_CASE("a visitor returning false stops the walk", "[traverse_dag]") {
         {child, make_metadata({3.0})},
     });
 
-    const auto dag = octree::open_folder_indexed<dag::NodeMetadata>(directory.path());
+    const auto dag = REQUIRE_VALUE(octree::open_folder_indexed<dag::NodeMetadata>(directory.path()));
 
     uint32_t visits = 0;
     const auto stop_after_first = [&](const dag::FlatNode &) {

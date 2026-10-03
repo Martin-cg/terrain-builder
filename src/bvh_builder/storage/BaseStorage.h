@@ -2,14 +2,19 @@
 
 #include <atomic>
 #include <cstdint>
+#include <expected>
 #include <filesystem>
-#include <system_error>
 #include <utility>
 
 #include <fmt/format.h>
-#include <tl/expected.hpp>
 
+#include "error/Result.h"
+#include "error/format.h"
+#include "error/log.h"
+#include "error/try.h"
 #include "io/Error.h"
+#include "io/FileError.h"
+#include "io/filesystem.h"
 #include "io/serialize.h"
 #include "log.h"
 
@@ -50,34 +55,34 @@ public:
 
         const auto result = this->save_index();
         if (!result) {
-            LOG_ERROR("Failed to save index of {}: {}", this->_directory.string(), result.error());
+            LOG_UNEXPECTED(result.error(), "closing a storage at {}", this->_directory);
         }
     }
 
-    tl::expected<void, io::Error> save_index() const {
+    [[nodiscard]]
+    alp::Result<void, io::Error> save_index() const {
         const Index index{
             .batch_count = this->_next.load(),
         };
 
-        auto result = io::write_to_path(index, this->get_index_path());
-        if (result) {
-            this->_dirty = false;
-        }
-
-        return result;
+        ALP_TRY_CONTEXT(io::write_to_path(index, this->get_index_path()), fmt::format("saving an index to {}", this->get_index_path()));
+        this->_dirty = false;
+        return {};
     }
 
     uint32_t size() const {
         return this->_next.load();
     }
 
+    // The directory the batches and the index are stored in.
+    const std::filesystem::path &directory() const {
+        return this->_directory;
+    }
+
     // Deletes the storage's directory and everything it wrote.
-    [[nodiscard]] tl::expected<void, std::error_code> remove() && {
-        std::error_code error;
-        std::filesystem::remove_all(this->_directory, error);
-        if (error) {
-            return tl::unexpected(error);
-        }
+    [[nodiscard]]
+    alp::Result<void, io::FileError> remove() && {
+        ALP_TRY(io::filesystem::remove_all(this->_directory));
 
         // Writing the index back on destruction would recreate the directory.
         this->_next.store(0);

@@ -2,9 +2,11 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <expected>
 #include <optional>
+#include <string>
 
-#include <tl/expected.hpp>
+#include <fmt/format.h>
 
 #include "io/Error.h"
 
@@ -17,7 +19,9 @@
 #include "frontier/layout.h"
 #include "morton/code.h"
 #include "bvh/earth.h"
-#include "try.h"
+#include "error/Result.h"
+#include "error/try.h"
+#include "error/utils.h"
 
 namespace frontier {
 
@@ -36,15 +40,20 @@ struct BuildOptions {
 };
 
 // Writes every stored node as a set of frontier run batches.
-inline tl::expected<void, io::Error> build_from_leaves(const bvh::Storage &nodes, Storage &output, const BuildOptions &options = {}) {
-    BatchWriter writer(output, options.max_batch_bytes);
+[[nodiscard]]
+inline alp::Result<void, io::Error> build_from_leaves(const bvh::Storage &nodes, Storage &output, const BuildOptions &options = {}) {
+    return alp::run_with_context(
+        alp::make_context("building a frontier from {} to {}", nodes.directory(), output.directory()),
+        [&] -> alp::Result<void, io::Error> {
+            BatchWriter writer(output, options.max_batch_bytes);
 
-    // The walk stops on the first failed write, leaving it to report.
-    TRY(bvh::flat_traverse(nodes, [&](const bvh::Reference &ref, const bvh::Node &node) {
-        const auto entry = make_entry(ref, node, options.scene_bounds);
-        return writer.write(entry);
-    }));
-    return writer.flush();
+            // The walk stops on the first failed write, leaving it to report.
+            ALP_TRY(bvh::flat_traverse(nodes, [&](const bvh::Reference &ref, const bvh::Node &node) {
+                const auto entry = make_entry(ref, node, options.scene_bounds);
+                return writer.write(entry);
+            }));
+            return writer.flush();
+        });
 }
 
 }

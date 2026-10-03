@@ -1,14 +1,20 @@
 #pragma once
 
+#include <expected>
 #include <filesystem>
 #include <list>
 #include <memory>
 #include <optional>
+#include <source_location>
+#include <system_error>
 #include <unordered_map>
 #include <utility>
 
-#include <tl/expected.hpp>
-
+#include "error/log.h"
+#include "error/try.h"
+#include "error/utils.h"
+#include "io/Error.h"
+#include "log.h"
 #include "mesh/io.h"
 #include "octree/Id.h"
 #include "octree/IndexMap.h"
@@ -20,10 +26,17 @@
 #include "octree/storage/codec/Codec.h"
 #include "octree/storage/defaults.h"
 #include "octree/storage/helpers.h"
+#include "optional_utils.h"
 
 namespace octree {
 
 namespace detail {
+// The error for node `id`, which the index does not contain, originating at the caller.
+inline std::unexpected<alp::Error<io::FileError>> make_index_miss(const Id &id, const disk::Layout &layout, const std::source_location location = std::source_location::current()) {
+    const io::FileError error = io::make_file_not_found(layout.get_node_path(id));
+    return alp::make_unexpected(error, fmt::format("looking up node {} in the index", id), location);
+}
+
 struct MaybeIndex {
     std::optional<IndexMap> map;
     mutable bool dirty = false;
@@ -121,8 +134,9 @@ class Storage_ {
 public:
     using value_type = T;
     using codec_type = Codec;
-    using load_error = typename Codec::load_error;
+    using load_error = alp::Error<io::FileError, typename Codec::load_error>;
     using save_error = typename Codec::save_error;
+    using copy_error = typename RawStorage_<T, Codec>::copy_error;
 
     explicit Storage_(RawStorage_<T, Codec> inner)
         : _inner(std::move(inner)) {}
@@ -138,18 +152,19 @@ public:
         if (this->_index.map.has_value() && this->_index.dirty) {
             auto result = helpers::save_index_map(this->_index.map.value(), this->_inner.layout());
             if (!result.has_value()) {
-                LOG_ERROR("Failed to automatically save index when closing storage: {}", result.error());
+                LOG_UNEXPECTED(result.error(), "closing a storage at {}", this->base_path());
             }
         }
     }
 
-    tl::expected<value_type, load_error> load(const Id &id) const noexcept {
+    [[nodiscard]]
+    std::expected<value_type, load_error> load(const Id &id) const {
         if (const auto value_opt = this->_cache.get(id)) {
             return value_opt.value();
         }
 
         if (!this->_index.contains(id, true)) {
-            return tl::unexpected(Codec::file_not_found());
+            return detail::make_index_miss(id, this->_inner.layout());
         }
 
         const auto result = this->_inner.load(id);
@@ -159,7 +174,8 @@ public:
         return result;
     }
 
-    tl::expected<void, save_error> save(const Id &id, const value_type &value) noexcept {
+    [[nodiscard]]
+    std::expected<void, save_error> save(const Id &id, const value_type &value) {
         if (this->check_overwrite(id)) {
             LOG_ERROR_AND_EXIT("tried to overwrite value when not allowed");
         }
@@ -172,9 +188,10 @@ public:
         return result;
     }
 
-    tl::expected<void, CopyError> copy_from(const Id &id, const Storage_<T, Codec> &source) noexcept {
+    [[nodiscard]]
+    std::expected<void, copy_error> copy_from(const Id &id, const Storage_<T, Codec> &source) {
         if (!source._index.contains(id, true)) {
-            return tl::unexpected(CopyErrorKind::FileNotFound);
+            return detail::make_index_miss(id, source._inner.layout());
         }
 
         if (this->check_overwrite(id)) {
@@ -189,7 +206,8 @@ public:
         return result;
     }
 
-    tl::expected<void, CopyError> copy_to(const Id &id, Storage_<T, Codec> &target) const noexcept {
+    [[nodiscard]]
+    std::expected<void, copy_error> copy_to(const Id &id, Storage_<T, Codec> &target) const {
         return target.copy_from(id, *this);
     }
 
@@ -219,25 +237,22 @@ public:
         return this->_index.map.has_value();
     }
 
-    void ensure_indexed() noexcept {
+    [[nodiscard]]
+    alp::Result<void, io::FileError> ensure_indexed() noexcept {
         if (this->is_indexed()) {
-            return;
+            return {};
         }
 
         LOG_TRACE("Index not present, creating empty index");
         IndexMap map;
-        helpers::update_index_map(map, this->_inner.layout());
+        ALP_TRY(helpers::update_index_map(map, this->_inner.layout()));
         LOG_TRACE("Index created with {} entries", map.size());
         this->_index.map = std::move(map);
+        return {};
     }
     
     std::optional<std::reference_wrapper<const IndexMap>> index() const noexcept {
-        // I miss Option::as_ref
-        if (this->_index.map.has_value()) {
-            return this->_index.map.value();
-        } else {
-            return std::nullopt;
-        }
+        return as_ref(this->_index.map);
     }
 
     std::optional<std::unique_ptr<cache::ICache<T>>> &cache() noexcept {
@@ -252,14 +267,15 @@ public:
         }
     }
 
-    tl::expected<void, io::Error> save_or_create_index() noexcept {
+    [[nodiscard]]
+    std::expected<void, io::Error> save_or_create_index() {
         if (this->is_indexed() && !this->_index.dirty) {
             return {};
         }
 
-        this->ensure_indexed();
+        ALP_TRY(this->ensure_indexed());
 
-        auto result = helpers::save_index_map(this->index().value(), this->_inner.layout());
+        auto result = helpers::save_index_map(*ASSERT_VAL(this->index()), this->_inner.layout());
         if (result.has_value()) {
             this->_index.dirty = false;
         }
@@ -293,13 +309,20 @@ protected:
         this->_index.dirty = val;
     }
 
-    void update_index() noexcept {
+    // Rebuilds the index from the stored nodes if the storage has one; drops the index on failure.
+    [[nodiscard]]
+    alp::Result<void, io::FileError> update_index() noexcept {
         if (!this->is_indexed()) {
-            return;
+            return {};
         }
 
-        helpers::update_index_map(this->index_mut().value(), this->_inner.layout());
+        IndexMap &index = this->index_mut().value();
+        auto result = helpers::update_index_map(index, this->_inner.layout());
+        if (!result.has_value()) {
+            this->_index.map.reset();
+        }
         this->_index.dirty = false;
+        return result;
     }
 
 private:

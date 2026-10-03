@@ -1,15 +1,17 @@
 #pragma once
 
 #include <cstddef>
-
-#include <tl/expected.hpp>
+#include <expected>
 
 #include "io/Error.h"
 
 #include "containers/UniqueResource.h"
 #include "log.h"
 #include "storage/batch_limits.h"
-#include "try.h"
+#include "error/Result.h"
+#include "error/format.h"
+#include "error/log.h"
+#include "error/try.h"
 
 namespace detail {
 
@@ -25,7 +27,7 @@ struct PendingBatch {
 
             const auto result = pending.output->write(pending.batch);
             if (!result) {
-                LOG_ERROR("Failed to write a batch: {}", result.error());
+                LOG_UNEXPECTED(result.error(), "closing a batch writer for {}", pending.output->directory());
             }
         }
     };
@@ -53,12 +55,13 @@ public:
     }
 
     // Writes the current batch to disk.
-    tl::expected<void, io::Error> flush() {
+    [[nodiscard]]
+    alp::Result<void, io::Error> flush() {
         if (this->_current.is_empty()) {
             return {};
         }
 
-        TRY(this->_output.write(this->_current->batch));
+        ALP_TRY(this->_output.write(this->_current->batch));
         this->_current.take();
         return {};
     }
@@ -84,7 +87,8 @@ protected:
     }
 
     // Writes the batch being filled if it has grown past the maximum.
-    tl::expected<void, io::Error> flush_if_full() {
+    [[nodiscard]]
+    alp::Result<void, io::Error> flush_if_full() {
         if (this->compute_buffered_bytes() < this->_max_batch_bytes) {
             return {};
         }

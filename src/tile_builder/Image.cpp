@@ -1,5 +1,7 @@
 #include <opencv2/opencv.hpp>
 #include "Image.h"
+#include "error/unwrap.h"
+#include "texture/io.h"
 #include <string>
 
 void image::saveImageAsPng(const Image<glm::u8vec3>& inputImage, const std::string& path)
@@ -16,5 +18,5 @@ void image::saveImageAsPng(const Image<glm::u8vec3>& inputImage, const std::stri
         }
     }
 
-    cv::imwrite(path, image);
+    alp::unwrap(texture::io::write_to_path(image, path));
 }
