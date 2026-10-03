@@ -33,7 +33,7 @@ TEST_CASE("transcode roundtrip", "[mesh][encode]") {
 
     const mesh::Encoded encoded = REQUIRE_VALUE(mesh::encode(mesh, mesh::EncodeOptions{.texture_format = ".png"}));
 
-    const SimpleMesh roundtrip_mesh = REQUIRE_VALUE(mesh::decode(encoded, mesh::DecodeOptions{}));
+    const mesh::Simple roundtrip_mesh = REQUIRE_VALUE(mesh::decode(encoded, mesh::DecodeOptions{}));
     CHECK(roundtrip_mesh.positions == mesh.positions);
     CHECK(roundtrip_mesh.uvs == mesh.uvs);
     CHECK(roundtrip_mesh.triangles == mesh.triangles);

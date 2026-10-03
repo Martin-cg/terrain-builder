@@ -39,7 +39,7 @@
 TEST_CASE("io roundtrip", "[mesh][io]") {
     for (const auto &format : {"gltf", "glb", "terrain"}) {
         DYNAMIC_SECTION(format) {
-            SimpleMesh mesh;
+            mesh::Simple mesh;
 
             mesh.positions.push_back(glm::dvec3(0, 0, 0));
             mesh.positions.push_back(glm::dvec3(1, 0, 0));
@@ -83,7 +83,7 @@ TEST_CASE("io roundtrip", "[mesh][io]") {
 
             REQUIRE_VALUE(mesh::io::save_to_path(mesh, mesh_path, mesh::io::SaveOptions{.texture_format = ".png"}));
 
-            const SimpleMesh roundtrip_mesh = REQUIRE_VALUE(mesh::io::load_from_path(mesh_path));
+            const mesh::Simple roundtrip_mesh = REQUIRE_VALUE(mesh::io::load_from_path(mesh_path));
             CHECK(roundtrip_mesh.positions == mesh.positions);
             CHECK(roundtrip_mesh.uvs == mesh.uvs);
             CHECK(roundtrip_mesh.triangles == mesh.triangles);
@@ -98,8 +98,8 @@ TEST_CASE("io roundtrip", "[mesh][io]") {
 namespace {
 
 // A mesh of a single triangle.
-SimpleMesh make_triangle() {
-    SimpleMesh mesh;
+mesh::Simple make_triangle() {
+    mesh::Simple mesh;
     mesh.positions.push_back(glm::dvec3(0, 0, 0));
     mesh.positions.push_back(glm::dvec3(1, 0, 0));
     mesh.positions.push_back(glm::dvec3(0, 1, 0));
