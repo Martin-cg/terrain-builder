@@ -47,23 +47,20 @@ TEST_CASE("FixedArray of size zero owns no storage", "[containers][FixedArray]")
 }
 
 TEST_CASE("FixedArray copies are deep", "[containers][FixedArray]") {
-    FixedArray<uint32_t> source(3, 5u);
+    const FixedArray<uint32_t> source = {1, 2, 3};
 
     SECTION("construction") {
-        FixedArray<uint32_t> copy(source);
-        copy[0] = 9;
+        const FixedArray<uint32_t> copy(source);
 
-        CHECK(copy.size() == 3);
-        CHECK(source[0] == 5);
+        CHECK(copy.data() != source.data());
+        CHECK(copy == FixedArray<uint32_t>{1, 2, 3});
     }
     SECTION("assignment") {
         FixedArray<uint32_t> copy(1);
         copy = source;
-        copy[0] = 9;
 
-        CHECK(copy.size() == 3);
-        CHECK(copy[1] == 5);
-        CHECK(source[0] == 5);
+        CHECK(copy.data() != source.data());
+        CHECK(copy == FixedArray<uint32_t>{1, 2, 3});
     }
 }
 
@@ -90,7 +87,7 @@ TEST_CASE("FixedArray moves hand over the storage and leave the source empty", "
 }
 
 TEST_CASE("FixedArray survives assignment to itself", "[containers][FixedArray]") {
-    FixedArray<uint32_t> array(3, 5u);
+    FixedArray<uint32_t> array = {1, 2, 3};
     FixedArray<uint32_t> &alias = array;
 
     SECTION("copy") {
@@ -100,9 +97,7 @@ TEST_CASE("FixedArray survives assignment to itself", "[containers][FixedArray]"
         array = std::move(alias);
     }
 
-    REQUIRE(array.size() == 3);
-    CHECK(array[0] == 5);
-    CHECK(array[2] == 5);
+    CHECK(array == FixedArray<uint32_t>{1, 2, 3});
 }
 
 TEST_CASE("FixedArray of bool stores one plain bool per element", "[containers][FixedArray]") {
