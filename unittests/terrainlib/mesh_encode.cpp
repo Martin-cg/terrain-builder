@@ -45,7 +45,7 @@ TEST_CASE("A failed decode originates in decode", "[mesh][encode]") {
     mesh::Encoded encoded;
     encoded.header.version = 2;
 
-    const auto error = REQUIRE_ERROR(mesh::decode(encoded));
+    const mesh::DecodeError error = REQUIRE_ERROR(mesh::decode(encoded));
 
     CHECK(error.holds(mesh::GeometryDecodeError::IncompatibleData));
     CHECK(std::string_view(error.origin().file_name()).ends_with("mesh/encode.h"));
@@ -58,7 +58,7 @@ TEST_CASE("Encoding a mesh with a texture format that names no image format fail
     mesh.uvs = {glm::dvec2(0, 0), glm::dvec2(1, 0), glm::dvec2(0, 1)};
     mesh.texture = cv::Mat3b(4, 4, cv::Vec3b(1, 2, 3));
 
-    const auto error = REQUIRE_ERROR(mesh::encode(mesh, mesh::EncodeOptions{.texture_format = ".not_an_image"}));
+    const mesh::EncodeError error = REQUIRE_ERROR(mesh::encode(mesh, mesh::EncodeOptions{.texture_format = ".not_an_image"}));
 
     CHECK(error.holds(io::UnsupportedFormat{".not_an_image"}));
 }
@@ -70,7 +70,7 @@ TEST_CASE("Decoding a mesh whose texture is not an image fails with a texture de
     mesh::Encoded encoded = REQUIRE_VALUE(mesh::encode(mesh));
     encoded.texture = {1, 2, 3, 4};
 
-    const auto error = REQUIRE_ERROR(mesh::decode(encoded));
+    const mesh::DecodeError error = REQUIRE_ERROR(mesh::decode(encoded));
 
     CHECK(error.holds<texture::io::DecodeError>());
 }
