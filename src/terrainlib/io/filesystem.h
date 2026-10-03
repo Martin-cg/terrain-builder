@@ -10,6 +10,7 @@
 #include "error/Result.h"
 #include "error/try.h"
 #include "error/utils.h"
+#include "io/DirectoryNotEmpty.h"
 #include "io/FileError.h"
 
 namespace io::filesystem {
@@ -129,6 +130,30 @@ inline alp::Result<void, FileError> create_directories(const std::filesystem::pa
     std::filesystem::create_directories(path, code);
     if (code) {
         return alp::make_unexpected(FileError(code, path), alp::make_context("creating directories at {}", path));
+    }
+    return {};
+}
+
+// Creates an empty directory at `path`, along with its missing parents.
+// Fails with `DirectoryNotEmpty` when a directory at `path` already holds something.
+[[nodiscard]]
+inline alp::Result<void, FileError, DirectoryNotEmpty> create_empty_directory(const std::filesystem::path &path) {
+    const auto context = alp::make_context("creating an empty directory at {}", path);
+
+    ALP_TRY_CONTEXT(const bool exists, filesystem::exists(path), context);
+    if (!exists) {
+        ALP_TRY_CONTEXT(filesystem::create_directories(path), context);
+        return {};
+    }
+
+    ALP_TRY_CONTEXT(const bool is_directory, filesystem::is_directory(path), context);
+    if (!is_directory) {
+        return alp::make_unexpected(FileError(std::make_error_code(std::errc::not_a_directory), path), context);
+    }
+
+    ALP_TRY_CONTEXT(const bool empty, filesystem::is_empty(path), context);
+    if (!empty) {
+        return alp::make_unexpected(DirectoryNotEmpty{path}, context);
     }
     return {};
 }
