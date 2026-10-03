@@ -1,16 +1,40 @@
+#include <algorithm>
+#include <array>
 #include <cmath>
+#include <ranges>
+#include <span>
 #include <vector>
 
 #include <glm/glm.hpp>
+#include <radix/geometry.h>
 
 #include "../catch2_helpers.h"
 
+#include "containers/FixedVector.h"
 #include "geometry/geometry.h"
 #include "polygon/clip.h"
 
 namespace {
 
-using polygon::Triangle2d;
+using geometry::Triangle2d;
+using Plane = radix::geometry::Plane<double>;
+using Edge2d = radix::geometry::Edge<2, double>;
+
+// Checks that `actual` is the polygon `expected`, starting at any of its vertices.
+template <typename Actual>
+void check_polygon(const Actual &actual, const std::vector<std::ranges::range_value_t<Actual>> &expected) {
+    CAPTURE(actual, expected);
+    REQUIRE(std::ranges::size(actual) == expected.size());
+    if (expected.empty()) {
+        return;
+    }
+
+    std::vector<std::ranges::range_value_t<Actual>> rotated(std::ranges::begin(actual), std::ranges::end(actual));
+    const auto start = std::ranges::find(rotated, expected.front());
+    REQUIRE(start != rotated.end());
+    std::ranges::rotate(rotated, start);
+    CHECK(rotated == expected);
+}
 
 Triangle2d make_triangle(const glm::dvec2 &a, const glm::dvec2 &b, const glm::dvec2 &c) {
     return {a, b, c};
@@ -124,4 +148,52 @@ TEST_CASE("clip_triangle drops a degenerate subject", "[polygon][clip]") {
 
     CHECK(total_area(clip(collinear, big)) == Catch::Approx(0.0));
     CHECK(clip(unit, collinear).empty());
+}
+
+TEST_CASE("polygon::clip keeps the part of a triangle on the side of a plane its normal points to", "[polygon][clip]") {
+    const FixedVector<glm::dvec3, 4> triangle = {glm::dvec3(0, 0, 0), glm::dvec3(1, 0, 0), glm::dvec3(1, 1, 0)};
+
+    SECTION("a triangle on the kept side is unchanged") {
+        const Plane keep_x_below_2 = {glm::dvec3(-1, 0, 0), 2};
+        check_polygon(polygon::clip(triangle, keep_x_below_2), {glm::dvec3(0, 0, 0), glm::dvec3(1, 0, 0), glm::dvec3(1, 1, 0)});
+    }
+
+    SECTION("clipping one vertex leaves a quad") {
+        const Plane keep_x_above_half = {glm::dvec3(1, 0, 0), -0.5};
+        check_polygon(polygon::clip(triangle, keep_x_above_half), {glm::dvec3(0.5, 0, 0), glm::dvec3(1, 0, 0), glm::dvec3(1, 1, 0), glm::dvec3(0.5, 0.5, 0)});
+    }
+
+    SECTION("clipping two vertices leaves a triangle") {
+        const Plane keep_x_below_half = {glm::dvec3(-1, 0, 0), 0.5};
+        check_polygon(polygon::clip(triangle, keep_x_below_half), {glm::dvec3(0, 0, 0), glm::dvec3(0.5, 0, 0), glm::dvec3(0.5, 0.5, 0)});
+    }
+
+    SECTION("a triangle on the other side is discarded") {
+        const Plane keep_x_below_minus_1 = {glm::dvec3(-1, 0, 0), -1};
+        check_polygon(polygon::clip(triangle, keep_x_below_minus_1), {});
+    }
+}
+
+TEST_CASE("polygon::clip keeps the part of a triangle on the side of every plane", "[polygon][clip]") {
+    const FixedVector<glm::dvec3, 5> triangle = {glm::dvec3(0, 0, 0), glm::dvec3(1, 0, 0), glm::dvec3(0, 1, 0)};
+    const std::array<Plane, 2> keep_x_and_y_below_half = {
+        Plane{glm::dvec3(-1, 0, 0), 0.5},
+        Plane{glm::dvec3(0, -1, 0), 0.5},
+    };
+
+    check_polygon(polygon::clip(triangle, std::span<const Plane>(keep_x_and_y_below_half)), {glm::dvec3(0, 0, 0), glm::dvec3(0.5, 0, 0), glm::dvec3(0.5, 0.5, 0), glm::dvec3(0, 0.5, 0)});
+}
+
+TEST_CASE("polygon::clip keeps the part of a 2d triangle left of an edge", "[polygon][clip]") {
+    const FixedVector<glm::dvec2, 4> triangle = {glm::dvec2(0, 0), glm::dvec2(1, 0), glm::dvec2(1, 1)};
+    const Edge2d upwards_at_x_half = {glm::dvec2(0.5, 0), glm::dvec2(0.5, 1)};
+
+    check_polygon(polygon::clip(triangle, upwards_at_x_half), {glm::dvec2(0, 0), glm::dvec2(0.5, 0), glm::dvec2(0.5, 0.5)});
+}
+
+TEST_CASE("polygon::clip keeps the part of a quad on the side of a plane its normal points to", "[polygon][clip]") {
+    const FixedVector<glm::dvec3, 5> quad = {glm::dvec3(0, 0, 0), glm::dvec3(1, 0, 0), glm::dvec3(1, 1, 0), glm::dvec3(0, 1, 0)};
+    const Plane keep_x_below_half = {glm::dvec3(-1, 0, 0), 0.5};
+
+    check_polygon(polygon::clip(quad, keep_x_below_half), {glm::dvec3(0, 0, 0), glm::dvec3(0.5, 0, 0), glm::dvec3(0.5, 1, 0), glm::dvec3(0, 1, 0)});
 }
