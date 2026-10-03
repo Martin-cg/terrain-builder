@@ -27,24 +27,28 @@
 namespace octree {
 
 template <typename T, CodecFor<T> Codec>
-io::Result<IndexedStorage_<T, Codec>> open_index(const std::filesystem::path &index_path) {
+alp::Result<IndexedStorage_<T, Codec>, OpenError> open_index(const std::filesystem::path &index_path) {
     LOG_TRACE("Opening storage index {}", index_path);
+    const auto context = alp::make_context("opening an index from {}", index_path);
 
     ALP_TRY_CONTEXT(
         disk::v1::IndexFile index_file,
         io::read_from_path<disk::v1::IndexFile>(index_path),
-        fmt::format("opening an index from {}", index_path));
+        context);
     LOG_TRACE("Successfully read storage index with {} entries.", index_file.map.size());
     auto index_map = std::move(index_file.map);
     const auto base_path = index_path.parent_path();
     auto layout_strategy = disk::layout::StrategyRegister::instance().create(index_file.layout_strategy_id);
+    if (!layout_strategy) {
+        return alp::make_unexpected(disk::layout::UnknownLayoutStrategy{.id = index_file.layout_strategy_id}, context);
+    }
     disk::Layout layout(base_path, std::move(layout_strategy), index_file.preferred_extension);
     RawStorage_<T, Codec> raw_storage(std::move(layout));
     return IndexedStorage_<T, Codec>(std::move(raw_storage), std::move(index_map));
 }
 
 template <typename T, CodecFor<T> Codec>
-io::Result<Storage_<T, Codec>> open_folder(
+alp::Result<Storage_<T, Codec>, OpenError> open_folder(
     const std::filesystem::path &base_path,
     bool create_index,
     OpenOptions options) {
@@ -63,10 +67,10 @@ io::Result<Storage_<T, Codec>> open_folder(
     }
 
     const std::filesystem::path index_path = base_path / disk::v1::index_file_name();
-    auto storage_opt = open_index<T, Codec>(index_path);
-    if (storage_opt.has_value()) {
+    auto storage_result = open_index<T, Codec>(index_path);
+    if (storage_result.has_value()) {
         LOG_TRACE("Loaded existing index");
-        return Storage_<T, Codec>(std::move(storage_opt.value()));
+        return Storage_<T, Codec>(std::move(storage_result.value()));
     }
 
     ALP_TRY_CONTEXT(std::optional<helpers::LayoutWithoutBase> layout_info_opt, helpers::guess_layout_strategy(base_path), context);
@@ -108,7 +112,7 @@ io::Result<Storage_<T, Codec>> open_folder(
 }
 
 template <typename T, CodecFor<T> Codec>
-io::Result<IndexedStorage_<T, Codec>> open_folder_indexed(
+alp::Result<IndexedStorage_<T, Codec>, OpenError> open_folder_indexed(
     const std::filesystem::path &base_path,
     OpenOptions options) {
     using StorageT = Storage_<T, Codec>;

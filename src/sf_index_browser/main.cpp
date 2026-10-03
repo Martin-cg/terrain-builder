@@ -187,7 +187,7 @@ const octree::Id find_deepest_root(const octree::IndexMap &index, const octree::
 
 } // namespace
 
-io::Result<octree::IndexedStorage> open_path_indexed(const std::filesystem::path& path) {
+alp::Result<octree::IndexedStorage, octree::OpenError> open_path_indexed(const std::filesystem::path& path) {
     ALP_TRY(const bool is_directory, io::filesystem::is_directory(path));
     if (is_directory) {
         return octree::open_folder_indexed(path);
