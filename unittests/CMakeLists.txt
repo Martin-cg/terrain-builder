@@ -17,7 +17,6 @@ add_executable(unittests_terrainlib
     opencv_helpers.h
 
     terrainlib/buffer.cpp
-    terrainlib/convert.cpp
     terrainlib/cow.cpp
     terrainlib/dataset.cpp
     terrainlib/enumerate.cpp
@@ -41,6 +40,7 @@ add_executable(unittests_terrainlib
     terrainlib/mesh_clip_benchmark.cpp
     terrainlib/mesh_combine.cpp
     terrainlib/mesh_connected_components.cpp
+    terrainlib/mesh_convert.cpp
     terrainlib/mesh_cut.cpp
     terrainlib/mesh_cut_to_disk.cpp
     terrainlib/mesh_holes.cpp
