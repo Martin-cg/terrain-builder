@@ -108,9 +108,15 @@ alp::Result<helpers::LayoutWithoutBase, io::FileError> resolve_layout(const std:
     }
 
     helpers::LayoutWithoutBase layout_info = make_default_layout<Codec>(std::move(options));
-    LOG_WARN("Unable to determine layout of dataset, using layout strategy {} and extension {}",
-             disk::layout::StrategyRegister::instance().get_id(*layout_info.strategy),
-             layout_info.extension_with_dot);
+    const auto strategy_id = disk::layout::StrategyRegister::instance().get_id(*layout_info.strategy);
+
+    // A dataset that holds nothing yet has no layout to find, so only files that fit no layout are worth a warning.
+    ALP_TRY(const bool empty, io::filesystem::is_missing_or_empty_directory(base_path));
+    if (empty) {
+        LOG_DEBUG("Dataset is empty, using layout strategy {} and extension {}", strategy_id, layout_info.extension_with_dot);
+    } else {
+        LOG_WARN("Unable to determine layout of dataset, using layout strategy {} and extension {}", strategy_id, layout_info.extension_with_dot);
+    }
     return layout_info;
 }
 
