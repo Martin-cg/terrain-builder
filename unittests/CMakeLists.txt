@@ -26,7 +26,7 @@ add_executable(unittests_terrainlib
     terrainlib/geometry.cpp
     terrainlib/geometry_axis_aligned_plane.cpp
     terrainlib/geometry_bounds.cpp
-    terrainlib/geometry_frames.cpp
+    terrainlib/geometry_plane_frame.cpp
     terrainlib/grid.cpp
     terrainlib/hash_utils.cpp
     terrainlib/hybrid_index_pair_map.cpp

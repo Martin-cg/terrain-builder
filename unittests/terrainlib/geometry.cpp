@@ -8,16 +8,19 @@
 
 #include "geometry/geometry.h"
 
-TEST_CASE("distance_to_segment clamps to the segment's ends", "[geometry]") {
+TEST_CASE("distance_to_segment measures to the nearest point on the segment", "[geometry]") {
     const radix::geometry::Edge<2, double> segment = {glm::dvec2(0.0, 0.0), glm::dvec2(4.0, 0.0)};
 
-    CHECK(geometry::distance_to_segment(glm::dvec2(2.0, 3.0), segment) == Catch::Approx(3.0));
-    CHECK(geometry::distance_to_segment(glm::dvec2(-3.0, 0.0), segment) == Catch::Approx(3.0));
-    CHECK(geometry::distance_to_segment(glm::dvec2(9.0, 0.0), segment) == Catch::Approx(5.0));
-    CHECK(geometry::distance_to_segment(glm::dvec2(1.0, 0.0), segment) == Catch::Approx(0.0));
+    CHECK_THAT(geometry::distance_to_segment(glm::dvec2(2.0, 3.0), segment), WithinEpsilon(3.0));
+    CHECK_THAT(geometry::distance_to_segment(glm::dvec2(-3.0, 0.0), segment), WithinEpsilon(3.0));
+    CHECK_THAT(geometry::distance_to_segment(glm::dvec2(9.0, 0.0), segment), WithinEpsilon(5.0));
+    CHECK(geometry::distance_to_segment(glm::dvec2(1.0, 0.0), segment) == 0.0);
+}
 
+TEST_CASE("distance_to_segment measures to the point of an empty segment", "[geometry]") {
     const radix::geometry::Edge<2, double> degenerate = {glm::dvec2(1.0, 1.0), glm::dvec2(1.0, 1.0)};
-    CHECK(geometry::distance_to_segment(glm::dvec2(1.0, 4.0), degenerate) == Catch::Approx(3.0));
+
+    CHECK_THAT(geometry::distance_to_segment(glm::dvec2(1.0, 4.0), degenerate), WithinEpsilon(3.0));
 }
 
 TEST_CASE("distance_to_triangle is zero inside and grows outside", "[geometry]") {
@@ -30,8 +33,8 @@ TEST_CASE("distance_to_triangle is zero inside and grows outside", "[geometry]")
     CHECK(geometry::distance_to_triangle(glm::dvec2(1.0, 1.0), triangle) == 0.0);
     CHECK(geometry::distance_to_triangle(glm::dvec2(0.0, 0.0), triangle) == 0.0);
     CHECK(geometry::distance_to_triangle(glm::dvec2(2.0, 0.0), triangle) == 0.0);
-    CHECK(geometry::distance_to_triangle(glm::dvec2(0.0, -3.0), triangle) == Catch::Approx(3.0));
-    CHECK(geometry::distance_to_triangle(glm::dvec2(-2.0, 2.0), triangle) == Catch::Approx(2.0));
+    CHECK_THAT(geometry::distance_to_triangle(glm::dvec2(0.0, -3.0), triangle), WithinEpsilon(3.0));
+    CHECK_THAT(geometry::distance_to_triangle(glm::dvec2(-2.0, 2.0), triangle), WithinEpsilon(2.0));
 }
 
 TEST_CASE("distance_to_triangle accepts either winding", "[geometry]") {
@@ -47,7 +50,7 @@ TEST_CASE("distance_to_triangle accepts either winding", "[geometry]") {
     };
 
     CHECK(geometry::distance_to_triangle(glm::dvec2(1.0, 1.0), clockwise) == 0.0);
-    CHECK(geometry::distance_to_triangle(glm::dvec2(0.0, -3.0), clockwise) == Catch::Approx(3.0));
+    CHECK_THAT(geometry::distance_to_triangle(glm::dvec2(0.0, -3.0), clockwise), WithinEpsilon(3.0));
 }
 
 TEST_CASE("triangles_overlap counts touching as overlapping", "[geometry]") {
@@ -56,31 +59,91 @@ TEST_CASE("triangles_overlap counts touching as overlapping", "[geometry]") {
         glm::dvec2(4.0, 0.0),
         glm::dvec2(0.0, 4.0),
     };
-
-    CHECK(geometry::triangles_overlap(triangle, triangle));
-
     // Shifted so the two share only the corner at (4, 0).
     const radix::geometry::Triangle<2, double> touching = {
         glm::dvec2(4.0, 0.0),
         glm::dvec2(8.0, 0.0),
         glm::dvec2(4.0, -4.0),
     };
+
     CHECK(geometry::triangles_overlap(triangle, touching));
+}
 
-    const radix::geometry::Triangle<2, double> apart = {
-        glm::dvec2(100.0, 100.0),
-        glm::dvec2(104.0, 100.0),
-        glm::dvec2(100.0, 104.0),
+TEST_CASE("triangles_overlap finds triangles lying inside each other", "[geometry]") {
+    const radix::geometry::Triangle<2, double> triangle = {
+        glm::dvec2(0.0, 0.0),
+        glm::dvec2(4.0, 0.0),
+        glm::dvec2(0.0, 4.0),
     };
-    CHECK_FALSE(geometry::triangles_overlap(triangle, apart));
-
     // Contained entirely within the first, so no edge crosses any other.
     const radix::geometry::Triangle<2, double> inner = {
         glm::dvec2(0.5, 0.5),
         glm::dvec2(1.5, 0.5),
         glm::dvec2(0.5, 1.5),
     };
+
+    CHECK(geometry::triangles_overlap(triangle, triangle));
     CHECK(geometry::triangles_overlap(triangle, inner));
+    CHECK(geometry::triangles_overlap(inner, triangle));
+}
+
+TEST_CASE("triangles_overlap finds a separation along either triangle's edges", "[geometry]") {
+    const radix::geometry::Triangle<2, double> triangle = {
+        glm::dvec2(0.0, 0.0),
+        glm::dvec2(4.0, 0.0),
+        glm::dvec2(0.0, 4.0),
+    };
+
+    SECTION("far apart") {
+        const radix::geometry::Triangle<2, double> apart = {
+            glm::dvec2(100.0, 100.0),
+            glm::dvec2(104.0, 100.0),
+            glm::dvec2(100.0, 104.0),
+        };
+
+        CHECK_FALSE(geometry::triangles_overlap(triangle, apart));
+    }
+    SECTION("separated only by an edge of the second") {
+        // Below the line y = x - 4.5, so any shared point would need x >= 4.5, which the first triangle does not reach.
+        // Along the edge normals of the first triangle the two ranges still overlap.
+        const radix::geometry::Triangle<2, double> below_hypotenuse = {
+            glm::dvec2(3.5, -1.0),
+            glm::dvec2(6.5, 2.0),
+            glm::dvec2(6.5, -1.0),
+        };
+
+        CHECK_FALSE(geometry::triangles_overlap(triangle, below_hypotenuse));
+        CHECK_FALSE(geometry::triangles_overlap(below_hypotenuse, triangle));
+    }
+}
+
+TEST_CASE("compute_barycentric weights the corners in two dimensions", "[geometry]") {
+    const radix::geometry::Triangle<2, double> triangle = {
+        glm::dvec2(0.0, 0.0),
+        glm::dvec2(4.0, 0.0),
+        glm::dvec2(0.0, 4.0),
+    };
+
+    SECTION("inside") {
+        const glm::dvec3 weights = geometry::compute_barycentric(glm::dvec2(0.8, 2.0), triangle);
+        CHECK_THAT(glm::distance(weights, glm::dvec3(0.3, 0.2, 0.5)), WithinEpsilon(0.0));
+    }
+    SECTION("outside, with a negative weight") {
+        const glm::dvec3 weights = geometry::compute_barycentric(glm::dvec2(5.0, 1.0), triangle);
+        CHECK_THAT(glm::distance(weights, glm::dvec3(-0.5, 1.25, 0.25)), WithinEpsilon(0.0));
+    }
+}
+
+TEST_CASE("compute_barycentric weights the projection of a point off a three-dimensional triangle", "[geometry]") {
+    const radix::geometry::Triangle<3, double> triangle = {
+        glm::dvec3(0.0, 0.0, 0.0),
+        glm::dvec3(4.0, 0.0, 0.0),
+        glm::dvec3(0.0, 4.0, 0.0),
+    };
+
+    const glm::dvec3 weights = geometry::compute_barycentric(glm::dvec3(0.8, 2.0, 7.0), triangle);
+
+    CHECK_THAT(glm::distance(weights, glm::dvec3(0.3, 0.2, 0.5)), WithinEpsilon(0.0));
 }
 
 TEST_CASE("lerp keeps a coordinate both ends share exact", "[geometry]") {
@@ -107,16 +170,16 @@ TEST_CASE("compute_longest_edge picks the longest of the three edges", "[geometr
 TEST_CASE("compute_triangle_thickness is the smallest altitude", "[geometry]") {
     SECTION("equilateral") {
         const geometry::Triangle3d triangle = {glm::dvec3(0, 0, 0), glm::dvec3(2, 0, 0), glm::dvec3(1, std::sqrt(3.0), 0)};
-        CHECK_THAT(geometry::compute_triangle_thickness(triangle), Catch::Matchers::WithinRel(std::sqrt(3.0)));
+        CHECK_THAT(geometry::compute_triangle_thickness(triangle), WithinEpsilon(std::sqrt(3.0)));
     }
     SECTION("right angled") {
         // The altitudes are 4, 3 and 2.4, the last onto the hypotenuse.
         const geometry::Triangle3d triangle = {glm::dvec3(0, 0, 0), glm::dvec3(3, 0, 0), glm::dvec3(0, 4, 0)};
-        CHECK_THAT(geometry::compute_triangle_thickness(triangle), Catch::Matchers::WithinRel(2.4));
+        CHECK_THAT(geometry::compute_triangle_thickness(triangle), WithinEpsilon(2.4));
     }
     SECTION("cap a hair off collinear") {
         const geometry::Triangle3d triangle = {glm::dvec3(0, 0, 0), glm::dvec3(1, 0, 0), glm::dvec3(0.5, 1e-5, 0)};
-        CHECK_THAT(geometry::compute_triangle_thickness(triangle), Catch::Matchers::WithinAbs(1e-5, geometry::epsilon<double>()));
+        CHECK_THAT(geometry::compute_triangle_thickness(triangle), WithinEpsilon(1e-5));
     }
 }
 
