@@ -19,9 +19,21 @@
 
 namespace alp {
 
+namespace detail {
+
+// The error type for the codes Es.
+template <typename... Es>
+struct ErrorFor {
+    // Checked here instead of through a constraint on Error: with a precompiled header, GCC 15.2 can evaluate an alias's constraint twice with different results when a garbage collection falls in between, and then rejects valid code with "satisfaction value of atomic constraint changed".
+    static_assert((ErrorCodes<Es> && ...), "an error holds error codes and sets of codes that are not erased");
+    using type = unique_t<flatten_t<BasicError<Es...>>>;
+};
+
+} // namespace detail
+
 // An error with the codes Es, where a set among Es stands for its codes; each code is kept once, in the order it first appears.
-template <ErrorCodes... Es>
-using Error = unique_t<flatten_t<BasicError<Es...>>>;
+template <typename... Es>
+using Error = typename detail::ErrorFor<Es...>::type;
 
 // An error with a code of type Es, or an erased error when Es is empty, together with the frames it collected.
 template <typename... Es>
