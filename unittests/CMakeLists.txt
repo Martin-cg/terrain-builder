@@ -121,6 +121,7 @@ if(TARGET bvhbuilderlib)
         catch2_helpers.h
         temp_directory.h
         bvh_builder/batch_cache.cpp
+        bvh_builder/batch_reader.cpp
         bvh_builder/bounded_cache.cpp
         bvh_builder/build_frontier.cpp
         bvh_builder/flat_traverse.cpp
