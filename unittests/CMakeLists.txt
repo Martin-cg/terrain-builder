@@ -53,6 +53,7 @@ add_executable(unittests_terrainlib
     terrainlib/mesh_connected_components.cpp
     terrainlib/mesh_cut.cpp
     terrainlib/mesh_cut_to_disk.cpp
+    terrainlib/mesh_encode.cpp
     terrainlib/mesh_holes.cpp
     terrainlib/mesh_io.cpp
     terrainlib/mesh_manifold.cpp
