@@ -1,3 +1,6 @@
+#include <algorithm>
+#include <cmath>
+
 #include <glm/glm.hpp>
 
 #define CATCH_CONFIG_ENABLE_BENCHMARKING
@@ -93,7 +96,7 @@ TEST_CASE("single triangle touching bounds in point", "[mesh][clip]") {
     CHECK(clipped_mesh.triangles == std::vector<glm::uvec3>{});
 }
 
-TEST_CASE("single triangle touching bounds", "[mesh][clip]") {
+TEST_CASE("mesh::clip_on_bounds cuts a triangle lying in a face of the bounds", "[mesh][clip]") {
     SimpleMesh mesh;
     mesh.positions = {
         glm::dvec3(0, 0, 0),
@@ -105,20 +108,20 @@ TEST_CASE("single triangle touching bounds", "[mesh][clip]") {
     const radix::geometry::Aabb3d bounds(glm::dvec3(-1, -1, -1), glm::dvec3(0.5, 0.5, 0));
     const SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh, bounds).into_owned();
     const TriangleSoup clipped_soup = to_sorted_triangle_soup(clipped_mesh);
-    CHECK(clipped_soup.size() == 2);
-    CHECK(clipped_soup == TriangleSoup{{
-                                        glm::dvec3(0, 0, 0),
-                                        glm::dvec3(0.5, 0, 0),
-                                        glm::dvec3(0.5, 0.5, 0),
-                                    },
-                                    {
-                                        glm::dvec3(0, 0, 0),
-                                        glm::dvec3(0.5, 0.5, 0),
-                                        glm::dvec3(0, 0.5, 0),
-                                    }});
+
+    const TriangleSoup expected1 = {
+        {glm::dvec3(0, 0, 0), glm::dvec3(0.5, 0, 0), glm::dvec3(0.5, 0.5, 0)},
+        {glm::dvec3(0, 0, 0), glm::dvec3(0.5, 0.5, 0), glm::dvec3(0, 0.5, 0)}};
+
+    const TriangleSoup expected2 = {
+        {glm::dvec3(0, 0, 0), glm::dvec3(0.5, 0, 0), glm::dvec3(0, 0.5, 0)},
+        {glm::dvec3(0, 0.5, 0), glm::dvec3(0.5, 0, 0), glm::dvec3(0.5, 0.5, 0)}};
+
+    CAPTURE(clipped_soup);
+    CHECK((clipped_soup == expected1 || clipped_soup == expected2));
 }
 
-TEST_CASE("single triangle with single vertex in bounds", "[mesh][clip]") {
+TEST_CASE("mesh::clip_on_bounds cuts a triangle to the square whose corner lies on its hypotenuse", "[mesh][clip]") {
     SimpleMesh mesh;
     mesh.positions = {
         glm::dvec3(0, 0, 0),
@@ -130,22 +133,17 @@ TEST_CASE("single triangle with single vertex in bounds", "[mesh][clip]") {
     const radix::geometry::Aabb3d bounds(glm::dvec3(-1, -1, -1), glm::dvec3(0.5, 0.5, 0.5));
     const SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh, bounds).into_owned();
     const TriangleSoup clipped_soup = to_sorted_triangle_soup(clipped_mesh);
-    if (clipped_soup.size() == 1) {
-        CHECK(clipped_soup == TriangleSoup{{glm::dvec3(0, 0, 0),
-                                            glm::dvec3(0.5, 0, 0),
-                                            glm::dvec3(0, 0.5, 0)}});
-    } else {
-        CHECK(clipped_soup == TriangleSoup{{
-                                               glm::dvec3(0, 0, 0),
-                                               glm::dvec3(0.5, 0, 0),
-                                               glm::dvec3(0.5, 0.5, 0),
-                                           },
-                                           {
-                                               glm::dvec3(0, 0, 0),
-                                               glm::dvec3(0.5, 0.5, 0),
-                                               glm::dvec3(0, 0.5, 0),
-                                           }});
-    }
+
+    const TriangleSoup expected1 = {
+        {glm::dvec3(0, 0, 0), glm::dvec3(0.5, 0, 0), glm::dvec3(0.5, 0.5, 0)},
+        {glm::dvec3(0, 0, 0), glm::dvec3(0.5, 0.5, 0), glm::dvec3(0, 0.5, 0)}};
+
+    const TriangleSoup expected2 = {
+        {glm::dvec3(0, 0, 0), glm::dvec3(0.5, 0, 0), glm::dvec3(0, 0.5, 0)},
+        {glm::dvec3(0, 0.5, 0), glm::dvec3(0.5, 0, 0), glm::dvec3(0.5, 0.5, 0)}};
+
+    CAPTURE(clipped_soup);
+    CHECK((clipped_soup == expected1 || clipped_soup == expected2));
 }
 
 TEST_CASE("clip returns empty mesh if triangle with vertices on bounds and outside", "[mesh][clip]") {
@@ -393,6 +391,57 @@ TEST_CASE("mesh::clip_on_bounds keeps the exact position of a vertex on a plane"
                               glm::dvec3(1.1, 1, 0),
                               glm::dvec3(1.1, 0, 0),
                           }});
+}
+
+TEST_CASE("mesh::clip_on_bounds cuts an edge crossing two opposite planes at two vertices", "[mesh][clip]") {
+    SimpleMesh mesh;
+    mesh.positions = {
+        glm::dvec3(-0.5, 0, 0),
+        glm::dvec3(1.5, 0, 0),
+        glm::dvec3(0.5, 1, 0),
+    };
+    mesh.triangles = {
+        glm::uvec3(0, 1, 2)};
+    const radix::geometry::Aabb3d bounds(glm::dvec3(0, -1, -1), glm::dvec3(1, 2, 1));
+
+    const SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh, bounds).into_owned();
+
+    const std::vector<glm::dvec3> expected_positions = {
+        glm::dvec3(0, 0, 0),
+        glm::dvec3(1, 0, 0),
+        glm::dvec3(1, 0.5, 0),
+        glm::dvec3(0.5, 1, 0),
+        glm::dvec3(0, 0.5, 0),
+    };
+    CAPTURE(clipped_mesh.positions);
+    CHECK(std::ranges::is_permutation(clipped_mesh.positions, expected_positions));
+}
+
+TEST_CASE("mesh::clip_on_bounds keeps the sliver next to a vertex just inside the bounds", "[mesh][clip]") {
+    // The cut at x = 1 lies within rounding of the vertex just below it, so one piece has almost no area.
+    const double just_below_one = std::nextafter(1.0, 0.0);
+    SimpleMesh mesh;
+    mesh.positions = {
+        glm::dvec3(0, 1, 0),
+        glm::dvec3(just_below_one, 0, 0),
+        glm::dvec3(2, 0, 0),
+    };
+    mesh.triangles = {
+        glm::uvec3(0, 1, 2)};
+    const radix::geometry::Aabb3d bounds(glm::dvec3(-1, -1, -1), glm::dvec3(1, 2, 1));
+
+    const SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh, bounds).into_owned();
+    const TriangleSoup clipped_soup = to_sorted_triangle_soup(clipped_mesh);
+
+    const TriangleSoup expected1 = {
+        {glm::dvec3(0, 1, 0), glm::dvec3(just_below_one, 0, 0), glm::dvec3(1, 0, 0)},
+        {glm::dvec3(0, 1, 0), glm::dvec3(1, 0, 0), glm::dvec3(1, 0.5, 0)}};
+    const TriangleSoup expected2 = {
+        {glm::dvec3(0, 1, 0), glm::dvec3(just_below_one, 0, 0), glm::dvec3(1, 0.5, 0)},
+        {glm::dvec3(just_below_one, 0, 0), glm::dvec3(1, 0, 0), glm::dvec3(1, 0.5, 0)}};
+
+    CAPTURE(clipped_soup);
+    CHECK((clipped_soup == expected1 || clipped_soup == expected2));
 }
 
 #ifdef NDEBUG
