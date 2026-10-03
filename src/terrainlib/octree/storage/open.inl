@@ -50,23 +50,6 @@ alp::Result<IndexedStorage_<T, Codec>, OpenError> open_index(const std::filesyst
 
 namespace detail {
 
-// Creates the directory at `path` if nothing exists there; fails if something other than a directory does.
-inline alp::Result<void, io::FileError> ensure_directory(const std::filesystem::path &path) {
-    ALP_TRY(const bool is_directory, io::filesystem::is_directory(path));
-    if (is_directory) {
-        return {};
-    }
-
-    ALP_TRY(const bool exists, io::filesystem::exists(path));
-    if (exists) {
-        return alp::make_unexpected(io::FileError(std::make_error_code(std::errc::not_a_directory), path));
-    }
-
-    LOG_TRACE("Base path {} does not exist, creating it", path);
-    ALP_TRY(io::filesystem::create_directories(path));
-    return {};
-}
-
 // Opens the index of the storage at `base_path`, or nothing when it has no index file.
 template <typename T, CodecFor<T> Codec>
 alp::Result<std::optional<IndexedStorage_<T, Codec>>, OpenError> open_index_if_present(const std::filesystem::path &base_path) {
@@ -140,7 +123,7 @@ alp::Result<Storage_<T, Codec>, OpenError> open_folder(
     LOG_TRACE("Opening storage folder {}", base_path);
     const auto context = alp::make_context("opening storage at {}", base_path);
 
-    ALP_TRY_CONTEXT(detail::ensure_directory(base_path), context);
+    ALP_TRY_CONTEXT(io::filesystem::create_directories(base_path), context);
 
     using IndexedStorageT = IndexedStorage_<T, Codec>;
     ALP_TRY_CONTEXT(std::optional<IndexedStorageT> indexed_opt, (detail::open_index_if_present<T, Codec>(base_path)), context);
