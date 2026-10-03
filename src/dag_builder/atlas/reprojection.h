@@ -80,12 +80,12 @@ inline FlatSource flatten_source(
 inline void clip_against_source(
     const FlatTarget &target,
     const FlatSource &source,
-    std::vector<polygon::Triangle2d> &overlap,
+    std::vector<geometry::Triangle2d> &overlap,
     std::vector<Fragment> &fragments) {
     overlap.clear();
     polygon::clip_triangle(target.projected, source.projected, overlap);
 
-    for (const polygon::Triangle2d &part : overlap) {
+    for (const geometry::Triangle2d &part : overlap) {
         Fragment fragment;
         fragment.triangle.source_image_index = source.map_index;
         for (const uint8_t corner : range<uint8_t>(3)) {
@@ -119,7 +119,7 @@ inline std::vector<ReprojectionTriangle> build_reprojection_triangles(
     // At least one fragment per output triangle, more where sources overlap it.
     reprojection.reserve(triangles.size());
     std::vector<detail::Fragment> fragments;
-    std::vector<polygon::Triangle2d> overlap;
+    std::vector<geometry::Triangle2d> overlap;
 
     for (const auto [triangle_index, triangle] : enumerate(triangles)) {
         const std::optional<detail::FlatTarget> target = detail::flatten_target(triangle, uvs, positions);
