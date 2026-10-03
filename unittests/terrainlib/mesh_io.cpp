@@ -78,15 +78,12 @@ TEST_CASE("io roundtrip", "[mesh][io]") {
                 }
             }
 
-            const std::filesystem::path mesh_path = fmt::format("./unittests/output/mesh.{}", format);
-            std::filesystem::remove(mesh_path);
-            CHECK(!std::filesystem::exists(mesh_path));
+            const TempDirectory directory("mesh_io_roundtrip");
+            const std::filesystem::path mesh_path = directory.path() / fmt::format("mesh.{}", format);
 
             REQUIRE_VALUE(mesh::io::save_to_path(mesh, mesh_path, mesh::io::SaveOptions{.texture_format = ".png"}));
-            CHECK(std::filesystem::exists(mesh_path));
 
             const SimpleMesh roundtrip_mesh = REQUIRE_VALUE(mesh::io::load_from_path(mesh_path));
-            std::filesystem::remove(mesh_path);
             CHECK(roundtrip_mesh.positions == mesh.positions);
             CHECK(roundtrip_mesh.uvs == mesh.uvs);
             CHECK(roundtrip_mesh.triangles == mesh.triangles);
