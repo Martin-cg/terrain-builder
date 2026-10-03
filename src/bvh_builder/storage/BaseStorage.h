@@ -3,6 +3,7 @@
 #include <atomic>
 #include <cstdint>
 #include <filesystem>
+#include <system_error>
 #include <utility>
 
 #include <fmt/format.h>
@@ -68,6 +69,20 @@ public:
 
     uint32_t size() const {
         return this->_next.load();
+    }
+
+    // Deletes the storage's directory and everything it wrote.
+    [[nodiscard]] tl::expected<void, std::error_code> remove() && {
+        std::error_code error;
+        std::filesystem::remove_all(this->_directory, error);
+        if (error) {
+            return tl::unexpected(error);
+        }
+
+        // Writing the index back on destruction would recreate the directory.
+        this->_next.store(0);
+        this->_dirty = false;
+        return {};
     }
 
 protected:

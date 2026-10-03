@@ -27,6 +27,7 @@ public:
     BatchStorage(BatchStorage &&) noexcept = default;
     BatchStorage &operator=(BatchStorage &&) noexcept = default;
 
+    using Base::remove;
     using Base::save_index;
     using Base::size;
 
