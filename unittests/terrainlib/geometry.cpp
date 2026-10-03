@@ -82,6 +82,21 @@ TEST_CASE("triangles_overlap counts touching as overlapping", "[geometry]") {
     CHECK(geometry::triangles_overlap(triangle, inner));
 }
 
+TEST_CASE("lerp keeps a coordinate both ends share exact", "[geometry]") {
+    // glm::mix computes 0.1 * (1 - 0.3) + 0.1 * 0.3, which rounds to 0.09999999999999999.
+    const glm::dvec2 interpolated = geometry::lerp(glm::dvec2(1.0, 0.1), glm::dvec2(3.0, 0.1), 0.3);
+    CHECK_THAT(interpolated.x, WithinEpsilon(1.6));
+    CHECK(interpolated.y == 0.1);
+}
+
+TEST_CASE("lerp is exact at both ends", "[geometry]") {
+    // 0.7 + 1 * (0.1 - 0.7) rounds to 0.09999999999999998.
+    const glm::dvec2 from(0.7, 1.1);
+    const glm::dvec2 to(0.1, 0.3);
+    CHECK(geometry::lerp(from, to, 0.0) == from);
+    CHECK(geometry::lerp(from, to, 1.0) == to);
+}
+
 TEST_CASE("compute_longest_edge picks the longest of the three edges", "[geometry]") {
     const geometry::Triangle3d triangle = {glm::dvec3(0, 0, 0), glm::dvec3(3, 0, 0), glm::dvec3(0, 4, 0)};
 

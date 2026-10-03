@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <limits>
 #include <span>
@@ -122,6 +123,17 @@ glm::vec<3, T> compute_barycentric(const glm::vec<n_dims, T> &point, const radix
 template <typename V, typename T>
 V interpolate(const std::array<V, 3> &values, const glm::vec<3, T> &weights) {
     return weights[0] * values[0] + weights[1] * values[1] + weights[2] * values[2];
+}
+
+template <glm::length_t n_dims, typename T>
+glm::vec<n_dims, T> lerp(const glm::vec<n_dims, T> &from, const glm::vec<n_dims, T> &to, const T t) {
+    // std::lerp guarantees lerp(a, a, t) == a, lerp(a, b, 0) == a and lerp(a, b, 1) == b, and stays between a and b for t in [0, 1].
+    // glm::mix computes a * (1 - t) + b * t, which can round a shared coordinate; a + t * (b - a) can miss b at t = 1.
+    glm::vec<n_dims, T> interpolated;
+    for (glm::length_t i = 0; i < n_dims; i++) {
+        interpolated[i] = std::lerp(from[i], to[i], t);
+    }
+    return interpolated;
 }
 
 template <glm::length_t n_dims, typename T>
