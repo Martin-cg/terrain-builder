@@ -457,6 +457,8 @@ Cow<SimpleMesh> clip_on_mesh(const SimpleMesh &mesh, const SimpleMesh &clip_mesh
 
     cgal::Mesh cgal_mesh = convert::to_cgal_mesh(mesh);
     cgal::Mesh cgal_clip_mesh = convert::to_cgal_mesh(clip_mesh);
+    // TODO: CGAL treats an exactly collinear face as a self-intersection.
+    // clip_on_bounds can emit one next to a vertex within rounding of two of its planes.
     cgal::validate(cgal_mesh);
     cgal::validate(cgal_clip_mesh);
     DEBUG_ASSERT(CGAL::Polygon_mesh_processing::does_bound_a_volume(cgal_clip_mesh));
