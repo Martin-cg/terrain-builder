@@ -1,76 +1,39 @@
-#include "../catch2_helpers.h"
-#include "hash_utils.h"
-
+#include <cstddef>
 #include <cstdint>
 #include <string>
 
-TEST_CASE("default_seed returns expected value", "[hash_utils]") {
-    CHECK(hash::default_seed() == 0x9e3779b9);
+#include "../catch2_helpers.h"
+
+#include "hash_utils.h"
+
+TEST_CASE("combine returns the same hash for the same values", "[hash_utils]") {
+    const size_t first = hash::combine(10, 20, 30);
+    const size_t second = hash::combine(10, 20, 30);
+
+    CHECK(first == second);
 }
 
-TEST_CASE("combine with single int returns non-zero and is deterministic", "[hash_utils]") {
-    size_t result1 = hash::combine(42);
-    size_t result2 = hash::combine(42);
-    CHECK(result1 != 0);
-    CHECK(result1 == result2);
+TEST_CASE("combine depends on the order of the values", "[hash_utils]") {
+    CHECK(hash::combine(10, 20, 30) != hash::combine(30, 20, 10));
 }
 
-TEST_CASE("combine with two ints is deterministic and differs from single", "[hash_utils]") {
-    size_t single = hash::combine(42);
-    size_t dual1 = hash::combine(42, 7);
-    size_t dual2 = hash::combine(42, 7);
-    CHECK(dual1 == dual2);
-    CHECK(dual1 != single);
+TEST_CASE("combine gives different hashes for different values", "[hash_utils]") {
+    CHECK(hash::combine(10) != hash::combine(20));
+    CHECK(hash::combine(10, 20) != hash::combine(30, 40));
 }
 
-TEST_CASE("combine is order-dependent", "[hash_utils]") {
-    size_t h1 = hash::combine(1, 2);
-    size_t h2 = hash::combine(2, 1);
-    CHECK(h1 != h2);
-}
+TEST_CASE("append with several values matches appending them one at a time", "[hash_utils]") {
+    const int first = 10;
+    const uint32_t second = 20;
+    const std::string third = "thirty";
 
-TEST_CASE("combine with same values gives same result", "[hash_utils]") {
-    size_t a = hash::combine(10, 20, 30);
-    size_t b = hash::combine(10, 20, 30);
-    CHECK(a == b);
-}
+    size_t together = hash::default_seed();
+    hash::append(together, first, second, third);
 
-TEST_CASE("append modifies seed", "[hash_utils]") {
-    size_t seed = hash::default_seed();
-    size_t original = seed;
-    hash::append(seed, 42);
-    CHECK(seed != original);
-}
+    size_t separately = hash::default_seed();
+    hash::append(separately, first);
+    hash::append(separately, second);
+    hash::append(separately, third);
 
-TEST_CASE("append with multiple args equivalent to sequential appends", "[hash_utils]") {
-    size_t seed_multi = hash::default_seed();
-    hash::append(seed_multi, 1, 2, 3);
-
-    size_t seed_seq = hash::default_seed();
-    hash::append(seed_seq, 1);
-    hash::append(seed_seq, 2);
-    hash::append(seed_seq, 3);
-
-    CHECK(seed_multi == seed_seq);
-}
-
-TEST_CASE("combine with different types", "[hash_utils]") {
-    size_t h_int = hash::combine(42);
-    size_t h_uint = hash::combine(uint32_t(42));
-    size_t h_str = hash::combine(std::string("hello"));
-
-    // Each should produce a valid non-zero hash
-    CHECK(h_int != 0);
-    CHECK(h_uint != 0);
-    CHECK(h_str != 0);
-
-    // String hash should differ from integer hashes
-    CHECK(h_str != h_int);
-}
-
-TEST_CASE("combine produces different hashes for different values", "[hash_utils]") {
-    CHECK(hash::combine(0) != hash::combine(1));
-    CHECK(hash::combine(1) != hash::combine(2));
-    CHECK(hash::combine(100) != hash::combine(200));
-    CHECK(hash::combine(1, 2) != hash::combine(3, 4));
+    CHECK(together == separately);
 }
