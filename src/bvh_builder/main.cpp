@@ -53,9 +53,8 @@ alp::Result<bvh::Reference, io::Error> build_tree(
 alp::Result<void> build_bvh(const cli::Args &args) {
     // Reject non empty storage paths
     for (const std::filesystem::path &path : {args.output_path, args.scratch_path}) {
-        ALP_TRY(const bool exists, io::filesystem::exists(path));
-        ALP_TRY(const bool empty, io::filesystem::is_empty_directory(path));
-        if (exists && !empty) {
+        ALP_TRY(const bool unused, io::filesystem::is_missing_or_empty_directory(path));
+        if (!unused) {
             return alp::make_unexpected(fmt::format("{} is not empty, remove it or choose another path", path.string()));
         }
     }
