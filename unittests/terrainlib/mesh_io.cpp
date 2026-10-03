@@ -36,7 +36,7 @@
 #include "mesh/io.h"
 #include "mesh/io/error.h"
 
-TEST_CASE("io roundtrip") {
+TEST_CASE("io roundtrip", "[mesh][io]") {
     for (const auto &format : {"gltf", "glb", "terrain"}) {
         DYNAMIC_SECTION(format) {
             SimpleMesh mesh;
@@ -116,14 +116,14 @@ SimpleMesh make_triangle() {
 
 } // namespace
 
-TEST_CASE("Loading a mesh with an unsupported extension fails, naming the extension") {
+TEST_CASE("Loading a mesh with an unsupported extension fails, naming the extension", "[mesh][io]") {
     const mesh::io::Result<SimpleMesh> result = mesh::io::load_from_path("mesh.xyz");
 
     REQUIRE(!result.has_value());
     CHECK(result.error().holds(io::UnsupportedFormat{".xyz"}));
 }
 
-TEST_CASE("Saving a mesh with an unsupported extension fails, naming the extension") {
+TEST_CASE("Saving a mesh with an unsupported extension fails, naming the extension", "[mesh][io]") {
     const TempDirectory directory("mesh_io_unsupported_save");
     const mesh::io::Result<void> result = mesh::io::save_to_path(make_triangle(), directory.path() / "mesh.xyz");
 
@@ -140,7 +140,7 @@ TEST_CASE("load_from_path of a missing file reports that it does not exist", "[m
     CHECK(error.holds(io::make_file_not_found(path)));
 }
 
-TEST_CASE("Loading a terrain file with truncated data fails with a serde error") {
+TEST_CASE("Loading a terrain file with truncated data fails with a serde error", "[mesh][io]") {
     const TempDirectory directory("mesh_io_truncated_terrain");
     const std::filesystem::path path = directory.path() / "mesh.terrain";
     REQUIRE(mesh::io::save_to_path(make_triangle(), path).has_value());
@@ -152,7 +152,7 @@ TEST_CASE("Loading a terrain file with truncated data fails with a serde error")
     CHECK(result.error().holds<io::SerdeError>());
 }
 
-TEST_CASE("Loading a glTF file without a mesh fails as unsupported") {
+TEST_CASE("Loading a glTF file without a mesh fails as unsupported", "[mesh][io]") {
     const TempDirectory directory("mesh_io_incomplete_gltf");
     const std::filesystem::path path = directory.path() / "empty.gltf";
     std::ofstream(path) << R"({"asset":{"version":"2.0"}})";

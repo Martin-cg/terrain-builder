@@ -12,7 +12,7 @@
 #include "mesh/encode.h"
 #include "texture/io.h"
 
-TEST_CASE("transcode roundtrip") {
+TEST_CASE("transcode roundtrip", "[mesh][encode]") {
     mesh::Simple mesh;
 
     mesh.positions.push_back(glm::dvec3(0, 0, 0));
