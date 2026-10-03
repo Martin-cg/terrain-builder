@@ -49,6 +49,7 @@ add_executable(unittests_terrainlib
     terrainlib/mesh_reindex.cpp
     terrainlib/mesh_split.cpp
     terrainlib/mesh_topology.cpp
+    terrainlib/numeric_exact_sum.cpp
     terrainlib/octree_id.cpp
     terrainlib/octree_odd_level_shifted.cpp
     terrainlib/octree_space.cpp
