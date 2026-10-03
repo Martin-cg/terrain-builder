@@ -22,6 +22,7 @@
 #include "octree/storage/IndexedStorage.h"
 #include "octree/storage/helpers.h"
 #include "octree/storage/defaults.h"
+#include "optional_utils.h"
 #include "range_utils.h"
 
 namespace octree {
@@ -47,6 +48,84 @@ alp::Result<IndexedStorage_<T, Codec>, OpenError> open_index(const std::filesyst
     return IndexedStorage_<T, Codec>(std::move(raw_storage), std::move(index_map));
 }
 
+namespace detail {
+
+// Creates the directory at `path` if nothing exists there; fails if something other than a directory does.
+inline alp::Result<void, io::FileError> ensure_directory(const std::filesystem::path &path) {
+    ALP_TRY(const bool is_directory, io::filesystem::is_directory(path));
+    if (is_directory) {
+        return {};
+    }
+
+    ALP_TRY(const bool exists, io::filesystem::exists(path));
+    if (exists) {
+        return alp::make_unexpected(io::FileError(std::make_error_code(std::errc::not_a_directory), path));
+    }
+
+    LOG_TRACE("Base path {} does not exist, creating it", path);
+    ALP_TRY(io::filesystem::create_directories(path));
+    return {};
+}
+
+// Opens the index of the storage at `base_path`, or nothing when it has no index file.
+template <typename T, CodecFor<T> Codec>
+alp::Result<std::optional<IndexedStorage_<T, Codec>>, OpenError> open_index_if_present(const std::filesystem::path &base_path) {
+    auto storage_result = open_index<T, Codec>(base_path / disk::v1::index_file_name());
+    if (storage_result.has_value()) {
+        LOG_TRACE("Loaded existing index");
+        return std::optional(std::move(storage_result).value());
+    }
+
+    if (storage_result.error().template holds_and<io::FileError>(&io::FileError::is_not_found)) {
+        return std::nullopt;
+    }
+    return alp::propagate(std::move(storage_result).error());
+}
+
+// The default layout from `options`, falling back to the default strategy and the codec's first extension.
+template <typename Codec>
+helpers::LayoutWithoutBase make_default_layout(OpenOptions options) {
+    std::unique_ptr<disk::layout::Strategy> strategy = options.default_layout_strategy
+        ? std::move(options.default_layout_strategy)
+        : disk::layout::strategy::make_default();
+
+    const std::vector<std::string_view> supported_extensions = Codec::supported_extensions();
+    std::string extension_with_dot = unwrap_or(options.preferred_extension_with_dot, std::string(supported_extensions[0]));
+    ASSERT(contains(supported_extensions, extension_with_dot));
+
+    return helpers::LayoutWithoutBase(std::move(strategy), std::move(extension_with_dot));
+}
+
+// The layout of the storage at `base_path`, guessed from its files, or the default layout from `options` when it holds none.
+template <typename Codec>
+alp::Result<helpers::LayoutWithoutBase, io::FileError> resolve_layout(const std::filesystem::path &base_path, OpenOptions options) {
+    ALP_TRY(std::optional<helpers::LayoutWithoutBase> guessed_opt, helpers::guess_layout_strategy(base_path));
+    if (guessed_opt.has_value()) {
+        LOG_TRACE("Guessed layout strategy of dataset as {} and extension as {}",
+                  disk::layout::StrategyRegister::instance().get_id(*guessed_opt->strategy),
+                  guessed_opt->extension_with_dot);
+        return std::move(guessed_opt).value();
+    }
+
+    helpers::LayoutWithoutBase layout_info = make_default_layout<Codec>(std::move(options));
+    LOG_WARN("Unable to determine layout of dataset, using layout strategy {} and extension {}",
+             disk::layout::StrategyRegister::instance().get_id(*layout_info.strategy),
+             layout_info.extension_with_dot);
+    return layout_info;
+}
+
+// Indexes the nodes stored in `layout`, and saves the index when it holds any.
+inline alp::Result<IndexMap, io::Error> create_index_map(const disk::Layout &layout) {
+    IndexMap map;
+    ALP_TRY(helpers::update_index_map(map, layout));
+    if (!map.empty()) {
+        ALP_TRY(helpers::save_index_map(map, layout));
+    }
+    return map;
+}
+
+} // namespace detail
+
 template <typename T, CodecFor<T> Codec>
 alp::Result<Storage_<T, Codec>, OpenError> open_folder(
     const std::filesystem::path &base_path,
@@ -55,62 +134,21 @@ alp::Result<Storage_<T, Codec>, OpenError> open_folder(
     LOG_TRACE("Opening storage folder {}", base_path);
     const auto context = alp::make_context("opening storage at {}", base_path);
 
-    ALP_TRY_CONTEXT(const bool is_directory, io::filesystem::is_directory(base_path), context);
-    if (!is_directory) {
-        ALP_TRY_CONTEXT(const bool exists, io::filesystem::exists(base_path), context);
-        if (exists) {
-            return alp::make_unexpected(io::FileError(std::make_error_code(std::errc::not_a_directory), base_path), context);
-        }
+    ALP_TRY_CONTEXT(detail::ensure_directory(base_path), context);
 
-        LOG_TRACE("Base path {} does not exist, creating it", base_path);
-        ALP_TRY_CONTEXT(io::filesystem::create_directories(base_path), context);
+    using IndexedStorageT = IndexedStorage_<T, Codec>;
+    ALP_TRY_CONTEXT(std::optional<IndexedStorageT> indexed_opt, (detail::open_index_if_present<T, Codec>(base_path)), context);
+    if (indexed_opt.has_value()) {
+        return Storage_<T, Codec>(std::move(indexed_opt).value());
     }
 
-    const std::filesystem::path index_path = base_path / disk::v1::index_file_name();
-    auto storage_result = open_index<T, Codec>(index_path);
-    if (storage_result.has_value()) {
-        LOG_TRACE("Loaded existing index");
-        return Storage_<T, Codec>(std::move(storage_result.value()));
-    }
-    if (!storage_result.error().template holds_and<io::FileError>(&io::FileError::is_not_found)) {
-        return std::unexpected(std::move(storage_result).error().context(context));
-    }
-
-    ALP_TRY_CONTEXT(std::optional<helpers::LayoutWithoutBase> layout_info_opt, helpers::guess_layout_strategy(base_path), context);
-    if (layout_info_opt.has_value()) {
-        const octree::helpers::LayoutWithoutBase &layout_info = layout_info_opt.value();
-        LOG_TRACE("Guessed layout strategy of dataset as {} and extension as {}",
-                  disk::layout::StrategyRegister::instance().get_id(*layout_info.strategy),
-                  layout_info.extension_with_dot);
-    } else {
-        auto default_layout_strategy = std::move(options.default_layout_strategy);
-        if (!default_layout_strategy) {
-            default_layout_strategy = disk::layout::strategy::make_default();
-        }
-        std::string default_extension_with_dot;
-        const std::vector<std::string_view> supported_extensions = Codec::supported_extensions();
-        if (options.preferred_extension_with_dot.has_value()) {
-            ASSERT(contains(supported_extensions, options.preferred_extension_with_dot.value()));
-            default_extension_with_dot = options.preferred_extension_with_dot.value();
-        } else {
-            default_extension_with_dot = supported_extensions[0];
-        }
-        LOG_WARN("Unable to determine layout of dataset, using layout strategy {} and extension {}",
-                 disk::layout::StrategyRegister::instance().get_id(*default_layout_strategy),
-                 default_extension_with_dot);
-        layout_info_opt = octree::helpers::LayoutWithoutBase(std::move(default_layout_strategy), default_extension_with_dot);
-    }
-
-    disk::Layout layout(base_path, std::move(layout_info_opt->strategy), layout_info_opt->extension_with_dot);
+    ALP_TRY_CONTEXT(helpers::LayoutWithoutBase layout_info, detail::resolve_layout<Codec>(base_path, std::move(options)), context);
+    disk::Layout layout(base_path, std::move(layout_info.strategy), layout_info.extension_with_dot);
     if (!create_index) {
         return Storage_<T, Codec>(RawStorage_<T, Codec>(std::move(layout)));
     }
 
-    IndexMap map;
-    ALP_TRY_CONTEXT(helpers::update_index_map(map, layout), context);
-    if (!map.empty()) {
-        ALP_TRY_CONTEXT(helpers::save_index_map(map, layout), context);
-    }
+    ALP_TRY_CONTEXT(IndexMap map, detail::create_index_map(layout), context);
     return Storage_<T, Codec>(RawStorage_<T, Codec>(std::move(layout)), std::move(map));
 }
 
