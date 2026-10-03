@@ -82,15 +82,11 @@ TEST_CASE("io roundtrip", "[mesh][io]") {
             std::filesystem::remove(mesh_path);
             CHECK(!std::filesystem::exists(mesh_path));
 
-            REQUIRE(mesh::io::save_to_path(mesh, mesh_path, mesh::io::SaveOptions{.texture_format = ".png"}));
+            REQUIRE_VALUE(mesh::io::save_to_path(mesh, mesh_path, mesh::io::SaveOptions{.texture_format = ".png"}));
             CHECK(std::filesystem::exists(mesh_path));
 
-            const mesh::io::Result<SimpleMesh> result = mesh::io::load_from_path(mesh_path);
-            if (!result.has_value()) {
-                FAIL(fmt::to_string(result.error()));
-            }
+            const SimpleMesh roundtrip_mesh = REQUIRE_VALUE(mesh::io::load_from_path(mesh_path));
             std::filesystem::remove(mesh_path);
-            const SimpleMesh roundtrip_mesh = result.value();
             CHECK(roundtrip_mesh.positions == mesh.positions);
             CHECK(roundtrip_mesh.uvs == mesh.uvs);
             CHECK(roundtrip_mesh.triangles == mesh.triangles);
@@ -117,18 +113,16 @@ SimpleMesh make_triangle() {
 } // namespace
 
 TEST_CASE("Loading a mesh with an unsupported extension fails, naming the extension", "[mesh][io]") {
-    const mesh::io::Result<SimpleMesh> result = mesh::io::load_from_path("mesh.xyz");
+    const mesh::io::Error error = REQUIRE_ERROR(mesh::io::load_from_path("mesh.xyz"));
 
-    REQUIRE(!result.has_value());
-    CHECK(result.error().holds(io::UnsupportedFormat{".xyz"}));
+    CHECK(error.holds(io::UnsupportedFormat{".xyz"}));
 }
 
 TEST_CASE("Saving a mesh with an unsupported extension fails, naming the extension", "[mesh][io]") {
     const TempDirectory directory("mesh_io_unsupported_save");
-    const mesh::io::Result<void> result = mesh::io::save_to_path(make_triangle(), directory.path() / "mesh.xyz");
+    const mesh::io::Error error = REQUIRE_ERROR(mesh::io::save_to_path(make_triangle(), directory.path() / "mesh.xyz"));
 
-    REQUIRE(!result.has_value());
-    CHECK(result.error().holds(io::UnsupportedFormat{".xyz"}));
+    CHECK(error.holds(io::UnsupportedFormat{".xyz"}));
 }
 
 TEST_CASE("load_from_path of a missing file reports that it does not exist", "[mesh][io]") {
@@ -143,13 +137,12 @@ TEST_CASE("load_from_path of a missing file reports that it does not exist", "[m
 TEST_CASE("Loading a terrain file with truncated data fails with a serde error", "[mesh][io]") {
     const TempDirectory directory("mesh_io_truncated_terrain");
     const std::filesystem::path path = directory.path() / "mesh.terrain";
-    REQUIRE(mesh::io::save_to_path(make_triangle(), path).has_value());
+    REQUIRE_VALUE(mesh::io::save_to_path(make_triangle(), path));
     std::filesystem::resize_file(path, std::filesystem::file_size(path) - 1);
 
-    const mesh::io::Result<SimpleMesh> result = mesh::io::load_from_path(path);
+    const mesh::io::Error error = REQUIRE_ERROR(mesh::io::load_from_path(path));
 
-    REQUIRE(!result.has_value());
-    CHECK(result.error().holds<io::SerdeError>());
+    CHECK(error.holds<io::SerdeError>());
 }
 
 TEST_CASE("Loading a glTF file without a mesh fails as unsupported", "[mesh][io]") {
@@ -157,8 +150,7 @@ TEST_CASE("Loading a glTF file without a mesh fails as unsupported", "[mesh][io]
     const std::filesystem::path path = directory.path() / "empty.gltf";
     std::ofstream(path) << R"({"asset":{"version":"2.0"}})";
 
-    const mesh::io::Result<SimpleMesh> result = mesh::io::load_from_path(path);
+    const mesh::io::Error error = REQUIRE_ERROR(mesh::io::load_from_path(path));
 
-    REQUIRE(!result.has_value());
-    CHECK(result.error().holds<mesh::io::UnsupportedGltf>());
+    CHECK(error.holds<mesh::io::UnsupportedGltf>());
 }
