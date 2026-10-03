@@ -3,14 +3,17 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <ranges>
 #include <span>
 #include <stdexcept>
+#include <unordered_map>
 #include <vector>
 
 #include <glm/glm.hpp>
 #include <libassert/assert.hpp>
 
 #include "containers/UnionFind.h"
+#include "VecHash.h"
 #include "cluster.h"
 #include "compact.h"
 #include "enumerate.h"
@@ -49,6 +52,23 @@ inline std::vector<uint32_t> build_welding_map(const std::span<const glm::dvec3>
     }
 
     return neighbourhoods.get_set_labels();
+}
+
+// Maps each position onto the welded position of all equal positions.
+template <std::ranges::input_range Positions>
+    requires std::ranges::sized_range<Positions>
+std::vector<uint32_t> build_exact_welding_map(Positions &&positions) {
+    std::unordered_map<glm::dvec3, uint32_t, DVec3Hash> welded_by_position;
+    std::vector<uint32_t> position_to_welded;
+    position_to_welded.reserve(std::ranges::size(positions));
+
+    for (const glm::dvec3 &position : positions) {
+        const uint32_t next_welded_index = static_cast<uint32_t>(welded_by_position.size());
+        const auto [it, inserted] = welded_by_position.try_emplace(position, next_welded_index);
+        position_to_welded.push_back(it->second);
+    }
+
+    return position_to_welded;
 }
 
 inline std::vector<glm::dvec3> build_welded_positions(
@@ -102,15 +122,18 @@ inline void filter_degenerate_triangles(Clustering &clustering) {
 
 // Welds vertices of a single clustering that lie within epsilon of each other.
 inline Clustering weld_clustering(const Clustering &clustering, const double epsilon, const bool average_positions = true) {
-    if (!(epsilon > 0.0) || !std::isfinite(epsilon)) {
-        throw std::invalid_argument("weld_clustering: epsilon must be finite and positive");
+    if (!(epsilon >= 0.0) || !std::isfinite(epsilon)) {
+        throw std::invalid_argument("weld_clustering: epsilon must be finite and non negative");
     }
 
     if (clustering.is_empty()) {
         return clustering;
     }
 
-    const std::vector<uint32_t> vertex_to_welded = detail::build_welding_map(clustering.positions, epsilon);
+    // The spatial hash of the epsilon weld cannot have a cell size of zero.
+    const std::vector<uint32_t> vertex_to_welded = epsilon == 0.0
+        ? detail::build_exact_welding_map(clustering.positions)
+        : detail::build_welding_map(clustering.positions, epsilon);
     const uint32_t welded_vertex_count = std::ranges::max(vertex_to_welded) + 1;
 
     Clustering welded = clustering;

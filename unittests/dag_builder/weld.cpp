@@ -34,9 +34,11 @@ std::vector<TriangleSoup> to_cluster_soups(const Clustering &clustering) {
 } // namespace
 
 TEST_CASE("weld_clustering welds positions within epsilon and keeps the rest apart", "[merge][weld]") {
+    const double epsilon = GENERATE(0.0, 1.0);
+
     // near is within epsilon of anchor, far is beyond epsilon of both.
     const glm::dvec3 anchor(0.1, 0.0, 0.0);
-    const glm::dvec3 near(1.0, 0.0, 0.0);
+    const glm::dvec3 near(0.1, 0.0, 0.0);
     const glm::dvec3 far(0.1, -1.1, 0.0);
 
     Clustering clustering;
@@ -49,8 +51,7 @@ TEST_CASE("weld_clustering welds positions within epsilon and keeps the rest apa
     clustering.clusters.push_back(make_cluster({3, 4, 5}, {glm::uvec3(0, 1, 2)}));
     clustering.clusters.push_back(make_cluster({6, 7, 8}, {glm::uvec3(0, 1, 2)}));
 
-    // The last writer places the welded vertex exactly at near.
-    const Clustering welded = weld_clustering(clustering, 1.0, false);
+    const Clustering welded = weld_clustering(clustering, epsilon);
 
     CHECK_THAT(welded.positions, Catch::Matchers::UnorderedEquals<glm::dvec3>({
         near, glm::dvec3(10.0, 0.0, 0.0), glm::dvec3(5.0, 10.0, 0.0),
@@ -92,14 +93,40 @@ TEST_CASE("weld_clustering places the welded vertex by averaging or last writer"
     }, is_close));
 }
 
+TEST_CASE("weld_clustering keeps both local vertices of a cluster that repeats a position", "[merge][weld]") {
+    const double epsilon = GENERATE(0.0, 1.0);
+    const glm::dvec3 seam(0.1, 0.0, 0.0);
+
+    Clustering clustering;
+    clustering.positions = {
+        seam, glm::dvec3(10.0, 0.0, 0.0), glm::dvec3(5.0, 10.0, 0.0),
+        seam, glm::dvec3(-10.0, 0.0, 0.0), glm::dvec3(-5.0, 10.0, 0.0),
+    };
+    clustering.clusters.push_back(make_cluster({0, 1, 2, 3, 4, 5}, {glm::uvec3(0, 1, 2), glm::uvec3(3, 4, 5)}));
+
+    const Clustering welded = weld_clustering(clustering, epsilon);
+
+    CHECK_THAT(welded.positions, Catch::Matchers::UnorderedEquals<glm::dvec3>({
+        seam, glm::dvec3(10.0, 0.0, 0.0), glm::dvec3(5.0, 10.0, 0.0),
+        glm::dvec3(-10.0, 0.0, 0.0), glm::dvec3(-5.0, 10.0, 0.0),
+    }));
+    REQUIRE(welded.clusters.size() == 1);
+    CHECK(welded.clusters[0].vertex_count() == 6);
+    CHECK(to_cluster_soups(welded) == std::vector<TriangleSoup>{{
+        {seam, glm::dvec3(10.0, 0.0, 0.0), glm::dvec3(5.0, 10.0, 0.0)},
+        {seam, glm::dvec3(-10.0, 0.0, 0.0), glm::dvec3(-5.0, 10.0, 0.0)},
+    }});
+}
+
 TEST_CASE("weld_clustering drops triangles collapsed by welding", "[merge][weld]") {
+    const double epsilon = GENERATE(0.0, 1.0);
     const glm::dvec3 duplicate(0.1, 0.0, 0.0);
 
     Clustering clustering;
     clustering.positions = {duplicate, glm::dvec3(10.0, 0.0, 0.0), glm::dvec3(5.0, 10.0, 0.0), duplicate};
     clustering.clusters.push_back(make_cluster({0, 1, 2, 3}, {glm::uvec3(0, 1, 2), glm::uvec3(0, 3, 1)}));
 
-    const Clustering welded = weld_clustering(clustering, 1.0);
+    const Clustering welded = weld_clustering(clustering, epsilon);
 
     CHECK_THAT(welded.positions, Catch::Matchers::UnorderedEquals<glm::dvec3>({
         duplicate, glm::dvec3(10.0, 0.0, 0.0), glm::dvec3(5.0, 10.0, 0.0),
@@ -109,9 +136,8 @@ TEST_CASE("weld_clustering drops triangles collapsed by welding", "[merge][weld]
     });
 }
 
-TEST_CASE("weld_clustering rejects a non positive or non finite epsilon", "[merge][weld]") {
+TEST_CASE("weld_clustering rejects a negative or non finite epsilon", "[merge][weld]") {
     const double epsilon = GENERATE(
-        0.0,
         -1.0,
         std::numeric_limits<double>::quiet_NaN(),
         std::numeric_limits<double>::infinity());
