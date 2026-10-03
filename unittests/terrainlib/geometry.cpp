@@ -1,3 +1,4 @@
+#include <array>
 #include <cmath>
 
 #include <glm/glm.hpp>
@@ -127,4 +128,50 @@ TEST_CASE("compute_triangle_thickness is zero for degenerate triangles", "[geome
     INFO("triangle: " << name);
 
     CHECK(geometry::compute_triangle_thickness(triangle) == 0.0);
+}
+
+TEST_CASE("is_collinear finds points on one line at an epsilon of 0 where the edges round", "[geometry]") {
+    // All three lie on the line through the origin along (3, 5, 7), but b - a and c - a round in different proportions.
+    const glm::dvec3 a = glm::dvec3(3, 5, 7) * 0x1p-53;
+    const glm::dvec3 b(3, 5, 7);
+    const glm::dvec3 c(6, 10, 14);
+    CHECK(geometry::is_collinear(a, b, c, 0.0));
+}
+
+TEST_CASE("is_collinear rejects a point one ulp off the line at an epsilon of 0", "[geometry]") {
+    const glm::dvec3 a = glm::dvec3(3, 5, 7) * 0x1p-53;
+    const glm::dvec3 b(3, 5, 7);
+    const glm::dvec3 c(6, 10, std::nextafter(14.0, 15.0));
+    CHECK_FALSE(geometry::is_collinear(a, b, c, 0.0));
+}
+
+TEST_CASE("is_collinear rejects a sliver whose area rounds to zero at an epsilon of 0", "[geometry]") {
+    const double just_below_one = std::nextafter(1.0, 0.0);
+    const double half_gap = (1.0 - just_below_one) / 2;
+    const glm::dvec3 a(just_below_one, half_gap, 0);
+    const glm::dvec3 b(1, half_gap, 0);
+    const glm::dvec3 c(1, 1, 0);
+    CHECK_FALSE(geometry::is_collinear(a, b, c, 0.0));
+}
+
+TEST_CASE("is_collinear counts coincident points as collinear", "[geometry]") {
+    const glm::dvec3 a(1, 2, 3);
+    const glm::dvec3 c(4, -5, 6);
+    CHECK(geometry::is_collinear(a, a, c, 0.0));
+    CHECK(geometry::is_collinear(a, c, c, 0.0));
+    CHECK(geometry::is_collinear(a, a, a, 0.0));
+}
+
+TEST_CASE("is_collinear compares epsilon to the distance of the nearest point from the line through the other two", "[geometry]") {
+    // The middle point lies 1e-6 off the line through the outer two, and each outer point lies about 2e-6 off the line through the others.
+    const glm::dvec2 left(0, 0);
+    const glm::dvec2 middle(0.5, 1e-6);
+    const glm::dvec2 right(1, 0);
+    const auto [a, b, c] = GENERATE_COPY(
+        std::array{left, middle, right},
+        std::array{middle, right, left},
+        std::array{right, left, middle});
+    CAPTURE(a, b, c);
+    CHECK(geometry::is_collinear(a, b, c, 1.5e-6));
+    CHECK_FALSE(geometry::is_collinear(a, b, c, 0.5e-6));
 }

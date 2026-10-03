@@ -65,6 +65,13 @@ auto cross(const glm::vec<n_dims, T> &a, const glm::vec<n_dims, T> &b) {
 template <typename T>
 T orient(const glm::vec<2, T> &a, const glm::vec<2, T> &b, const glm::vec<2, T> &p);
 
+// Checks whether one of the three points lies within `epsilon` of the line through the other two.
+// Exact for an epsilon of 0.
+template <glm::length_t n_dims, typename T>
+bool is_collinear(const glm::vec<n_dims, T> &a, const glm::vec<n_dims, T> &b, const glm::vec<n_dims, T> &c, T epsilon);
+template <glm::length_t n_dims, typename T>
+bool is_collinear(const radix::geometry::Triangle<n_dims, T> &triangle, T epsilon);
+
 // Corner weights of the point, summing to one. Meaningless for a degenerate triangle.
 template <glm::length_t n_dims, typename T>
 glm::vec<3, T> compute_barycentric(
