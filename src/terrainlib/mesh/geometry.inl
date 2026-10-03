@@ -29,5 +29,14 @@ template <glm::length_t n_dims, typename T>
 T compute_surface_area(const mesh::Simple_<n_dims, T>& mesh) {
     return compute_surface_area<n_dims, T>(mesh.triangles, mesh.positions);
 }
+template <glm::length_t n_dims, typename T>
+T compute_surface_area(const TriangleSoup_<n_dims, T>& soup) {
+    T total_area = static_cast<T>(0);
+    for (const std::array<glm::vec<n_dims, T>, 3>& triangle : soup) {
+        const T triangle_area = geometry::compute_triangle_area<n_dims, T>(triangle);
+        total_area += triangle_area;
+    }
+    return total_area;
+}
 
 } // namespace mesh

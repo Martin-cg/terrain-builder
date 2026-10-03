@@ -6,6 +6,7 @@
 #include "../catch2_helpers.h"
 
 #include "geometry/geometry.h"
+#include "mesh/geometry.h"
 #include "polygon/clip.h"
 
 namespace {
@@ -21,19 +22,6 @@ std::vector<Triangle2d> clip(const Triangle2d &subject, const Triangle2d &clip_t
     polygon::clip_triangle(subject, clip_triangle, out);
     return out;
 }
-
-double area_of(const Triangle2d &triangle) {
-    return std::abs(geometry::cross(triangle[1] - triangle[0], triangle[2] - triangle[0])) / 2.0;
-}
-
-double total_area(const std::vector<Triangle2d> &triangles) {
-    double area = 0.0;
-    for (const Triangle2d &triangle : triangles) {
-        area += area_of(triangle);
-    }
-    return area;
-}
-
 // The lower left half of the unit square.
 const Triangle2d unit = make_triangle({0, 0}, {1, 0}, {0, 1});
 
@@ -45,7 +33,7 @@ TEST_CASE("clip_triangle keeps a triangle contained in the clip", "[polygon][cli
     const std::vector<Triangle2d> pieces = clip(unit, big);
 
     REQUIRE(pieces.size() == 1);
-    CHECK(total_area(pieces) == Catch::Approx(area_of(unit)));
+    CHECK_THAT(mesh::compute_surface_area(pieces), WithinEpsilon(0.5));
 }
 
 TEST_CASE("clip_triangle drops a triangle outside the clip", "[polygon][clip]") {
@@ -72,7 +60,7 @@ TEST_CASE("clip_triangle halves a triangle cut by the clip", "[polygon][clip]") 
 
     REQUIRE(!pieces.empty());
     // The unit triangle left of x = 0.5 is a trapezoid of area 3/8.
-    CHECK(total_area(pieces) == Catch::Approx(0.375));
+    CHECK_THAT(mesh::compute_surface_area(pieces), WithinEpsilon(0.375));
 }
 
 TEST_CASE("clip_triangle produces a hexagon for a star overlap", "[polygon][clip]") {
@@ -85,15 +73,15 @@ TEST_CASE("clip_triangle produces a hexagon for a star overlap", "[polygon][clip
     // A hexagon fans into four triangles.
     REQUIRE(pieces.size() == 4);
     // Corners (2,0) (4,0) (5,2) (4,4) (2,4) (1,2).
-    CHECK(total_area(pieces) == Catch::Approx(12.0));
+    CHECK_THAT(mesh::compute_surface_area(pieces), WithinEpsilon(12.0));
 }
 
 TEST_CASE("clip_triangle is insensitive to winding", "[polygon][clip]") {
     const Triangle2d reversed_clip = make_triangle({-1, -1}, {-1, 3}, {3, -1});
     const Triangle2d reversed_subject = {unit[0], unit[2], unit[1]};
 
-    CHECK(total_area(clip(unit, reversed_clip)) == Catch::Approx(area_of(unit)));
-    CHECK(total_area(clip(reversed_subject, reversed_clip)) == Catch::Approx(area_of(unit)));
+    CHECK_THAT(mesh::compute_surface_area(clip(unit, reversed_clip)), WithinEpsilon(0.5));
+    CHECK_THAT(mesh::compute_surface_area(clip(reversed_subject, reversed_clip)), WithinEpsilon(0.5));
 }
 
 TEST_CASE("clip_triangle covers the overlap without counting it twice", "[polygon][clip]") {
@@ -122,6 +110,6 @@ TEST_CASE("clip_triangle drops a degenerate subject", "[polygon][clip]") {
     const Triangle2d collinear = make_triangle({0, 0}, {1, 1}, {2, 2});
     const Triangle2d big = make_triangle({-1, -1}, {3, -1}, {-1, 3});
 
-    CHECK(total_area(clip(collinear, big)) == Catch::Approx(0.0));
+    CHECK(mesh::compute_surface_area(clip(collinear, big)) == 0.0);
     CHECK(clip(unit, collinear).empty());
 }
