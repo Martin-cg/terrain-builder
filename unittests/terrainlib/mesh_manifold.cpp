@@ -79,7 +79,10 @@ TEST_CASE("mesh::find_non_manifold_edges", "[mesh][connectivity][manifold]") {
     }
 
     SECTION("detects single non-manifold edge") {
-        const SimpleMesh mesh = make_three_triangles_sharing_same_edge();
+        // Three triangles sharing the edge (0, 1).
+        const SimpleMesh mesh(
+            {{0, 1, 2}, {1, 0, 3}, {0, 1, 4}},
+            {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0.5, 0, 1}});
 
         std::vector<glm::uvec2> actual = mesh::find_non_manifold_edges(mesh.triangles);
         sort_edges(actual);
@@ -199,13 +202,11 @@ TEST_CASE("mesh::duplicate_non_manifold_edges", "[mesh][connectivity][manifold]"
     }
 
     SECTION("positions and uvs are duplicated together") {
-        SimpleMesh actual = make_three_triangles_sharing_same_edge();
-        actual.uvs = {
-            glm::dvec2(0, 0),
-            glm::dvec2(1, 0),
-            glm::dvec2(0, 1),
-            glm::dvec2(1, 1),
-            glm::dvec2(0.5, 0.5)};
+        // Three triangles sharing the edge (0, 1).
+        SimpleMesh actual(
+            {{0, 1, 2}, {1, 0, 3}, {0, 1, 4}},
+            {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0.5, 0, 1}},
+            {{0, 0}, {1, 0}, {0, 1}, {1, 1}, {0.5, 0.5}});
 
         REQUIRE(actual.vertex_count() == actual.uvs.size());
 
@@ -244,13 +245,11 @@ TEST_CASE("mesh::duplicate_non_manifold_vertices", "[mesh][connectivity][manifol
     }
 
     SECTION("positions and uvs remain aligned") {
-        SimpleMesh actual = make_two_fans_touching_at_single_vertex();
-        actual.uvs = {
-            glm::dvec2(0, 0),
-            glm::dvec2(1, 0),
-            glm::dvec2(0, 1),
-            glm::dvec2(-1, 0),
-            glm::dvec2(0, -1)};
+        // Two fans touching only at vertex 0.
+        SimpleMesh actual(
+            {{0, 1, 2}, {0, 3, 4}},
+            {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {-1, 0, 0}, {0, -1, 0}},
+            {{0, 0}, {1, 0}, {0, 1}, {-1, 0}, {0, -1}});
 
         REQUIRE(actual.vertex_count() == actual.uvs.size());
 
