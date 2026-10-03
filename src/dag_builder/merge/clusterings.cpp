@@ -5,10 +5,10 @@
 #include <limits>
 #include <numeric>
 #include <optional>
+#include <ranges>
 #include <span>
 #include <stdexcept>
 #include <tuple>
-#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -19,12 +19,12 @@
 #include "containers/SegmentedBuffer.h"
 #include "VertexInClustering.h"
 #include "containers/UnionFind.h"
-#include "VecHash.h"
 #include "build_config.h"
 #include "cluster.h"
 #include "compact.h"
 #include "enumerate.h"
 #include "merge/clusterings.h"
+#include "merge/weld.h"
 #include "mesh/connectivity/boundary.h"
 #include "mesh/connectivity/triangle_compare.h"
 #include "range_utils.h"
@@ -144,24 +144,6 @@ spatial_lookup::Hashmap3d<VertexInClustering> build_spatial_map(
     }
 
     return spatial_map;
-}
-
-std::unordered_map<glm::dvec3, uint32_t, DVec3Hash> build_exact_spatial_map(
-    const std::span<const Clustering> clusterings,
-    const std::span<const VertexInClustering> vertices) {
-    std::unordered_map<glm::dvec3, uint32_t, DVec3Hash> position_to_canonical;
-    uint32_t next_index = 0;
-
-    for (const VertexInClustering &vertex : vertices) {
-        const glm::dvec3 &position = clusterings[vertex.clustering_index].positions[vertex.global_vertex_index];
-        auto it = position_to_canonical.find(position);
-        if (it != position_to_canonical.end()) {
-            continue;
-        }
-        position_to_canonical[position] = next_index++;
-    }
-
-    return position_to_canonical;
 }
 
 std::vector<glm::dvec3> build_average_positions(
@@ -596,18 +578,19 @@ std::vector<uint32_t> build_exact_hash_mapping(
     const std::span<const VertexInClustering> vertices,
     const OffsetTable &base_offsets,
     const uint32_t total_vertex_count) {
-    const auto position_to_canonical = detail::build_exact_spatial_map(clusterings, vertices);
+    const auto positions = vertices | std::views::transform([&](const VertexInClustering &vertex) -> const glm::dvec3 & {
+        return clusterings[vertex.clustering_index].positions[vertex.global_vertex_index];
+    });
+    const std::vector<uint32_t> vertex_to_canonical = detail::build_exact_welding_map(positions);
 
     std::vector<uint32_t> flat_to_canonical;
     flat_to_canonical.resize(total_vertex_count, detail::INVALID_INDEX);
-    for (const auto & vertex : vertices) {
-        const glm::dvec3 &position = clusterings[vertex.clustering_index].positions[vertex.global_vertex_index];
-        const uint32_t canonical_index = position_to_canonical.at(position);
+    for (const auto &[vertex_index, vertex] : enumerate(vertices)) {
         const uint32_t flat_index = detail::to_flat_index(base_offsets, vertex);
-        flat_to_canonical[flat_index] = canonical_index;
+        flat_to_canonical[flat_index] = vertex_to_canonical[vertex_index];
     }
 
-    uint32_t next_canonical_index = static_cast<uint32_t>(position_to_canonical.size());
+    uint32_t next_canonical_index = vertex_to_canonical.empty() ? 0 : std::ranges::max(vertex_to_canonical) + 1;
     detail::assign_remaining_canonical_indices(flat_to_canonical, next_canonical_index);
 
     return flat_to_canonical;
