@@ -28,7 +28,6 @@
 #include "srs.h"
 
 using namespace radix;
-using Catch::Approx;
 
 void checkBounds(const radix::tile::SrsBounds &a, const radix::tile::SrsBounds &b) {
     CHECK(a.height() > 0);
@@ -89,14 +88,14 @@ TEST_CASE("datasets are as expected", "[Dataset]") {
         CHECK(d_mgi.heightInPixels() == 350);
         CHECK(d_mgi.n_bands() == 1);
 
-        const auto northern = 49.222158096;
-        const auto southern = 46.077736128;
-        const auto eastern = 17.58967912;
-        const auto western = 9.323270147;
+        const auto northern = 49.222158123883794;
+        const auto southern = 46.077736134481661;
+        const auto eastern = 17.589679640154333;
+        const auto western = 9.3232701100203599;
 
-        CHECK(d_mgi.pixelWidthIn(wgs84) == Approx((eastern - western) / 620));
-        CHECK(d_mgi.pixelHeightIn(wgs84) == Approx((northern - southern) / 350));
-        CHECK(d_mgi.gridResolution(wgs84) == Approx((northern - southern) / 350));
+        CHECK_THAT(d_mgi.pixelWidthIn(wgs84), WithinEpsilon((eastern - western) / 620));
+        CHECK_THAT(d_mgi.pixelHeightIn(wgs84), WithinEpsilon((northern - southern) / 350));
+        CHECK_THAT(d_mgi.gridResolution(wgs84), WithinEpsilon((northern - southern) / 350));
     }
 }
 
@@ -126,10 +125,10 @@ TEST_CASE("bbox width pixels", "[Dataset]") {
     webmercator.importFromEPSG(3857);
     webmercator.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
-    CHECK(d_mgi.widthInPixels(d_mgi.bounds(), d_mgi.srs()) == Approx(620.0));
-    CHECK(d_mgi.heightInPixels(d_mgi.bounds(), d_mgi.srs()) == Approx(350.0));
-    CHECK(d_mgi.widthInPixels(srs::non_exact_bounds_transform(d_mgi.bounds(), d_mgi.srs(), webmercator), webmercator) == Approx(620.0));
-    CHECK(d_mgi.heightInPixels(srs::non_exact_bounds_transform(d_mgi.bounds(), d_mgi.srs(), webmercator), webmercator) == Approx(350.0));
+    CHECK_THAT(d_mgi.widthInPixels(d_mgi.bounds(), d_mgi.srs()), WithinEpsilon(620.0));
+    CHECK_THAT(d_mgi.heightInPixels(d_mgi.bounds(), d_mgi.srs()), WithinEpsilon(350.0));
+    CHECK_THAT(d_mgi.widthInPixels(srs::non_exact_bounds_transform(d_mgi.bounds(), d_mgi.srs(), webmercator), webmercator), WithinEpsilon(620.0));
+    CHECK_THAT(d_mgi.heightInPixels(srs::non_exact_bounds_transform(d_mgi.bounds(), d_mgi.srs(), webmercator), webmercator), WithinEpsilon(350.0));
 
     auto adjust_bounds = [](auto bounds) {
         const auto unadjusted_width = bounds.width();
@@ -139,14 +138,14 @@ TEST_CASE("bbox width pixels", "[Dataset]") {
         return bounds;
     };
 
-    CHECK(d_wgs84.widthInPixels(adjust_bounds(d_wgs84.bounds()), d_wgs84.srs()) == Approx(620.0 * 0.7));
-    CHECK(d_wgs84.heightInPixels(adjust_bounds(d_wgs84.bounds()), d_wgs84.srs()) == Approx(350.0 * 0.5));
+    CHECK_THAT(d_wgs84.widthInPixels(adjust_bounds(d_wgs84.bounds()), d_wgs84.srs()), WithinEpsilon(620.0 * 0.7));
+    CHECK_THAT(d_wgs84.heightInPixels(adjust_bounds(d_wgs84.bounds()), d_wgs84.srs()), WithinEpsilon(350.0 * 0.5));
 
     const auto webmercator_bounds = srs::non_exact_bounds_transform(d_wgs84.bounds(), d_wgs84.srs(), webmercator);
-    CHECK(d_wgs84.widthInPixels(webmercator_bounds, webmercator) == Approx(620.0));
-    CHECK(d_wgs84.heightInPixels(webmercator_bounds, webmercator) == Approx(350.0));
+    CHECK_THAT(d_wgs84.widthInPixels(webmercator_bounds, webmercator), WithinEpsilon(620.0));
+    CHECK_THAT(d_wgs84.heightInPixels(webmercator_bounds, webmercator), WithinEpsilon(350.0));
 
     const auto webmercator_adjusted_bounds = adjust_bounds(webmercator_bounds);
-    CHECK(d_wgs84.widthInPixels(webmercator_adjusted_bounds, webmercator) == Approx(620.0 * 0.7));
-    CHECK(d_wgs84.heightInPixels(webmercator_adjusted_bounds, webmercator) == Approx(350.0 * 0.5));
+    CHECK_THAT(d_wgs84.widthInPixels(webmercator_adjusted_bounds, webmercator), WithinEpsilon(620.0 * 0.7));
+    CHECK_THAT(d_wgs84.heightInPixels(webmercator_adjusted_bounds, webmercator), WithinEpsilon(350.0 * 0.5));
 }
