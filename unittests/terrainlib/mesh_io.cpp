@@ -72,7 +72,7 @@ TEST_CASE("io roundtrip", "[mesh][io]") {
             if (std::string_view(format) == "terrain") {
                 SECTION("positions beyond float precision") {
                     const double pi = std::numbers::pi_v<double>;
-                    CHECK((double)(float)pi != pi);
+                    CHECK(static_cast<double>(static_cast<float>(pi)) != pi);
                     mesh.positions[1] = glm::dvec3(pi, 0, 0);
                     mesh.positions[2] = glm::dvec3(0, pi, 0);
                 }
