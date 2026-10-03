@@ -37,7 +37,7 @@ TEST_CASE("transcode roundtrip", "[mesh][encode]") {
     CHECK(roundtrip_mesh.positions == mesh.positions);
     CHECK(roundtrip_mesh.uvs == mesh.uvs);
     CHECK(roundtrip_mesh.triangles == mesh.triangles);
-    CHECK(roundtrip_mesh.texture.has_value());
+    REQUIRE(roundtrip_mesh.texture.has_value());
     CHECK(mat_equals(*roundtrip_mesh.texture, *mesh.texture));
 }
 

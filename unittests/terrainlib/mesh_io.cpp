@@ -90,7 +90,7 @@ TEST_CASE("io roundtrip", "[mesh][io]") {
             CHECK(roundtrip_mesh.positions == mesh.positions);
             CHECK(roundtrip_mesh.uvs == mesh.uvs);
             CHECK(roundtrip_mesh.triangles == mesh.triangles);
-            CHECK(roundtrip_mesh.texture.has_value() == mesh.texture.has_value());
+            REQUIRE(roundtrip_mesh.texture.has_value() == mesh.texture.has_value());
             if (mesh.texture.has_value()) {
                 CHECK(mat_equals(*roundtrip_mesh.texture, *mesh.texture));
             }
