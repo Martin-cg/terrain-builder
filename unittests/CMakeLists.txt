@@ -16,6 +16,7 @@ add_executable(unittests_terrainlib
     catch2_helpers.h
     opencv_helpers.h
 
+    terrainlib/buffer.cpp
     terrainlib/convert.cpp
     terrainlib/cow.cpp
     terrainlib/dataset.cpp
