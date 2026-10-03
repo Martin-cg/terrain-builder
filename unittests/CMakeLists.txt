@@ -30,9 +30,6 @@ add_executable(unittests_terrainlib
     terrainlib/hash_utils.cpp
     terrainlib/hybrid_index_pair_map.cpp
     terrainlib/hybrid_vector.cpp
-    terrainlib/offset_table.cpp
-    terrainlib/segmented_buffer.cpp
-    terrainlib/stamp_set.cpp
     terrainlib/index_map.cpp
     terrainlib/index_traverse.cpp
     terrainlib/mesh_adjacency.cpp
@@ -47,25 +44,28 @@ add_executable(unittests_terrainlib
     terrainlib/mesh_holes.cpp
     terrainlib/mesh_io.cpp
     terrainlib/mesh_manifold.cpp
-    terrainlib/mesh_merge_mapping.cpp
     terrainlib/mesh_merge.cpp
+    terrainlib/mesh_merge_mapping.cpp
     terrainlib/mesh_reindex.cpp
     terrainlib/mesh_split.cpp
     terrainlib/mesh_topology.cpp
     terrainlib/octree_id.cpp
-    terrainlib/octree_space.cpp
     terrainlib/octree_odd_level_shifted.cpp
+    terrainlib/octree_space.cpp
+    terrainlib/offset_table.cpp
     terrainlib/polygon_clip.cpp
     terrainlib/polygon_triangulate.cpp
     terrainlib/progress_indicator_test.cpp
     terrainlib/quantize.cpp
     terrainlib/range.cpp
     terrainlib/range_utils.cpp
+    terrainlib/segmented_buffer.cpp
     terrainlib/spatial_lookup.cpp
+    terrainlib/stamp_set.cpp
     terrainlib/string_utils.cpp
-    terrainlib/try.cpp
     terrainlib/texture_dilate_colors.cpp
     terrainlib/tiny_vector.cpp
+    terrainlib/try.cpp
     terrainlib/union_find.cpp
     terrainlib/uv_atlas.cpp
 )
