@@ -341,6 +341,14 @@ TEST_CASE("holds<E> works for a code without equality", "[error]") {
     CHECK(!error.holds<FileError>());
 }
 
+TEST_CASE("holds_and<E> is true only for a code of type E that satisfies the predicate", "[error]") {
+    const alp::Error<FileError, OffsetError> error(OffsetError{.offset = 7});
+
+    CHECK(error.holds_and<OffsetError>([](const OffsetError &c) { return c.offset == 7; }));
+    CHECK(!error.holds_and<OffsetError>([](const OffsetError &c) { return c.offset == 8; }));
+    CHECK(!error.holds_and<FileError>([](const FileError) { return true; }));
+}
+
 TEST_CASE("holds<E> on an erased error checks the type of the code it was erased from", "[error]") {
     const alp::Error<> erased = alp::make_error(OffsetError{.offset = 7});
 

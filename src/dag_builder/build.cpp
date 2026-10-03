@@ -54,8 +54,7 @@ std::optional<Clustering> load_and_clusterize_mesh(
     const auto result = storage.load(id);
 
     if (!result) {
-        const ::io::FileError *file_error = result.error().get_if<::io::FileError>();
-        if (file_error == nullptr || !file_error->is_not_found()) {
+        if (!result.error().holds_and<::io::FileError>(&::io::FileError::is_not_found)) {
             LOG_UNEXPECTED(result.error());
         }
         return std::nullopt;
