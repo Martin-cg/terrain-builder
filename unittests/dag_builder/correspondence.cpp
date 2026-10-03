@@ -28,10 +28,13 @@ bool contains_source(
     return contains(correspondence.segment(output_triangle), source_triangle);
 }
 
-// A grid coarsened to the two triangles of its diagonal.
-Coarsening make_grid(const uint32_t side = 5) {
-    Coarsening coarsening;
-    const uint32_t last = side - 1;
+} // namespace
+
+TEST_CASE("find_source_triangles assigns a grid to the two triangles of its diagonal", "[correspondence]") {
+    // A grid coarsened to the two triangles of its diagonal.
+    constexpr uint32_t side = 5;
+    constexpr uint32_t last = side - 1;
+    Coarsening grid;
 
     for (const uint32_t row : range(side)) {
         for (const uint32_t column : range(side)) {
@@ -39,7 +42,7 @@ Coarsening make_grid(const uint32_t side = 5) {
             // the output triangles and stay put.
             const bool is_output_corner = (row == 0 || row == last) && (column == 0 || column == last);
             const double height = is_output_corner ? 0.0 : 0.1 * (int32_t((row + column) % 3) - 1);
-            coarsening.positions.push_back(glm::dvec3(column, row, height));
+            grid.positions.push_back(glm::dvec3(column, row, height));
         }
     }
 
@@ -49,23 +52,61 @@ Coarsening make_grid(const uint32_t side = 5) {
             const uint32_t lower_right = lower_left + 1;
             const uint32_t upper_left = lower_left + side;
             const uint32_t upper_right = upper_left + 1;
-            coarsening.source_triangles.push_back(glm::uvec3(lower_left, lower_right, upper_right));
-            coarsening.source_triangles.push_back(glm::uvec3(lower_left, upper_right, upper_left));
+            grid.source_triangles.push_back(glm::uvec3(lower_left, lower_right, upper_right));
+            grid.source_triangles.push_back(glm::uvec3(lower_left, upper_right, upper_left));
         }
     }
 
-    coarsening.output_triangles = {
+    grid.output_triangles = {
         glm::uvec3(0, last, side * last),
         glm::uvec3(last, side * side - 1, side * last),
     };
 
-    return coarsening;
+    SECTION("every source triangle goes to a covering output triangle") {
+        const Correspondence correspondence = run(grid);
+
+        REQUIRE(correspondence.segment_count() == 2);
+
+        for (const uint32_t source_triangle : range<uint32_t>(grid.source_triangles.size())) {
+            REQUIRE((contains_source(correspondence, 0, source_triangle) || contains_source(correspondence, 1, source_triangle)));
+        }
+    }
+
+    SECTION("source triangles stay out of output triangles they do not cover") {
+        const Correspondence correspondence = run(grid);
+
+        // The corner cell nearest the origin lies strictly inside the first output triangle.
+        CHECK(contains_source(correspondence, 0, 0));
+        CHECK(contains_source(correspondence, 0, 1));
+        CHECK_FALSE(contains_source(correspondence, 1, 0));
+        CHECK_FALSE(contains_source(correspondence, 1, 1));
+
+        // The opposite corner cell lies strictly inside the second.
+        CHECK(contains_source(correspondence, 1, 30));
+        CHECK(contains_source(correspondence, 1, 31));
+        CHECK_FALSE(contains_source(correspondence, 0, 30));
+        CHECK_FALSE(contains_source(correspondence, 0, 31));
+    }
+
+    SECTION("components with no surviving vertex are ignored") {
+        const uint32_t detached_first = grid.positions.size();
+        grid.positions.push_back(glm::dvec3(1.0, 1.0, 0.25));
+        grid.positions.push_back(glm::dvec3(2.0, 1.0, 0.25));
+        grid.positions.push_back(glm::dvec3(2.0, 2.0, 0.25));
+        const uint32_t detached_triangle = grid.source_triangles.size();
+        grid.source_triangles.push_back(glm::uvec3(detached_first, detached_first + 1, detached_first + 2));
+
+        const Correspondence correspondence = run(grid);
+
+        CHECK_FALSE(contains_source(correspondence, 0, detached_triangle));
+        CHECK_FALSE(contains_source(correspondence, 1, detached_triangle));
+    }
 }
 
-// A bump sitting inside the output triangle, joined to it only by a detour outside the footprint.
-Coarsening make_overhang() {
-    Coarsening coarsening;
-    coarsening.positions = {
+TEST_CASE("find_source_triangles reaches geometry that leaves and re-enters the footprint within its bounds", "[correspondence]") {
+    // A bump sitting inside the output triangle, joined to it only by a detour outside the footprint.
+    Coarsening overhang;
+    overhang.positions = {
         glm::dvec3(0.0, 0.0, 0.0),
         glm::dvec3(10.0, 0.0, 0.0),
         glm::dvec3(0.0, 10.0, 0.0),
@@ -74,69 +115,35 @@ Coarsening make_overhang() {
         glm::dvec3(3.0, 3.0, 2.0), // bump, back inside the footprint
         glm::dvec3(4.0, 4.0, 2.0), // bump, back inside the footprint
     };
-    coarsening.source_triangles = {
+    overhang.source_triangles = {
         glm::uvec3(0, 1, 3),
         glm::uvec3(1, 3, 2),
         glm::uvec3(2, 0, 4),
-        glm::uvec3(3, 4, 5),
-        glm::uvec3(4, 5, 6),
+        glm::uvec3(3, 4, 5), // bump root
+        glm::uvec3(4, 5, 6), // bump tip
     };
-    coarsening.output_triangles = {glm::uvec3(0, 1, 2)};
-    return coarsening;
-}
+    overhang.output_triangles = {glm::uvec3(0, 1, 2)};
 
-// The bump's triangles, which no walk can reach without first leaving the footprint.
-constexpr uint32_t overhang_bump_root = 3;
-constexpr uint32_t overhang_bump_tip = 4;
+    SECTION("with the default bounds") {
+        const Correspondence correspondence = run(overhang);
 
-} // namespace
-
-TEST_CASE("find_source_triangles assigns every source triangle to a covering output triangle", "[correspondence]") {
-    const Coarsening grid = make_grid();
-    const Correspondence correspondence = run(grid);
-
-    REQUIRE(correspondence.segment_count() == 2);
-
-    for (const uint32_t source_triangle : range<uint32_t>(grid.source_triangles.size())) {
-        REQUIRE((contains_source(correspondence, 0, source_triangle) || contains_source(correspondence, 1, source_triangle)));
+        CHECK(contains_source(correspondence, 0, 3));
+        CHECK(contains_source(correspondence, 0, 4));
     }
-}
 
-TEST_CASE("find_source_triangles keeps source triangles out of output triangles they do not cover", "[correspondence]") {
-    const Correspondence correspondence = run(make_grid());
+    SECTION("stopped by the slack bound") {
+        const Correspondence correspondence = run(overhang, CorrespondenceOptions{.slack_ratio = 0.0});
 
-    // The corner cell nearest the origin lies strictly inside the first output triangle.
-    CHECK(contains_source(correspondence, 0, 0));
-    CHECK(contains_source(correspondence, 0, 1));
-    CHECK_FALSE(contains_source(correspondence, 1, 0));
-    CHECK_FALSE(contains_source(correspondence, 1, 1));
+        CHECK_FALSE(contains_source(correspondence, 0, 3));
+        CHECK_FALSE(contains_source(correspondence, 0, 4));
+    }
 
-    // The opposite corner cell lies strictly inside the second.
-    CHECK(contains_source(correspondence, 1, 30));
-    CHECK(contains_source(correspondence, 1, 31));
-    CHECK_FALSE(contains_source(correspondence, 0, 30));
-    CHECK_FALSE(contains_source(correspondence, 0, 31));
-}
+    SECTION("stopped by the outside step bound") {
+        const Correspondence correspondence = run(overhang, CorrespondenceOptions{.max_steps_outside = 0});
 
-TEST_CASE("find_source_triangles reaches geometry that leaves and re-enters the footprint", "[correspondence]") {
-    const Correspondence correspondence = run(make_overhang());
-
-    CHECK(contains_source(correspondence, 0, overhang_bump_root));
-    CHECK(contains_source(correspondence, 0, overhang_bump_tip));
-}
-
-TEST_CASE("find_source_triangles stops at the slack bound", "[correspondence]") {
-    const Correspondence correspondence = run(make_overhang(), CorrespondenceOptions{.slack_ratio = 0.0});
-
-    CHECK_FALSE(contains_source(correspondence, 0, overhang_bump_root));
-    CHECK_FALSE(contains_source(correspondence, 0, overhang_bump_tip));
-}
-
-TEST_CASE("find_source_triangles stops at the outside step bound", "[correspondence]") {
-    const Correspondence correspondence = run(make_overhang(), CorrespondenceOptions{.max_steps_outside = 0});
-
-    CHECK_FALSE(contains_source(correspondence, 0, overhang_bump_root));
-    CHECK_FALSE(contains_source(correspondence, 0, overhang_bump_tip));
+        CHECK_FALSE(contains_source(correspondence, 0, 3));
+        CHECK_FALSE(contains_source(correspondence, 0, 4));
+    }
 }
 
 TEST_CASE("find_source_triangles reaches the far side of a thin shell unless facing is required", "[correspondence]") {
@@ -178,19 +185,4 @@ TEST_CASE("find_source_triangles reaches the far side of a thin shell unless fac
         CHECK_FALSE(contains_source(correspondence, 0, 2));
         CHECK_FALSE(contains_source(correspondence, 0, 3));
     }
-}
-
-TEST_CASE("find_source_triangles ignores components with no surviving vertex", "[correspondence]") {
-    Coarsening grid = make_grid();
-    const uint32_t detached_first = grid.positions.size();
-    grid.positions.push_back(glm::dvec3(1.0, 1.0, 0.25));
-    grid.positions.push_back(glm::dvec3(2.0, 1.0, 0.25));
-    grid.positions.push_back(glm::dvec3(2.0, 2.0, 0.25));
-    const uint32_t detached_triangle = grid.source_triangles.size();
-    grid.source_triangles.push_back(glm::uvec3(detached_first, detached_first + 1, detached_first + 2));
-
-    const Correspondence correspondence = run(grid);
-
-    CHECK_FALSE(contains_source(correspondence, 0, detached_triangle));
-    CHECK_FALSE(contains_source(correspondence, 1, detached_triangle));
 }
