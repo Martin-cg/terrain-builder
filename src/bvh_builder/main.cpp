@@ -1,5 +1,6 @@
 #include <cstdlib>
 #include <exception>
+#include <filesystem>
 #include <utility>
 
 #include <libassert/assert.hpp>
@@ -22,6 +23,11 @@
 #include "widen/build.h"
 
 namespace {
+
+// Whether `path` is free for a run to start in: missing, or an empty directory.
+bool is_unused_directory(const std::filesystem::path &path) {
+    return !std::filesystem::exists(path) || (std::filesystem::is_directory(path) && std::filesystem::is_empty(path));
+}
 
 // Builds the tree over the sorted frontier with the algorithm the mode names.
 tl::expected<bvh::Reference, io::Error> build_tree(
@@ -48,6 +54,14 @@ int main(int argc, char **argv) {
     Log::init(args.log_level);
 
     try {
+        // Reject non empty storage paths
+        for (const std::filesystem::path &path : {args.output_path, args.scratch_path}) {
+            if (!is_unused_directory(path)) {
+                LOG_ERROR("{} is not empty, remove it or choose another path", path.string());
+                return EXIT_FAILURE;
+            }
+        }
+
         const octree::IndexedDagMetaStorage dag = octree::open_folder_indexed<dag::NodeMetadata>(args.input_path);
 
         // The binary tree is what widening consumes, so only its widened form is the run being asked for.
