@@ -1,63 +1,38 @@
-/*****************************************************************************
- * Alpine Terrain Builder
- * Copyright (C) 2022 alpinemaps.org
- * Copyright (C) 2022 Adam Celarek <family name at cg tuwien ac at>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *****************************************************************************/
-
 #include <optional>
+#include <stdexcept>
 
-#include <catch2/catch_approx.hpp>
-#include <catch2/catch_test_macros.hpp>
 #include <radix/tile.h>
+
+#include "../catch2_helpers.h"
 
 #include "ctb/GlobalGeodetic.hpp"
 #include "ctb/GlobalMercator.hpp"
 
-// word of warning:
-// the Grid class is taken from ctb, which didn't use unit tests.
-// Therefore it's unlikely, that it will be fully covered by tests.
-// New functions should be tested though!
+// Web Mercator spans [-20037508.34, 20037508.34] on both axes, with a single root tile.
+// Geodetic spans [-180, 180] x [-90, 90], with two root tiles side by side.
 
-using Catch::Approx;
+TEST_CASE("Grid::findSmallestEncompassingTile stops where the next level would split the bounds", "[ctb][Grid]") {
+    const ctb::GlobalMercator grid;
+    // Zoom 2 tile (1, 2) spans x [-10018754.17, 0] and y [0, 10018754.17].
+    // The bounds cross its centre lines at x = -5009377.09 and y = 5009377.09, so no zoom 3 tile holds them.
+    const radix::tile::SrsBounds bounds{{-6e6, 4e6}, {-4e6, 6e6}};
 
-TEST_CASE("grid", "[ctb][GlobalGeodetic][GlobalMercator]") {
-    SECTION("epsg codes") {
-        const auto geodetic = ctb::GlobalGeodetic(256);
-        CHECK(geodetic.getEpsgCode() == 4326);
+    const std::optional<radix::tile::Id> tile = grid.findSmallestEncompassingTile(bounds);
 
-        const auto webmercator = ctb::GlobalMercator(256);
-        CHECK(webmercator.getEpsgCode() == 3857);
+    REQUIRE(tile.has_value());
+    CHECK(*tile == radix::tile::Id{2, {1, 2}, radix::tile::Scheme::Tms});
+}
 
-        CHECK(!geodetic.getSRS().IsSame(&webmercator.getSRS()));
-    }
+TEST_CASE("Grid::findSmallestEncompassingTile descends from the root tile holding the bounds", "[ctb][Grid]") {
+    const ctb::GlobalGeodetic grid;
+    // Inside the eastern root tile. Zoom 1 tile (2, 1) spans [0, 90] x [0, 90].
+    // The bounds cross y = 45, the boundary between its zoom 2 children.
+    const radix::tile::SrsBounds bounds{{10.0, 40.0}, {20.0, 50.0}};
 
-    SECTION("bounds") {
-        const auto geodetic = ctb::GlobalGeodetic(256);
-        CHECK(geodetic.getExtent().min.x == Approx(-180.0));
-        CHECK(geodetic.getExtent().max.x == Approx(180.0));
-        CHECK(geodetic.getExtent().min.y == Approx(-90.0));
-        CHECK(geodetic.getExtent().max.y == Approx(90.0));
+    const std::optional<radix::tile::Id> tile = grid.findSmallestEncompassingTile(bounds);
 
-        const auto webmercator = ctb::GlobalMercator(256);
-        const auto lim = double(20037508);
-        CHECK(webmercator.getExtent().min.x == Approx(-lim));
-        CHECK(webmercator.getExtent().max.x == Approx(lim));
-        CHECK(webmercator.getExtent().min.y == Approx(-lim));
-        CHECK(webmercator.getExtent().max.y == Approx(lim));
-    }
+    REQUIRE(tile.has_value());
+    CHECK(*tile == radix::tile::Id{1, {2, 1}, radix::tile::Scheme::Tms});
 }
 
 TEST_CASE("Grid::findSmallestEncompassingTile stops at the deepest zoom level the grid supports", "[ctb][Grid]") {
@@ -71,9 +46,58 @@ TEST_CASE("Grid::findSmallestEncompassingTile stops at the deepest zoom level th
     CHECK(*tile == radix::tile::Id{23, {4194304, 4194304}, radix::tile::Scheme::Tms});
 }
 
+TEST_CASE("Grid::findSmallestEncompassingTile finds nothing for bounds outside the grid", "[ctb][Grid]") {
+    const ctb::GlobalMercator grid;
+    const radix::tile::SrsBounds bounds{{3e7, 0.0}, {3.1e7, 1e6}};
+
+    CHECK_FALSE(grid.findSmallestEncompassingTile(bounds).has_value());
+}
+
+TEST_CASE("Grid::findSmallestEncompassingTile rejects empty bounds", "[ctb][Grid]") {
+    const ctb::GlobalMercator grid;
+    const radix::tile::SrsBounds bounds{{1.0, 0.0}, {1.0, 5.0}};
+
+    CHECK_THROWS_AS(grid.findSmallestEncompassingTile(bounds), std::invalid_argument);
+}
+
 TEST_CASE("Grid::getMaxZoomLevel is the deepest level whose pixel coordinates fit", "[ctb][Grid]") {
     // A 256 pixel tile uses 8 of the 32 bits, and the border pixel rules out the level that would fill all of them.
     CHECK(ctb::GlobalMercator(256).getMaxZoomLevel() == 23);
     // Two root tiles side by side double the pixel columns, which costs one level.
     CHECK(ctb::GlobalGeodetic(256).getMaxZoomLevel() == 22);
+}
+
+TEST_CASE("Grid::srsBounds covers the tile in either scheme", "[ctb][Grid]") {
+    const ctb::GlobalMercator grid;
+    // The north-western zoom 1 tile, which is (0, 1) counted from the south and (0, 0) from the north.
+    const radix::tile::Id tile = GENERATE(
+        radix::tile::Id{1, {0, 1}, radix::tile::Scheme::Tms},
+        radix::tile::Id{1, {0, 0}, radix::tile::Scheme::SlippyMap});
+
+    const radix::tile::SrsBounds bounds = grid.srsBounds(tile, false);
+
+    CHECK_THAT(bounds.min.x, WithinEpsilon(-20037508.342789244));
+    CHECK(bounds.min.y == 0.0);
+    CHECK(bounds.max.x == 0.0);
+    CHECK_THAT(bounds.max.y, WithinEpsilon(20037508.342789244));
+}
+
+TEST_CASE("Grid::srsBounds extends the maximum corner by one pixel with a border", "[ctb][Grid]") {
+    const ctb::GlobalMercator grid;
+    const radix::tile::Id tile{1, {0, 1}, radix::tile::Scheme::Tms};
+
+    const radix::tile::SrsBounds bounds = grid.srsBounds(tile, true);
+
+    // A zoom 1 pixel is 40075016.69 / 512 = 78271.52 wide.
+    CHECK_THAT(bounds.min.x, WithinEpsilon(-20037508.342789244));
+    CHECK(bounds.min.y == 0.0);
+    CHECK_THAT(bounds.max.x, WithinEpsilon(78271.51696402048));
+    CHECK_THAT(bounds.max.y, WithinEpsilon(20037508.342789244 + 78271.51696402048));
+}
+
+TEST_CASE("Grid::crsToTile finds the tile holding the point", "[ctb][Grid]") {
+    const ctb::GlobalMercator grid;
+
+    // Zoom 2 tile (1, 2) spans x [-10018754.17, 0] and y [0, 10018754.17].
+    CHECK(grid.crsToTile({-5e6, 5e6}, 2) == radix::tile::Id{2, {1, 2}, radix::tile::Scheme::Tms});
 }
