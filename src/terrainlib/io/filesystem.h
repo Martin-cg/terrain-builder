@@ -79,6 +79,16 @@ inline alp::Result<bool, FileError> is_empty_directory(const std::filesystem::pa
     return filesystem::is_empty(path);
 }
 
+// Whether nothing exists at `path`, or `path` names an empty directory.
+[[nodiscard]]
+inline alp::Result<bool, FileError> is_missing_or_empty_directory(const std::filesystem::path &path) {
+    ALP_TRY(const bool exists, filesystem::exists(path));
+    if (!exists) {
+        return true;
+    }
+    return filesystem::is_empty_directory(path);
+}
+
 // Calls `visit` with each regular file and symlink below `path`, stopping early once `visit` returns false.
 template <std::predicate<const std::filesystem::path &> Visit>
 [[nodiscard]]
