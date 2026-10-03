@@ -77,6 +77,10 @@ glm::vec<3, T> compute_barycentric(const glm::vec<n_dims, T> &point, const radix
 template <typename V, typename T>
 V interpolate(const std::array<V, 3> &values, const glm::vec<3, T> &weights);
 
+// Interpolates at `t` along the edge from `from` to `to`, exact at both ends and in any coordinate both ends share.
+template <glm::length_t n_dims, typename T>
+glm::vec<n_dims, T> lerp(const glm::vec<n_dims, T> &from, const glm::vec<n_dims, T> &to, T t);
+
 template <glm::length_t n_dims, typename T>
 T distance_to_segment(const glm::vec<n_dims, T> &point, const radix::geometry::Edge<n_dims, T> &segment);
 
