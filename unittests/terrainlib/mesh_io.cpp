@@ -19,7 +19,9 @@
 
 #include <filesystem>
 #include <fstream>
+#include <numbers>
 #include <string>
+#include <string_view>
 #include <system_error>
 
 #include <opencv2/opencv.hpp>
@@ -35,7 +37,7 @@
 #include "mesh/io/error.h"
 
 TEST_CASE("io roundtrip") {
-    for (const auto& format : {"glb", "gltf"}) {
+    for (const auto &format : {"gltf", "glb", "terrain"}) {
         DYNAMIC_SECTION(format) {
             SimpleMesh mesh;
 
@@ -47,13 +49,34 @@ TEST_CASE("io roundtrip") {
             mesh.triangles.push_back(glm::uvec3(0, 2, 1));
             mesh.triangles.push_back(glm::uvec3(1, 2, 3));
 
-            mesh.uvs.push_back(glm::dvec2(0, 0));
-            mesh.uvs.push_back(glm::dvec2(1, 0));
-            mesh.uvs.push_back(glm::dvec2(0, 1));
-            mesh.uvs.push_back(glm::dvec2(1, 1));
+            SECTION("textured") {
+                mesh.uvs.push_back(glm::dvec2(0, 0));
+                mesh.uvs.push_back(glm::dvec2(1, 0));
+                mesh.uvs.push_back(glm::dvec2(0, 1));
+                mesh.uvs.push_back(glm::dvec2(1, 1));
 
-            mesh.texture = cv::Mat3b(100, 100);
-            cv::randu(*mesh.texture, cv::Scalar(0, 0, 0), cv::Scalar(256, 256, 256));
+                mesh.texture = cv::Mat3b(100, 100);
+                cv::randu(*mesh.texture, cv::Scalar(0, 0, 0), cv::Scalar(256, 256, 256));
+            }
+
+            SECTION("no texture") {
+                mesh.uvs.push_back(glm::dvec2(0, 0));
+                mesh.uvs.push_back(glm::dvec2(1, 0));
+                mesh.uvs.push_back(glm::dvec2(0, 1));
+                mesh.uvs.push_back(glm::dvec2(1, 1));
+            }
+
+            SECTION("no texture and no uvs") {
+            }
+
+            if (std::string_view(format) == "terrain") {
+                SECTION("positions beyond float precision") {
+                    const double pi = std::numbers::pi_v<double>;
+                    CHECK((double)(float)pi != pi);
+                    mesh.positions[1] = glm::dvec3(pi, 0, 0);
+                    mesh.positions[2] = glm::dvec3(0, pi, 0);
+                }
+            }
 
             const std::filesystem::path mesh_path = fmt::format("./unittests/output/mesh.{}", format);
             std::filesystem::remove(mesh_path);
@@ -71,130 +94,10 @@ TEST_CASE("io roundtrip") {
             CHECK(roundtrip_mesh.positions == mesh.positions);
             CHECK(roundtrip_mesh.uvs == mesh.uvs);
             CHECK(roundtrip_mesh.triangles == mesh.triangles);
-            CHECK(roundtrip_mesh.texture.has_value());
-            CHECK(mat_equals(*roundtrip_mesh.texture, *mesh.texture));
-        }
-    }
-}
-
-TEST_CASE("io roundtrip high precision") {
-    for (const auto& format : {"terrain"}) {
-        DYNAMIC_SECTION(format) {
-            SimpleMesh mesh;
-
-            const double pi = std::numbers::pi_v<double>;
-            CHECK((double)(float)pi != pi);
-
-            mesh.positions.push_back(glm::dvec3(0, 0, 0));
-            mesh.positions.push_back(glm::dvec3(pi, 0, 0));
-            mesh.positions.push_back(glm::dvec3(0, pi, 0));
-
-            mesh.triangles.push_back(glm::uvec3(0, 2, 1));
-
-            mesh.uvs.push_back(glm::dvec2(0, 0));
-            mesh.uvs.push_back(glm::dvec2(1, 0));
-            mesh.uvs.push_back(glm::dvec2(0, 1));
-
-            mesh.texture = cv::Mat3b(100, 100);
-            cv::randu(*mesh.texture, cv::Scalar(0, 0, 0), cv::Scalar(256, 256, 256));
-
-            const std::filesystem::path mesh_path = fmt::format("./unittests/output/mesh.{}", format);
-            std::filesystem::remove(mesh_path);
-            CHECK(!std::filesystem::exists(mesh_path));
-
-            REQUIRE(mesh::io::save_to_path(mesh, mesh_path, mesh::io::SaveOptions{.texture_format = ".png"}));
-            CHECK(std::filesystem::exists(mesh_path));
-
-            const mesh::io::Result<SimpleMesh> result = mesh::io::load_from_path(mesh_path);
-            if (!result.has_value()) {
-                FAIL(fmt::to_string(result.error()));
+            CHECK(roundtrip_mesh.texture.has_value() == mesh.texture.has_value());
+            if (mesh.texture.has_value()) {
+                CHECK(mat_equals(*roundtrip_mesh.texture, *mesh.texture));
             }
-            std::filesystem::remove(mesh_path);
-            const SimpleMesh roundtrip_mesh = result.value();
-            CHECK(roundtrip_mesh.positions == mesh.positions);
-            CHECK(roundtrip_mesh.uvs == mesh.uvs);
-            CHECK(roundtrip_mesh.triangles == mesh.triangles);
-            CHECK(roundtrip_mesh.texture.has_value());
-            CHECK(mat_equals(*roundtrip_mesh.texture, *mesh.texture));
-        }
-    }
-}
-
-TEST_CASE("io roundtrip no texture") {
-    for (const auto &format : {"gltf", "glb", "terrain"}) {
-        DYNAMIC_SECTION(format) {
-            SimpleMesh mesh;
-
-            const double pi = std::numbers::pi_v<double>;
-            CHECK((double)(float)pi != pi);
-
-            mesh.positions.push_back(glm::dvec3(0, 0, 0));
-            mesh.positions.push_back(glm::dvec3(1, 0, 0));
-            mesh.positions.push_back(glm::dvec3(0, 1, 0));
-            mesh.positions.push_back(glm::dvec3(1, 1, 0));
-
-            mesh.triangles.push_back(glm::uvec3(0, 2, 1));
-            mesh.triangles.push_back(glm::uvec3(1, 2, 3));
-
-            mesh.uvs.push_back(glm::dvec2(0, 0));
-            mesh.uvs.push_back(glm::dvec2(1, 0));
-            mesh.uvs.push_back(glm::dvec2(0, 1));
-            mesh.uvs.push_back(glm::dvec2(1, 1));
-
-            const std::filesystem::path mesh_path = fmt::format("./unittests/output/mesh.{}", format);
-            std::filesystem::remove(mesh_path);
-            CHECK(!std::filesystem::exists(mesh_path));
-
-            REQUIRE(mesh::io::save_to_path(mesh, mesh_path));
-            CHECK(std::filesystem::exists(mesh_path));
-
-            const mesh::io::Result<SimpleMesh> result = mesh::io::load_from_path(mesh_path);
-            if (!result.has_value()) {
-                FAIL(fmt::to_string(result.error()));
-            }
-            // std::filesystem::remove(mesh_path);
-            const SimpleMesh roundtrip_mesh = result.value();
-            CHECK(roundtrip_mesh.positions == mesh.positions);
-            CHECK(roundtrip_mesh.uvs == mesh.uvs);
-            CHECK(roundtrip_mesh.triangles == mesh.triangles);
-            CHECK(!roundtrip_mesh.texture.has_value());
-        }
-    }
-}
-
-TEST_CASE("io roundtrip no texture and uvs") {
-    for (const auto &format : {"gltf", "glb", "terrain"}) {
-        DYNAMIC_SECTION(format) {
-            SimpleMesh mesh;
-
-            const double pi = std::numbers::pi_v<double>;
-            CHECK((double)(float)pi != pi);
-
-            mesh.positions.push_back(glm::dvec3(0, 0, 0));
-            mesh.positions.push_back(glm::dvec3(1, 0, 0));
-            mesh.positions.push_back(glm::dvec3(0, 1, 0));
-            mesh.positions.push_back(glm::dvec3(1, 1, 0));
-
-            mesh.triangles.push_back(glm::uvec3(0, 2, 1));
-            mesh.triangles.push_back(glm::uvec3(1, 2, 3));
-
-            const std::filesystem::path mesh_path = fmt::format("./unittests/output/mesh.{}", format);
-            std::filesystem::remove(mesh_path);
-            CHECK(!std::filesystem::exists(mesh_path));
-
-            REQUIRE(mesh::io::save_to_path(mesh, mesh_path));
-            CHECK(std::filesystem::exists(mesh_path));
-
-            const mesh::io::Result<SimpleMesh> result = mesh::io::load_from_path(mesh_path);
-            if (!result.has_value()) {
-                FAIL(fmt::to_string(result.error()));
-            }
-            std::filesystem::remove(mesh_path);
-            const SimpleMesh roundtrip_mesh = result.value();
-            CHECK(roundtrip_mesh.positions == mesh.positions);
-            CHECK(!roundtrip_mesh.has_uvs());
-            CHECK(roundtrip_mesh.triangles == mesh.triangles);
-            CHECK(!roundtrip_mesh.texture.has_value());
         }
     }
 }
