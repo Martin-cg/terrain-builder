@@ -337,8 +337,8 @@ inline WorkerResult run_consumer(
 [[nodiscard]]
 inline alp::Result<uint64_t, io::Error> run_round(
     const frontier::Storage &input, frontier::Storage &merged, bvh::Storage &output,
-    const Options &options) {
-    EntryRing ring(options.chunk_size, options.chunk_count, 2 * options.search_radius);
+    EntryRing &ring, const Options &options) {
+    ring.reset();
 
     WorkerGroup workers(options.worker_count, [&]() {
         return run_consumer(ring, merged, output, options);
@@ -414,13 +414,15 @@ inline alp::Result<bvh::Reference, io::Error> build(
         .prefix_bits = options.sort_prefix_bits,
     };
 
+    detail::EntryRing ring(options.chunk_size, options.chunk_count, 2 * options.search_radius);
+
     frontier::Storage current = std::move(input);
     uint64_t previous = std::numeric_limits<uint64_t>::max();
     for (uint32_t round = 0;; round++) {
         frontier::Storage merged = layout.open_merged(round);
         ALP_TRY_CONTEXT(
             const uint64_t remaining,
-            alp::with_context(detail::run_round(current, merged, output, options), alp::make_context("merging round {}", round)),
+            alp::with_context(detail::run_round(current, merged, output, ring, options), alp::make_context("merging round {}", round)),
             context);
         ASSERT(remaining < previous, "a ploc round left the frontier no smaller than it found it");
         previous = remaining;
