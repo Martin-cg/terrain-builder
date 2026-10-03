@@ -1,4 +1,5 @@
 #include "../catch2_helpers.h"
+#include "../result_helpers.h"
 #include "../temp_directory.h"
 
 #include <cstdint>
@@ -28,7 +29,7 @@ std::vector<bvh::Batch> write_batches(bvh::Storage &nodes, const uint32_t count)
 
 TEST_CASE("a batch read back is the one that was written", "[storage][BatchCache]") {
     const TempDirectory directory("batch_cache");
-    bvh::Storage nodes(directory.path());
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path()));
     const std::vector<bvh::Batch> written = write_batches(nodes, 3);
 
     BatchCache<bvh::Storage> cache(nodes, 2 * size_bytes(written[0]));
@@ -40,7 +41,7 @@ TEST_CASE("a batch read back is the one that was written", "[storage][BatchCache
 
 TEST_CASE("a batch takes up the budget by its size, so a larger one displaces several smaller ones", "[storage][BatchCache]") {
     const TempDirectory directory("batch_cache");
-    bvh::Storage nodes(directory.path());
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path()));
     const std::vector<bvh::Batch> written = write_batches(nodes, 2);
 
     bvh::Batch large = nodes.create_batch();

@@ -1,4 +1,5 @@
 #include "../catch2_helpers.h"
+#include "../result_helpers.h"
 #include "../temp_directory.h"
 
 #include <utility>
@@ -32,7 +33,7 @@ std::vector<StoredNode> write_nodes(bvh::Storage &nodes, const std::vector<uint3
 
 TEST_CASE("flat_traverse visits every node in order, with the reference naming it", "[bvh][flat_traverse]") {
     const TempDirectory directory("flat_traverse");
-    bvh::Storage nodes(directory.path());
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path()));
     const std::vector<StoredNode> written = write_nodes(nodes, {3, 1, 4});
 
     std::vector<StoredNode> visited;
@@ -46,7 +47,7 @@ TEST_CASE("flat_traverse visits every node in order, with the reference naming i
 
 TEST_CASE("flat_traverse handles an empty store and empty batches", "[bvh][flat_traverse]") {
     const TempDirectory directory("flat_traverse");
-    bvh::Storage nodes(directory.path());
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path()));
 
     uint32_t visits = 0;
     const auto count_visits = [&](const bvh::Reference &, const bvh::Node &) { visits++; };
@@ -61,7 +62,7 @@ TEST_CASE("flat_traverse handles an empty store and empty batches", "[bvh][flat_
 
 TEST_CASE("flat_traverse reports a missing batch", "[bvh][flat_traverse]") {
     const TempDirectory directory("flat_traverse");
-    bvh::Storage nodes(directory.path());
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path()));
     write_nodes(nodes, {2});
 
     // Reserved but never written, so reading it must fail rather than end the traversal quietly.
@@ -73,7 +74,7 @@ TEST_CASE("flat_traverse reports a missing batch", "[bvh][flat_traverse]") {
 
 TEST_CASE("a visitor returning false stops the flat walk", "[bvh][flat_traverse]") {
     const TempDirectory directory("flat_traverse");
-    bvh::Storage nodes(directory.path());
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path()));
     write_nodes(nodes, {3, 2});
 
     uint32_t visits = 0;

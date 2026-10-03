@@ -1,4 +1,5 @@
 #include "../catch2_helpers.h"
+#include "../result_helpers.h"
 #include "../temp_directory.h"
 
 #include <cstddef>
@@ -36,7 +37,7 @@ std::vector<bvh::Batch> write_leaves(bvh::Storage &nodes, const std::vector<uint
 
 TEST_CASE("a node comes back from the batch it was written to", "[bvh][NodeCache]") {
     const TempDirectory directory("node_cache");
-    bvh::Storage nodes(directory.path());
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path()));
     const std::vector<bvh::Batch> written = write_leaves(nodes, {2, 3});
 
     bvh::NodeCache cache(nodes, unbounded_bytes);
@@ -48,7 +49,7 @@ TEST_CASE("a node comes back from the batch it was written to", "[bvh][NodeCache
 
 TEST_CASE("nodes in the same batch are read once", "[bvh][NodeCache]") {
     const TempDirectory directory("node_cache");
-    bvh::Storage nodes(directory.path());
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path()));
     write_leaves(nodes, {2, 3});
 
     bvh::NodeCache cache(nodes, unbounded_bytes);
@@ -62,7 +63,7 @@ TEST_CASE("nodes in the same batch are read once", "[bvh][NodeCache]") {
 
 TEST_CASE("a node outlives the read that follows it", "[bvh][NodeCache]") {
     const TempDirectory directory("node_cache");
-    bvh::Storage nodes(directory.path());
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path()));
     const std::vector<bvh::Batch> written = write_leaves(nodes, {1, 1, 1});
 
     bvh::NodeCache cache(nodes, 1);
@@ -76,7 +77,7 @@ TEST_CASE("a node outlives the read that follows it", "[bvh][NodeCache]") {
 
 TEST_CASE("the batch behind a node is reachable through the cache", "[bvh][NodeCache]") {
     const TempDirectory directory("node_cache");
-    bvh::Storage nodes(directory.path());
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path()));
     const std::vector<bvh::Batch> written = write_leaves(nodes, {2, 3});
 
     bvh::NodeCache cache(nodes, unbounded_bytes);

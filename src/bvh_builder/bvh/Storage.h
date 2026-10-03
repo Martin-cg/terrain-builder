@@ -22,7 +22,21 @@ class Storage : private BaseStorage {
 public:
     using Batch = bvh::Batch;
 
-    explicit Storage(std::filesystem::path directory) : Base(std::move(directory)) {}
+    // Starts an empty storage in `directory`, which may be missing.
+    // Fails with `DirectoryNotEmpty` when `directory` already holds something.
+    [[nodiscard]]
+    static alp::Result<Storage, io::FileError, io::DirectoryNotEmpty> create(std::filesystem::path directory) {
+        ALP_TRY(Base base, Base::create(std::move(directory)));
+        return Storage(std::move(base));
+    }
+
+    // Opens the storage kept in `directory`.
+    // Fails when it holds no index.
+    [[nodiscard]]
+    static alp::Result<Storage, io::Error> open(std::filesystem::path directory) {
+        ALP_TRY(Base base, Base::open(std::move(directory)));
+        return Storage(std::move(base));
+    }
 
     Storage(const Storage &) = delete;
     Storage &operator=(const Storage &) = delete;
@@ -53,6 +67,9 @@ public:
         ASSERT(batch.index() == index);
         return batch;
     }
+
+private:
+    explicit Storage(Base base) : Base(std::move(base)) {}
 };
 
 } // namespace bvh

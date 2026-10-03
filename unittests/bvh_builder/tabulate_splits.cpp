@@ -1,4 +1,5 @@
 #include "../catch2_helpers.h"
+#include "../result_helpers.h"
 #include "../temp_directory.h"
 
 #include <array>
@@ -46,10 +47,10 @@ bvh::Reference write_balanced_tree(bvh::Storage &nodes) {
 
 // Tabulates the balanced tree at `arity` and returns its rows in the order they were written.
 std::vector<std::vector<widen::Split>> tabulate(const TempDirectory &directory, const uint32_t arity) {
-    bvh::Storage nodes(directory.path() / "nodes");
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "nodes"));
     const bvh::Reference root = write_balanced_tree(nodes);
 
-    widen::SplitStorage splits(directory.path() / "splits");
+    widen::SplitStorage splits = REQUIRE_VALUE(widen::SplitStorage::create(directory.path() / "splits"));
     bvh::NodeCache cache(nodes, 1);
     REQUIRE(widen::tabulate_splits(cache, root, splits, widen::Options{.arity = arity}).has_value());
     REQUIRE(splits.save_index().has_value());

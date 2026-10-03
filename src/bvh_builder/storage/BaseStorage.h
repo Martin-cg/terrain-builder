@@ -12,6 +12,7 @@
 #include "error/format.h"
 #include "error/log.h"
 #include "error/try.h"
+#include "io/DirectoryNotEmpty.h"
 #include "io/Error.h"
 #include "io/FileError.h"
 #include "io/filesystem.h"
@@ -24,11 +25,22 @@ public:
         uint32_t batch_count = 0;
     };
 
-    explicit BaseStorage(std::filesystem::path directory) : _directory(std::move(directory)) {
-        const auto stored = io::read_from_path<Index>(this->get_index_path());
-        if (stored) {
-            this->_next.store(stored->batch_count);
-        }
+    // Starts an empty storage in `directory`, which may be missing.
+    // Fails with `DirectoryNotEmpty` when `directory` already holds something.
+    [[nodiscard]]
+    static alp::Result<BaseStorage, io::FileError, io::DirectoryNotEmpty> create(std::filesystem::path directory) {
+        ALP_TRY(io::filesystem::create_empty_directory(directory));
+        return BaseStorage(std::move(directory));
+    }
+
+    // Opens the storage kept in `directory`.
+    // Fails when it holds no index.
+    [[nodiscard]]
+    static alp::Result<BaseStorage, io::Error> open(std::filesystem::path directory) {
+        BaseStorage storage(std::move(directory));
+        ALP_TRY_CONTEXT(const Index index, io::read_from_path<Index>(storage.get_index_path()), fmt::format("opening a storage at {}", storage._directory));
+        storage._next.store(index.batch_count);
+        return storage;
     }
 
     BaseStorage(const BaseStorage &) = delete;
@@ -104,6 +116,8 @@ protected:
     }
 
 private:
+    explicit BaseStorage(std::filesystem::path directory) : _directory(std::move(directory)) {}
+
     std::filesystem::path get_index_path() const {
         return this->_directory / "index.bin";
     }

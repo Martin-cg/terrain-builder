@@ -33,7 +33,7 @@ namespace {
 
 // Builds the tree over the sorted frontier with the algorithm the mode names.
 [[nodiscard]]
-alp::Result<bvh::Reference, io::Error> build_tree(
+alp::Result<bvh::Reference, io::Error, io::DirectoryNotEmpty> build_tree(
     const cli::Args &args, frontier::Storage sorted, bvh::Storage &nodes) {
     switch (args.mode) {
     case cli::Mode::Lbvh:
@@ -53,13 +53,13 @@ alp::Result<bvh::Reference, io::Error> build_tree(
 [[nodiscard]]
 alp::Result<void> build_bvh(const cli::Args &args) {
     // Reject non empty storage paths
-    ALP_TRY(io::filesystem::create_empty_directory(args.output_path));
+    ALP_TRY(bvh::Storage wide, bvh::Storage::create(args.output_path));
     ALP_TRY(const io::ScratchDirectory scratch, io::create_scratch_directory(args.scratch_path));
 
     ALP_TRY(const octree::IndexedDagMetaStorage dag, octree::open_folder_indexed<dag::NodeMetadata>(args.input_path));
 
     // The binary tree is what widening consumes, so only its widened form is the run being asked for.
-    bvh::Storage nodes(scratch.path() / "binary");
+    ALP_TRY(bvh::Storage nodes, bvh::Storage::create(scratch.path() / "binary"));
 
     const bvh::FlattenOptions flatten_options{
         .max_batch_bytes = args.max_batch_bytes,
@@ -69,7 +69,7 @@ alp::Result<void> build_bvh(const cli::Args &args) {
     ALP_TRY(nodes.save_index());
     LOG_INFO("Flattened {} into {} node batches", args.input_path.string(), nodes.size());
 
-    frontier::Storage run(scratch.path() / "leaves");
+    ALP_TRY(frontier::Storage run, frontier::Storage::create(scratch.path() / "leaves"));
 
     const frontier::BuildOptions frontier_options{
         .max_batch_bytes = args.max_batch_bytes,
@@ -79,7 +79,7 @@ alp::Result<void> build_bvh(const cli::Args &args) {
     ALP_TRY(run.save_index());
     LOG_INFO("Built a frontier of {} batches", run.size());
 
-    frontier::Storage sorted(scratch.path() / "sorted");
+    ALP_TRY(frontier::Storage sorted, frontier::Storage::create(scratch.path() / "sorted"));
 
     const frontier::SortOptions sort_options{
         .max_batch_bytes = args.max_batch_bytes,
@@ -91,8 +91,6 @@ alp::Result<void> build_bvh(const cli::Args &args) {
 
     ALP_TRY(const bvh::Reference root, build_tree(args, std::move(sorted), nodes));
     LOG_INFO("Built the tree, with its root in batch {} at node {}", root.batch, root.node);
-
-    bvh::Storage wide(args.output_path);
 
     const widen::Options widen_options{
         .max_batch_bytes = args.max_batch_bytes,

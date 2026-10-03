@@ -1,5 +1,6 @@
 
 #include "../catch2_helpers.h"
+#include "../result_helpers.h"
 #include "../temp_directory.h"
 
 #include <algorithm>
@@ -44,7 +45,7 @@ frontier::Storage write_frontier(const std::filesystem::path &directory, bvh::St
     REQUIRE(nodes.save_index().has_value());
     frontier::sort_entries(batch.entries);
 
-    frontier::Storage run(directory);
+    frontier::Storage run = REQUIRE_VALUE(frontier::Storage::create(directory));
     REQUIRE(run.write(batch).has_value());
     REQUIRE(run.save_index().has_value());
     return run;
@@ -91,7 +92,7 @@ TEST_CASE("a single leaf is the whole tree", "[build][ploc]") {
     const std::vector<bvh::Bounds> leaves{{glm::dvec3{0.0}, glm::dvec3{1.0}}};
 
     const TempDirectory directory("ploc");
-    bvh::Storage nodes(directory.path() / "nodes");
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "nodes"));
     frontier::Storage frontier = write_frontier(directory.path() / "frontier", nodes, leaves);
 
     const auto root = ploc::build(std::move(frontier), nodes, directory.path() / "scratch", make_options(2, 8));
@@ -110,7 +111,7 @@ TEST_CASE("neighbours are paired before distant nodes are joined", "[build][ploc
     };
 
     const TempDirectory directory("ploc");
-    bvh::Storage nodes(directory.path() / "nodes");
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "nodes"));
     frontier::Storage frontier = write_frontier(directory.path() / "frontier", nodes, leaves);
 
     const auto root = ploc::build(std::move(frontier), nodes, directory.path() / "scratch", make_options(2, 8));
@@ -124,7 +125,7 @@ TEST_CASE("the tree holds every leaf exactly once", "[build][ploc]") {
     const uint32_t count = GENERATE(2u, 3u, 8u, 17u);
 
     const TempDirectory directory("ploc");
-    bvh::Storage nodes(directory.path() / "nodes");
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "nodes"));
     frontier::Storage frontier = write_frontier(directory.path() / "frontier", nodes, make_row(count));
 
     const auto root = ploc::build(std::move(frontier), nodes, directory.path() / "scratch", make_options(2, 8));
@@ -148,13 +149,13 @@ TEST_CASE("splitting the frontier into chunks does not change the tree", "[build
     const std::vector<bvh::Bounds> leaves = make_row(24);
 
     const TempDirectory single_directory("ploc");
-    bvh::Storage single_nodes(single_directory.path() / "nodes");
+    bvh::Storage single_nodes = REQUIRE_VALUE(bvh::Storage::create(single_directory.path() / "nodes"));
     frontier::Storage single_frontier = write_frontier(single_directory.path() / "frontier", single_nodes, leaves);
     const auto single_root = ploc::build(std::move(single_frontier), single_nodes, single_directory.path() / "scratch", make_options(1, 32));
     REQUIRE(single_root.has_value());
 
     const TempDirectory split_directory("ploc");
-    bvh::Storage split_nodes(split_directory.path() / "nodes");
+    bvh::Storage split_nodes = REQUIRE_VALUE(bvh::Storage::create(split_directory.path() / "nodes"));
     frontier::Storage split_frontier = write_frontier(split_directory.path() / "frontier", split_nodes, leaves);
     const auto split_root = ploc::build(std::move(split_frontier), split_nodes, split_directory.path() / "scratch", make_options(4, 8));
     REQUIRE(split_root.has_value());
@@ -164,7 +165,7 @@ TEST_CASE("splitting the frontier into chunks does not change the tree", "[build
 
 TEST_CASE("a frontier that cannot be read fails the build", "[build][ploc]") {
     const TempDirectory directory("ploc");
-    bvh::Storage nodes(directory.path() / "nodes");
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "nodes"));
     frontier::Storage frontier = write_frontier(directory.path() / "frontier", nodes, make_row(4));
 
     // The storage still counts its batch, but it can no longer be read.

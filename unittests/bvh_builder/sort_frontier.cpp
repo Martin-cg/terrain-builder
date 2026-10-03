@@ -102,7 +102,7 @@ TEST_CASE("sort_entries orders by morton", "[frontier][sort]") {
 
 TEST_CASE("sort_batches_independently leaves every entry in its own batch", "[frontier][sort]") {
     const TempDirectory directory("sort_frontier");
-    frontier::Storage run(directory.path());
+    frontier::Storage run = REQUIRE_VALUE(frontier::Storage::create(directory.path()));
     write_run(run, {make_code_in_cell(4), make_code_in_cell(1), make_code_in_cell(7), make_code_in_cell(2)}, {2, 2});
 
     REQUIRE(frontier::sort_batches_independently(run).has_value());
@@ -112,7 +112,7 @@ TEST_CASE("sort_batches_independently leaves every entry in its own batch", "[fr
 
 TEST_CASE("build_histogram counts the entries of every cell", "[frontier][sort]") {
     const TempDirectory directory("sort_frontier");
-    frontier::Storage input(directory.path());
+    frontier::Storage input = REQUIRE_VALUE(frontier::Storage::create(directory.path()));
     write_run(input, make_codes_per_cell({2, 0, 0, 1, 0, 3, 0, 0}), {3, 3});
 
     const auto histogram = frontier::build_histogram(input, prefix_bits);
@@ -154,14 +154,14 @@ TEST_CASE("scatter writes one batch per bucket in morton order", "[frontier][sor
     std::filesystem::create_directories(directory.path() / "in");
     std::filesystem::create_directories(directory.path() / "out");
 
-    frontier::Storage input(directory.path() / "in");
+    frontier::Storage input = REQUIRE_VALUE(frontier::Storage::create(directory.path() / "in"));
     write_run(input, make_codes_per_cell({2, 0, 0, 2, 0, 2, 0, 0}), {3, 3});
 
     const auto histogram = frontier::build_histogram(input, prefix_bits);
     REQUIRE(histogram.has_value());
     const frontier::Buckets buckets = frontier::assign_buckets(histogram.value(), 2);
 
-    frontier::Storage output(directory.path() / "out");
+    frontier::Storage output = REQUIRE_VALUE(frontier::Storage::create(directory.path() / "out"));
     REQUIRE(frontier::scatter(input, buckets, output, 8).has_value());
     REQUIRE(output.save_index().has_value());
 
@@ -181,18 +181,18 @@ TEST_CASE("scatter over more buckets than it may hold open takes several passes"
     std::filesystem::create_directories(directory.path() / "wide");
     std::filesystem::create_directories(directory.path() / "narrow");
 
-    frontier::Storage input(directory.path() / "in");
+    frontier::Storage input = REQUIRE_VALUE(frontier::Storage::create(directory.path() / "in"));
     write_run(input, make_codes_per_cell({2, 2, 2, 2, 2, 2, 2, 2}), {8, 8});
 
     const auto histogram = frontier::build_histogram(input, prefix_bits);
     REQUIRE(histogram.has_value());
     const frontier::Buckets buckets = frontier::assign_buckets(histogram.value(), 2);
 
-    frontier::Storage wide(directory.path() / "wide");
+    frontier::Storage wide = REQUIRE_VALUE(frontier::Storage::create(directory.path() / "wide"));
     REQUIRE(frontier::scatter(input, buckets, wide, 8).has_value());
     REQUIRE_VALUE(wide.save_index());
 
-    frontier::Storage narrow(directory.path() / "narrow");
+    frontier::Storage narrow = REQUIRE_VALUE(frontier::Storage::create(directory.path() / "narrow"));
     REQUIRE(frontier::scatter(input, buckets, narrow, 1).has_value());
     REQUIRE_VALUE(narrow.save_index());
 
@@ -209,10 +209,10 @@ TEST_CASE("sort_by_morton orders the whole run", "[frontier][sort]") {
         make_code_in_cell(5), make_code_in_cell(0, 7), make_code_in_cell(5, 1), make_code_in_cell(2), make_code_in_cell(0), make_code_in_cell(7),
     };
 
-    frontier::Storage input(directory.path() / "in");
+    frontier::Storage input = REQUIRE_VALUE(frontier::Storage::create(directory.path() / "in"));
     write_run(input, codes, {4, 2});
 
-    frontier::Storage output(directory.path() / "out");
+    frontier::Storage output = REQUIRE_VALUE(frontier::Storage::create(directory.path() / "out"));
     const frontier::SortOptions options{
         .max_batch_bytes = 2 * sizeof(frontier::Entry),
         .max_resident_bytes = 4 * sizeof(frontier::Entry),
@@ -231,8 +231,8 @@ TEST_CASE("sort_by_morton handles an empty run", "[frontier][sort]") {
     std::filesystem::create_directories(directory.path() / "in");
     std::filesystem::create_directories(directory.path() / "out");
 
-    const frontier::Storage input(directory.path() / "in");
-    frontier::Storage output(directory.path() / "out");
+    const frontier::Storage input = REQUIRE_VALUE(frontier::Storage::create(directory.path() / "in"));
+    frontier::Storage output = REQUIRE_VALUE(frontier::Storage::create(directory.path() / "out"));
     const frontier::SortOptions options{.prefix_bits = prefix_bits};
 
     REQUIRE(frontier::sort_by_morton(input, output, options).has_value());

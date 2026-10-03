@@ -60,16 +60,16 @@ void write_splits(
 
 TEST_CASE("a kept root collects every leaf its dissolved children held", "[widen][write_wide_nodes]") {
     const TempDirectory directory("write_wide_nodes");
-    bvh::Storage nodes(directory.path() / "input");
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "input"));
     const bvh::Reference root = write_balanced_tree(nodes);
 
     // The root keeps itself and offers A and B two slots each, at which both dissolve.
-    widen::SplitStorage splits(directory.path() / "splits");
+    widen::SplitStorage splits = REQUIRE_VALUE(widen::SplitStorage::create(directory.path() / "splits"));
     const std::array root_row{widen::Split::keep(2), widen::Split::dissolve(1), widen::Split::dissolve(1)};
     const std::array child_row{widen::Split::keep(1)};
     write_splits(splits, root_row, child_row, child_row);
 
-    bvh::Storage output(directory.path() / "output");
+    bvh::Storage output = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "output"));
     bvh::NodeCache cache(nodes, 1);
     const auto wide_root = widen::write_wide_nodes(splits, cache, root, output, widen::Options{.arity = 4});
     REQUIRE(wide_root.has_value());
@@ -93,15 +93,15 @@ TEST_CASE("a kept root collects every leaf its dissolved children held", "[widen
 
 TEST_CASE("a kept node keeps the header it had", "[widen][write_wide_nodes]") {
     const TempDirectory directory("write_wide_nodes");
-    bvh::Storage nodes(directory.path() / "input");
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "input"));
     const bvh::Reference root = write_balanced_tree(nodes);
 
-    widen::SplitStorage splits(directory.path() / "splits");
+    widen::SplitStorage splits = REQUIRE_VALUE(widen::SplitStorage::create(directory.path() / "splits"));
     const std::array root_row{widen::Split::keep(2), widen::Split::dissolve(1), widen::Split::dissolve(1)};
     const std::array child_row{widen::Split::keep(1)};
     write_splits(splits, root_row, child_row, child_row);
 
-    bvh::Storage output(directory.path() / "output");
+    bvh::Storage output = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "output"));
     bvh::NodeCache cache(nodes, 1);
     const auto wide_root = widen::write_wide_nodes(splits, cache, root, output, widen::Options{.arity = 4});
     REQUIRE(wide_root.has_value());
@@ -114,15 +114,15 @@ TEST_CASE("a kept node keeps the header it had", "[widen][write_wide_nodes]") {
 
 TEST_CASE("children that keep their slot stay nodes of their own", "[widen][write_wide_nodes]") {
     const TempDirectory directory("write_wide_nodes");
-    bvh::Storage nodes(directory.path() / "input");
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "input"));
     const bvh::Reference root = write_balanced_tree(nodes);
 
     // At arity two nothing can be widened, so every inner node keeps its slot and its row is one entry long.
-    widen::SplitStorage splits(directory.path() / "splits");
+    widen::SplitStorage splits = REQUIRE_VALUE(widen::SplitStorage::create(directory.path() / "splits"));
     const std::array row{widen::Split::keep(1)};
     write_splits(splits, row, row, row);
 
-    bvh::Storage output(directory.path() / "output");
+    bvh::Storage output = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "output"));
     bvh::NodeCache cache(nodes, 1);
     const auto wide_root = widen::write_wide_nodes(splits, cache, root, output, widen::Options{.arity = 2});
     REQUIRE(wide_root.has_value());

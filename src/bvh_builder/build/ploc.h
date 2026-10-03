@@ -369,21 +369,20 @@ inline alp::Result<uint64_t, io::Error> run_round(
     return read_result.value() - merges;
 }
 
-// Opens the runs a round reads and writes.
 class RoundLayout {
 public:
     explicit RoundLayout(std::filesystem::path root) : _root(std::move(root)) {}
 
     // The run a round writes, in whatever order its chunks produced it.
     [[nodiscard]]
-    frontier::Storage open_merged(const uint32_t round) const {
-        return frontier::Storage(this->get_round_path(round) / "merged");
+    alp::Result<frontier::Storage, io::FileError, io::DirectoryNotEmpty> create_merge_scratch(const uint32_t round) const {
+        return frontier::Storage::create(this->get_round_path(round) / "merged");
     }
 
     // The same run in morton order, which is what the next round reads.
     [[nodiscard]]
-    frontier::Storage open_sorted(const uint32_t round) const {
-        return frontier::Storage(this->get_round_path(round) / "sorted");
+    alp::Result<frontier::Storage, io::FileError, io::DirectoryNotEmpty> create_sort_scratch(const uint32_t round) const {
+        return frontier::Storage::create(this->get_round_path(round) / "sorted");
     }
 
 private:
@@ -400,7 +399,7 @@ private:
 // Builds the tree by PLOC, pairing nearest neighbours on the frontier round by round until one node is left.
 // The frontier must be non-empty and in morton order.
 [[nodiscard]]
-inline alp::Result<bvh::Reference, io::Error> build(
+inline alp::Result<bvh::Reference, io::Error, io::DirectoryNotEmpty> build(
     frontier::Storage input, bvh::Storage &output,
     const std::filesystem::path &scratch_root, const Options &options) {
     ASSERT(input.size() > 0, "the frontier is empty");
@@ -419,7 +418,7 @@ inline alp::Result<bvh::Reference, io::Error> build(
     frontier::Storage current = std::move(input);
     uint64_t previous = std::numeric_limits<uint64_t>::max();
     for (uint32_t round = 0;; round++) {
-        frontier::Storage merged = layout.open_merged(round);
+        ALP_TRY_CONTEXT(frontier::Storage merged, layout.create_merge_scratch(round), context);
         ALP_TRY_CONTEXT(
             const uint64_t remaining,
             alp::with_context(detail::run_round(current, merged, output, ring, options), alp::make_context("merging round {}", round)),
@@ -430,7 +429,7 @@ inline alp::Result<bvh::Reference, io::Error> build(
         ALP_TRY_CONTEXT(merged.save_index(), context);
         LOG_DEBUG("ploc round {} left {} entries on the frontier", round, remaining);
 
-        frontier::Storage sorted = layout.open_sorted(round);
+        ALP_TRY_CONTEXT(frontier::Storage sorted, layout.create_sort_scratch(round), context);
         ALP_TRY_CONTEXT(frontier::sort_by_morton(merged, sorted, sort_options), context);
         ALP_TRY_CONTEXT(sorted.save_index(), context);
 

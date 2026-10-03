@@ -1,4 +1,5 @@
 #include "../catch2_helpers.h"
+#include "../result_helpers.h"
 #include "../temp_directory.h"
  
 #include <vector>
@@ -39,11 +40,11 @@ std::vector<frontier::Entry> read_run(const frontier::Storage &run) {
 TEST_CASE("every stored node enters the frontier carrying its header and reference", "[frontier][build]") {
     const TempDirectory directory("build_frontier");
     std::filesystem::create_directories(directory.path() / "nodes");
-    bvh::Storage nodes(directory.path() / "nodes");
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "nodes"));
     const std::vector<bvh::NodeHeader> written = write_nodes(nodes, {make_cube(glm::dvec3{0.25}, 0.1), make_cube(glm::dvec3{0.75}, 0.1)});
 
     std::filesystem::create_directories(directory.path() / "frontier");
-    frontier::Storage run(directory.path() / "frontier");
+    frontier::Storage run = REQUIRE_VALUE(frontier::Storage::create(directory.path() / "frontier"));
     REQUIRE(frontier::build_from_leaves(nodes, run).has_value());
     REQUIRE(run.save_index().has_value());
 
@@ -60,7 +61,7 @@ TEST_CASE("every stored node enters the frontier carrying its header and referen
 TEST_CASE("the entry's morton code comes from the bounds centre", "[frontier][build]") {
     const TempDirectory directory("build_frontier");
     std::filesystem::create_directories(directory.path() / "nodes");
-    bvh::Storage nodes(directory.path() / "nodes");
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "nodes"));
 
     // Same centre, different extent, so only a code taken at the centre makes these agree.
     write_nodes(nodes, {
@@ -70,7 +71,7 @@ TEST_CASE("the entry's morton code comes from the bounds centre", "[frontier][bu
     });
 
     std::filesystem::create_directories(directory.path() / "frontier");
-    frontier::Storage run(directory.path() / "frontier");
+    frontier::Storage run = REQUIRE_VALUE(frontier::Storage::create(directory.path() / "frontier"));
     REQUIRE(frontier::build_from_leaves(nodes, run).has_value());
     REQUIRE(run.save_index().has_value());
 
@@ -83,7 +84,7 @@ TEST_CASE("the entry's morton code comes from the bounds centre", "[frontier][bu
 TEST_CASE("the byte budget splits the frontier into batches", "[frontier][build]") {
     const TempDirectory directory("build_frontier");
     std::filesystem::create_directories(directory.path() / "nodes");
-    bvh::Storage nodes(directory.path() / "nodes");
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "nodes"));
 
     std::vector<bvh::Bounds> bounds;
     for (uint32_t i = 0; i < 5; i++) {
@@ -92,7 +93,7 @@ TEST_CASE("the byte budget splits the frontier into batches", "[frontier][build]
     write_nodes(nodes, bounds);
 
     std::filesystem::create_directories(directory.path() / "frontier");
-    frontier::Storage run(directory.path() / "frontier");
+    frontier::Storage run = REQUIRE_VALUE(frontier::Storage::create(directory.path() / "frontier"));
     const frontier::BuildOptions options{.max_batch_bytes = 2 * sizeof(frontier::Entry)};
     REQUIRE(frontier::build_from_leaves(nodes, run, options).has_value());
     REQUIRE(run.save_index().has_value());
@@ -104,10 +105,10 @@ TEST_CASE("the byte budget splits the frontier into batches", "[frontier][build]
 TEST_CASE("an empty store yields an empty frontier", "[frontier][build]") {
     const TempDirectory directory("build_frontier");
     std::filesystem::create_directories(directory.path() / "nodes");
-    const bvh::Storage nodes(directory.path() / "nodes");
+    const bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "nodes"));
 
     std::filesystem::create_directories(directory.path() / "frontier");
-    frontier::Storage run(directory.path() / "frontier");
+    frontier::Storage run = REQUIRE_VALUE(frontier::Storage::create(directory.path() / "frontier"));
     REQUIRE(frontier::build_from_leaves(nodes, run).has_value());
     REQUIRE(run.save_index().has_value());
 

@@ -110,7 +110,7 @@ TEST_CASE("a single entry is its own root and writes nothing", "[build][lbvh]") 
     const frontier::Entry entry{.morton = morton::Code{0b1}, .header = {}, .ref = {.batch = 100, .node = 0}};
 
     const TempDirectory directory("lbvh");
-    bvh::Storage nodes(directory.path());
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path()));
     bvh::BatchWriter writer(nodes);
     const auto root = lbvh::detail::build_subtree(std::array{entry}, writer);
     REQUIRE(root.has_value());
@@ -134,7 +134,7 @@ TEST_CASE("two entries are joined under a parent carrying both their headers", "
     };
 
     const TempDirectory directory("lbvh");
-    bvh::Storage nodes(directory.path());
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path()));
     bvh::BatchWriter writer(nodes);
     const auto root = lbvh::detail::build_subtree(std::array{left, right}, writer);
     REQUIRE(root.has_value());
@@ -155,7 +155,7 @@ TEST_CASE("entries whose codes differ in the top bit end up in separate subtrees
     };
 
     const TempDirectory directory("lbvh");
-    bvh::Storage nodes(directory.path());
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path()));
     bvh::BatchWriter writer(nodes);
     const auto root = lbvh::detail::build_subtree(entries, writer);
     REQUIRE(root.has_value());
@@ -176,7 +176,7 @@ TEST_CASE("entries with equal codes are still all joined, halving the run", "[bu
     };
 
     const TempDirectory directory("lbvh");
-    bvh::Storage nodes(directory.path());
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path()));
     bvh::BatchWriter writer(nodes);
     const auto root = lbvh::detail::build_subtree(entries, writer);
     REQUIRE(root.has_value());
@@ -198,12 +198,12 @@ TEST_CASE("each batch of a run gets a subtree of its own before their roots are 
 
     const TempDirectory directory("lbvh");
     // A single run would pair the last two; the batch boundary pairs the first two instead.
-    frontier::Storage run(directory.path() / "run");
+    frontier::Storage run = REQUIRE_VALUE(frontier::Storage::create(directory.path() / "run"));
     REQUIRE(run.write(frontier::Batch{.entries = {entries[0], entries[1]}}).has_value());
     REQUIRE(run.write(frontier::Batch{.entries = {entries[2]}}).has_value());
     REQUIRE(run.save_index().has_value());
 
-    bvh::Storage nodes(directory.path() / "nodes");
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "nodes"));
     bvh::BatchWriter writer(nodes);
     const auto root = lbvh::build(run, writer);
     REQUIRE(root.has_value());
@@ -218,23 +218,23 @@ TEST_CASE("each batch of a run gets a subtree of its own before their roots are 
 
 TEST_CASE("building into a storage saves its index", "[build][lbvh]") {
     const TempDirectory directory("lbvh");
-    frontier::Storage run(directory.path() / "run");
+    frontier::Storage run = REQUIRE_VALUE(frontier::Storage::create(directory.path() / "run"));
     REQUIRE(run.write(frontier::Batch{.entries = {
         frontier::Entry{.morton = morton::Code{0}, .header = {}, .ref = {.batch = 100, .node = 0}},
         frontier::Entry{.morton = morton::Code{1}, .header = {}, .ref = {.batch = 100, .node = 1}},
     }}).has_value());
     REQUIRE(run.save_index().has_value());
 
-    bvh::Storage nodes(directory.path() / "nodes");
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "nodes"));
     REQUIRE(lbvh::build(run, nodes, lbvh::Options{}).has_value());
 
-    const bvh::Storage reopened(directory.path() / "nodes");
+    const bvh::Storage reopened = REQUIRE_VALUE(bvh::Storage::open(directory.path() / "nodes"));
     CHECK(reopened.size() == 1);
 }
 
 TEST_CASE("a batch limit below one node writes every inner node into a batch of its own", "[build][lbvh]") {
     const TempDirectory directory("lbvh");
-    frontier::Storage run(directory.path() / "run");
+    frontier::Storage run = REQUIRE_VALUE(frontier::Storage::create(directory.path() / "run"));
     REQUIRE(run.write(frontier::Batch{.entries = {
         frontier::Entry{.morton = morton::Code{0}, .header = {}, .ref = {.batch = 100, .node = 0}},
         frontier::Entry{.morton = morton::Code{1}, .header = {}, .ref = {.batch = 100, .node = 1}},
@@ -243,7 +243,7 @@ TEST_CASE("a batch limit below one node writes every inner node into a batch of 
     }}).has_value());
     REQUIRE(run.save_index().has_value());
 
-    bvh::Storage nodes(directory.path() / "nodes");
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "nodes"));
     REQUIRE(lbvh::build(run, nodes, lbvh::Options{.max_batch_bytes = 1}).has_value());
 
     // Four entries take three inner nodes.
@@ -252,14 +252,14 @@ TEST_CASE("a batch limit below one node writes every inner node into a batch of 
 
 TEST_CASE("a run whose batches cannot be read fails the build", "[build][lbvh]") {
     const TempDirectory directory("lbvh");
-    frontier::Storage run(directory.path() / "run");
+    frontier::Storage run = REQUIRE_VALUE(frontier::Storage::create(directory.path() / "run"));
     REQUIRE(run.write(frontier::Batch{.entries = {make_entry(morton::Code{0})}}).has_value());
     REQUIRE(run.save_index().has_value());
 
     // The storage still counts its batch, but it can no longer be read.
     std::filesystem::remove_all(directory.path() / "run");
 
-    bvh::Storage nodes(directory.path() / "nodes");
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "nodes"));
     bvh::BatchWriter writer(nodes);
     CHECK_FALSE(lbvh::build(run, writer).has_value());
 }

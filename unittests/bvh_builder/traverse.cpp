@@ -1,4 +1,5 @@
 #include "../catch2_helpers.h"
+#include "../result_helpers.h"
 #include "../temp_directory.h"
 
 #include <vector>
@@ -46,7 +47,7 @@ std::vector<uint32_t> collect_mortons(
 
 TEST_CASE("traverse visits every entry in order", "[frontier][traverse]") {
     const TempDirectory directory("frontier_traverse");
-    frontier::Storage run(directory.path());
+    frontier::Storage run = REQUIRE_VALUE(frontier::Storage::create(directory.path()));
     const std::vector<uint32_t> written = write_run(run, {3, 1, 4});
 
     CHECK(collect_mortons(run) == written);
@@ -54,7 +55,7 @@ TEST_CASE("traverse visits every entry in order", "[frontier][traverse]") {
 
 TEST_CASE("traverse over a batch range visits only those batches", "[frontier][traverse]") {
     const TempDirectory directory("frontier_traverse");
-    frontier::Storage run(directory.path());
+    frontier::Storage run = REQUIRE_VALUE(frontier::Storage::create(directory.path()));
     write_run(run, {3, 1, 4});
 
     CHECK(collect_mortons(run, Range<uint32_t>{1, 3}) == std::vector<uint32_t>{3, 4, 5, 6, 7});
@@ -64,7 +65,7 @@ TEST_CASE("traverse over a batch range visits only those batches", "[frontier][t
 
 TEST_CASE("traverse handles an empty run and empty batches", "[frontier][traverse]") {
     const TempDirectory directory("frontier_traverse");
-    frontier::Storage run(directory.path());
+    frontier::Storage run = REQUIRE_VALUE(frontier::Storage::create(directory.path()));
 
     CHECK(collect_mortons(run).empty());
 

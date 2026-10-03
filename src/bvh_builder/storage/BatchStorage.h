@@ -21,8 +21,21 @@ class BatchStorage : private BaseStorage {
 public:
     using Batch = BatchType;
 
-    explicit BatchStorage(std::filesystem::path directory)
-        : Base(std::move(directory)) {}
+    // Starts an empty storage in `directory`, which may be missing.
+    // Fails with `DirectoryNotEmpty` when `directory` already holds something.
+    [[nodiscard]]
+    static alp::Result<BatchStorage, io::FileError, io::DirectoryNotEmpty> create(std::filesystem::path directory) {
+        ALP_TRY(Base base, Base::create(std::move(directory)));
+        return BatchStorage(std::move(base));
+    }
+
+    // Opens the storage kept in `directory`.
+    // Fails when it holds no index.
+    [[nodiscard]]
+    static alp::Result<BatchStorage, io::Error> open(std::filesystem::path directory) {
+        ALP_TRY(Base base, Base::open(std::move(directory)));
+        return BatchStorage(std::move(base));
+    }
 
     BatchStorage(const BatchStorage &) = delete;
     BatchStorage &operator=(const BatchStorage &) = delete;
@@ -56,4 +69,7 @@ public:
         ALP_TRY_CONTEXT(Batch batch, io::read_from_path<Batch>(this->get_batch_path(index)), fmt::format("reading batch {}", index));
         return batch;
     }
+
+private:
+    explicit BatchStorage(Base base) : Base(std::move(base)) {}
 };

@@ -24,15 +24,15 @@ namespace widen {
 
 // Writes the tree at `root` into `output` with up to `arity` children per node, and returns its new root.
 [[nodiscard]]
-inline alp::Result<bvh::Reference, io::Error> build(
+inline alp::Result<bvh::Reference, io::Error, io::DirectoryNotEmpty> build(
     const bvh::Storage &input, const bvh::Reference &root, bvh::Storage &output,
     const std::filesystem::path &scratch, const Options &options) {
     return alp::run_with_context(
         alp::make_context("widening a tree from {} to {}", input.directory(), output.directory()),
-        [&] -> alp::Result<bvh::Reference, io::Error> {
+        [&] -> alp::Result<bvh::Reference, io::Error, io::DirectoryNotEmpty> {
             bvh::NodeCache tree(input, options.max_resident_bytes);
 
-            SplitStorage splits(scratch / "splits");
+            ALP_TRY(SplitStorage splits, SplitStorage::create(scratch / "splits"));
             ALP_TRY(tabulate_splits(tree, root, splits, options));
             ALP_TRY(splits.save_index());
 

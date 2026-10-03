@@ -1,4 +1,5 @@
 #include "../catch2_helpers.h"
+#include "../result_helpers.h"
 #include "../temp_directory.h"
 
 #include <filesystem>
@@ -43,7 +44,7 @@ std::vector<frontier::Entry> take_all(frontier::BatchReader &reader) {
 
 TEST_CASE("BatchReader::next takes the entries of every batch in stored order", "[frontier][BatchReader]") {
     const TempDirectory directory("batch_reader");
-    frontier::Storage storage(directory.path());
+    frontier::Storage storage = REQUIRE_VALUE(frontier::Storage::create(directory.path()));
 
     // Codes out of order, so a reader that sorted would be caught, and empty batches between and after the full ones.
     const frontier::Entry a = make_entry(7, 0);
@@ -65,7 +66,7 @@ TEST_CASE("BatchReader::next takes the entries of every batch in stored order", 
 
 TEST_CASE("BatchReader::next finds nothing in a storage without entries", "[frontier][BatchReader]") {
     const TempDirectory directory("batch_reader");
-    frontier::Storage storage(directory.path());
+    frontier::Storage storage = REQUIRE_VALUE(frontier::Storage::create(directory.path()));
 
     const std::vector<std::vector<frontier::Entry>> batches = GENERATE(
         std::vector<std::vector<frontier::Entry>>{},
@@ -81,7 +82,7 @@ TEST_CASE("BatchReader::next finds nothing in a storage without entries", "[fron
 
 TEST_CASE("BatchReader::next reports the first batch it cannot read", "[frontier][BatchReader]") {
     const TempDirectory directory("batch_reader");
-    frontier::Storage storage(directory.path() / "storage");
+    frontier::Storage storage = REQUIRE_VALUE(frontier::Storage::create(directory.path() / "storage"));
 
     const frontier::Entry a = make_entry(7, 0);
     const frontier::Entry b = make_entry(3, 1);
