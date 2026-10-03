@@ -134,29 +134,6 @@ if(TARGET dagbuilderlib)
     atb_configure_test(unittests_dagbuilder)
 endif()
 
-if(TARGET bvhbuilderlib)
-    add_executable(unittests_bvhbuilder
-        catch2_helpers.h
-        temp_directory.h
-        bvh_builder/batch_cache.cpp
-        bvh_builder/build_frontier.cpp
-        bvh_builder/flat_traverse.cpp
-        bvh_builder/lbvh.cpp
-        bvh_builder/merging_receiver.cpp
-        bvh_builder/merging_writer.cpp
-        bvh_builder/node_cache.cpp
-        bvh_builder/ploc.cpp
-        bvh_builder/row_buffer.cpp
-        bvh_builder/sort_frontier.cpp
-        bvh_builder/tabulate_splits.cpp
-        bvh_builder/traverse.cpp
-        bvh_builder/traverse_dag.cpp
-        bvh_builder/write_wide_nodes.cpp
-    )
-    target_link_libraries(unittests_bvhbuilder PUBLIC bvhbuilderlib Catch2::Catch2WithMain)
-    atb_configure_test(unittests_bvhbuilder)
-endif()
-
 if(TARGET sfmergerlib)
     add_executable(unittests_sfmerger
         catch2_helpers.h
