@@ -426,7 +426,7 @@ inline alp::Result<AssembledTexture, TileError> splatter_tiles_to_texture(
 
 /// Creates a texture for the given region.
 [[nodiscard]]
-inline alp::Result<std::optional<AssembledTexture>, TileError> assemble_texture_from_tiles(
+inline alp::Result<std::optional<AssembledTexture>, TileError, srs::TransformError> assemble_texture_from_tiles(
     /// Specifes the grid used to organize the image tiles.
     const ctb::Grid &grid,
     /// Specifies the srs the target bounds are in.
@@ -449,7 +449,7 @@ inline alp::Result<std::optional<AssembledTexture>, TileError> assemble_texture_
     }
 
     // Start by transforming the input bounds into the srs the tiles are in.
-    const radix::tile::SrsBounds encompassing_bounds = srs::encompassing_bounds_transfer(target_srs, grid.getSRS(), target_bounds);
+    ALP_TRY(const radix::tile::SrsBounds encompassing_bounds, srs::encompassing_bounds_transfer(target_srs, grid.getSRS(), target_bounds));
     // Then we find the smallest tile (id) that encompasses these bounds.
     const std::optional<radix::tile::Id> encompassing_tile_opt = grid.findSmallestEncompassingTile(encompassing_bounds);
     if (!encompassing_tile_opt.has_value()) {

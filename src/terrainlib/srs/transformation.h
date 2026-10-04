@@ -1,12 +1,25 @@
 #pragma once
 
 #include <memory>
-#include <stdexcept>
 #include <vector>
 
 #include <ogr_spatialref.h>
 
+#include "error/Result.h"
+#include "error/try.h"
+#include "error/utils.h"
+#include "srs.h"
+#include "srs/error.h"
+
 namespace srs {
+
+namespace detail {
+
+inline MissingTransformation make_missing_transformation(const OGRSpatialReference &source_srs, const OGRSpatialReference &target_srs) {
+    return MissingTransformation{.source = friendly_name(source_srs), .target = friendly_name(target_srs)};
+}
+
+} // namespace detail
 
 namespace {
 struct TransformationCacheEntry {
@@ -16,15 +29,20 @@ struct TransformationCacheEntry {
 };
 }
 
-inline std::unique_ptr<OGRCoordinateTransformation> uncached_transformation(const OGRSpatialReference &source_srs, const OGRSpatialReference &target_srs) {
+[[nodiscard]]
+inline alp::Result<std::unique_ptr<OGRCoordinateTransformation>, MissingTransformation> uncached_transformation(const OGRSpatialReference &source_srs, const OGRSpatialReference &target_srs) {
     std::unique_ptr<OGRCoordinateTransformation> transform(OGRCreateCoordinateTransformation(&source_srs, &target_srs));
     if (!transform) {
-        throw std::runtime_error("Couldn't create SRS transformation");
+        return alp::make_unexpected(detail::make_missing_transformation(source_srs, target_srs));
     }
     return transform;
 }
 
-inline std::shared_ptr<OGRCoordinateTransformation> transformation(const OGRSpatialReference& source_srs, const OGRSpatialReference& target_srs) {
+// Returns a transformation from `source_srs` to `target_srs` that belongs to the calling thread and must only be used on it.
+// A thread gets the same transformation for every later request of the same pair.
+// Fails when no transformation exists from `source_srs` to `target_srs`.
+[[nodiscard]]
+inline alp::Result<std::shared_ptr<OGRCoordinateTransformation>, MissingTransformation> transformation(const OGRSpatialReference& source_srs, const OGRSpatialReference& target_srs) {
     thread_local std::vector<TransformationCacheEntry> cache;
 
     // Check forward
@@ -39,7 +57,7 @@ inline std::shared_ptr<OGRCoordinateTransformation> transformation(const OGRSpat
         if (entry.source.IsSame(&target_srs) && entry.target.IsSame(&source_srs)) {
             std::shared_ptr<OGRCoordinateTransformation> inverse(entry.transform->GetInverse());
             if (!inverse) {
-                throw std::runtime_error("Couldn't create inverse transformation");
+                return alp::make_unexpected(detail::make_missing_transformation(source_srs, target_srs));
             }
             cache.push_back({source_srs, target_srs, inverse});
             return inverse;
@@ -47,7 +65,7 @@ inline std::shared_ptr<OGRCoordinateTransformation> transformation(const OGRSpat
     }
 
     // Not found
-    auto transform = uncached_transformation(source_srs, target_srs);
+    ALP_TRY(auto transform, uncached_transformation(source_srs, target_srs));
     std::shared_ptr<OGRCoordinateTransformation> shared_transform = std::move(transform);
     cache.push_back({source_srs, target_srs, shared_transform});
     return shared_transform;

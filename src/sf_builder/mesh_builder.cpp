@@ -89,9 +89,9 @@ SimpleMesh meshify(const raster::Raster<glm::dvec3>& source_points, const raster
     return SimpleMesh(triangles, positions);
 }
 
-SimpleMesh transform_mesh(SimpleMesh&& source_mesh, const OGRSpatialReference &source_srs, const OGRSpatialReference &target_srs) {
-    const auto transform = srs::transformation(source_srs, target_srs);
-    srs::transform_points_inplace(transform.get(), source_mesh.positions);
+alp::Result<SimpleMesh, srs::TransformError> transform_mesh(SimpleMesh&& source_mesh, const OGRSpatialReference &source_srs, const OGRSpatialReference &target_srs) {
+    ALP_TRY(const auto transform, srs::transformation(source_srs, target_srs));
+    ALP_TRY(srs::transform_points_inplace(transform.get(), source_mesh.positions));
     return source_mesh;
 }
 /*
@@ -105,8 +105,9 @@ SimpleMesh transform_mesh(const SimpleMesh &source_mesh, const OGRSpatialReferen
 }
 */
 
-std::vector<glm::dvec2> generate_uv_space(const std::vector<glm::dvec3>& positions, const OGRSpatialReference &mesh_srs, const OGRSpatialReference &texture_srs, radix::tile::SrsBounds& texture_bounds) {
-    std::vector<glm::dvec2> uvs = srs::transform_points_to_2d(srs::transformation(mesh_srs, texture_srs).get(), positions);
+alp::Result<std::vector<glm::dvec2>, srs::TransformError> generate_uv_space(const std::vector<glm::dvec3>& positions, const OGRSpatialReference &mesh_srs, const OGRSpatialReference &texture_srs, radix::tile::SrsBounds& texture_bounds) {
+    ALP_TRY(const auto transform, srs::transformation(mesh_srs, texture_srs));
+    ALP_TRY(std::vector<glm::dvec2> uvs, srs::transform_points_to_2d(transform.get(), positions));
     texture_bounds = radix::tile::SrsBounds(radix::geometry::find_bounds(std::span<const glm::dvec2>(uvs)));
 
     for (glm::dvec2 &uv : uvs) {
@@ -129,9 +130,9 @@ alp::Result<SimpleMesh, BuildMeshError> build_reference_mesh_patch(
     radix::tile::SrsBounds target_bounds_in_source_srs;
     if (std::isinf(clip_bounds.min.z) && std::isinf(clip_bounds.max.z)) {
         // Make target bounds 2d if the unbounded by height.
-        target_bounds_in_source_srs = srs::encompassing_bounds_transfer(clip_srs, source_srs, radix::tile::SrsBounds(clip_bounds));
+        ALP_TRY_CONTEXT(target_bounds_in_source_srs, srs::encompassing_bounds_transfer(clip_srs, source_srs, radix::tile::SrsBounds(clip_bounds)), context);
     } else {
-        target_bounds_in_source_srs = srs::encompassing_bounds_transfer(clip_srs, source_srs, clip_bounds);
+        ALP_TRY_CONTEXT(target_bounds_in_source_srs, srs::encompassing_bounds_transfer(clip_srs, source_srs, clip_bounds), context);
     }
 
     // Read height data according to bounds directly from dataset (no interpolation).
@@ -164,13 +165,13 @@ alp::Result<SimpleMesh, BuildMeshError> build_reference_mesh_patch(
 
     // Fast check if all vertices will be clipped
     const radix::geometry::Aabb3d actual_source_bounds = calculate_bounds(mesh_in_source_srs);
-    const radix::geometry::Aabb3d approx_clip_bounds = srs::encompassing_bounds_transfer(source_srs, clip_srs, actual_source_bounds);
+    ALP_TRY_CONTEXT(const radix::geometry::Aabb3d approx_clip_bounds, srs::encompassing_bounds_transfer(source_srs, clip_srs, actual_source_bounds), context);
     if (!radix::geometry::intersect(approx_clip_bounds, clip_bounds)) {
         return alp::make_unexpected(EmptyRegion{}, context);
     }
 
     LOG_TRACE("Clipping mesh based on target bounds");
-    const SimpleMesh mesh_in_clip_srs = transform_mesh(std::move(mesh_in_source_srs), source_srs, clip_srs);
+    ALP_TRY_CONTEXT(const SimpleMesh mesh_in_clip_srs, transform_mesh(std::move(mesh_in_source_srs), source_srs, clip_srs), context);
     SimpleMesh clipped_mesh = mesh::clip_on_bounds(mesh_in_clip_srs, clip_bounds);
     // Check if there are any vertices left
     if (clipped_mesh.vertex_count() == 0 || clipped_mesh.face_count() == 0) {
@@ -179,10 +180,10 @@ alp::Result<SimpleMesh, BuildMeshError> build_reference_mesh_patch(
 
     // TODO: move this to another function?
     LOG_TRACE("Generating uv space and calculating required texture bounds");
-    clipped_mesh.uvs = generate_uv_space(clipped_mesh.positions, clip_srs, texture_srs, texture_bounds);
+    ALP_TRY_CONTEXT(clipped_mesh.uvs, generate_uv_space(clipped_mesh.positions, clip_srs, texture_srs, texture_bounds), context);
 
     LOG_TRACE("Transforming mesh into output srs");
-    SimpleMesh target_mesh = transform_mesh(std::move(clipped_mesh), clip_srs, mesh_srs);
+    ALP_TRY_CONTEXT(SimpleMesh target_mesh, transform_mesh(std::move(clipped_mesh), clip_srs, mesh_srs), context);
     
     mesh::remove_isolated_vertices(target_mesh); // TODO: is this still required?
     mesh::validate(target_mesh);

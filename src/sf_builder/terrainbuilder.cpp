@@ -33,6 +33,7 @@
 #include "ProgressIndicator.h"
 #include "error/log.h"
 #include "error/try.h"
+#include "error/unwrap.h"
 #include "error/utils.h"
 #include "log.h"
 #include "mesh/SimpleMesh.h"
@@ -62,7 +63,7 @@ std::string format_secs_since(const std::chrono::high_resolution_clock::time_poi
 }
 }
 
-alp::Result<std::optional<SimpleMesh>, gdal::CplError, TileError> build_patch(
+alp::Result<std::optional<SimpleMesh>, gdal::CplError, TileError, srs::TransformError> build_patch(
     Dataset &dataset,
     const OGRSpatialReference &target_bounds_srs,
     const radix::geometry::Aabb3d &target_bounds,
@@ -81,7 +82,7 @@ alp::Result<std::optional<SimpleMesh>, gdal::CplError, TileError> build_patch(
         target_bounds_srs, target_bounds,
         texture_srs, texture_bounds);
     if (!mesh_result.has_value()) {
-        auto narrow_result = std::move(mesh_result).error().narrow<gdal::CplError>();
+        auto narrow_result = std::move(mesh_result).error().narrow<gdal::CplError, srs::TransformError>();
         if (narrow_result.has_value()) {
             return alp::propagate(std::move(narrow_result).value());
         }
@@ -116,7 +117,7 @@ alp::Result<std::optional<SimpleMesh>, gdal::CplError, TileError> build_patch(
     return mesh;
 }
 
-alp::Result<void, gdal::CplError, TileError, mesh::io::Error> build_and_save_patch(
+alp::Result<void, gdal::CplError, TileError, srs::TransformError, mesh::io::Error> build_and_save_patch(
     Dataset &dataset,
     const OGRSpatialReference &target_bounds_srs,
     const radix::geometry::Aabb3d &target_bounds,
@@ -161,7 +162,7 @@ alp::Result<void, gdal::CplError, TileError, mesh::io::Error> build_and_save_pat
 
 namespace {
 // An error from building and saving a node.
-using BuildError = alp::Error<gdal::CplError, TileError, octree::Storage::save_error>;
+using BuildError = alp::Error<gdal::CplError, TileError, srs::TransformError, octree::Storage::save_error>;
 
 // Builds the mesh for `node` and saves it to `storage`, or saves nothing if the dataset holds no terrain there.
 alp::BasicResult<void, BuildError> build_and_save_node(
@@ -217,8 +218,7 @@ alp::Result<void> build_all_patches(
     const auto dataset_bounds = dataset.bounds3d(true);
 
     const auto ecef_srs = srs::ecef();
-    const auto ecef_bounds = srs::encompassing_bounds_transfer(
-        dataset_srs, ecef_srs, dataset_bounds);
+    ALP_TRY(const auto ecef_bounds, srs::encompassing_bounds_transfer(dataset_srs, ecef_srs, dataset_bounds));
     const auto space = octree::Space::earth();
     ALP_TRY(
         const octree::Id root_node,
@@ -234,7 +234,7 @@ alp::Result<void> build_all_patches(
     tbb::enumerable_thread_specific<std::shared_ptr<OGRCoordinateTransformation>> transform_ecef_dataset([&]() {
         auto local_ecef_srs = ecef_srs;
         auto local_dataset_srs = dataset_srs;
-        auto transform = srs::transformation(local_ecef_srs, local_dataset_srs);
+        auto transform = alp::unwrap(srs::transformation(local_ecef_srs, local_dataset_srs));
         return transform;
     });
 
@@ -246,8 +246,8 @@ alp::Result<void> build_all_patches(
         }
 
         // Check if node bounds in dataset srs intersect with dataset
-        const auto node_bounds_dataset_srs = srs::encompassing_bounds_transfer(
-            &*transform_ecef_dataset.local(), node_bounds, 7, 3);
+        const auto node_bounds_dataset_srs = alp::unwrap(srs::encompassing_bounds_transfer(
+            &*transform_ecef_dataset.local(), node_bounds, 7, 3));
         if (!radix::geometry::intersect(node_bounds_dataset_srs, dataset_bounds)) {
             return;
         }

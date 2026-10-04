@@ -6,7 +6,6 @@
 #include <iterator>
 #include <limits>
 #include <memory>
-#include <stdexcept>
 #include <vector>
 
 #include <glm/glm.hpp>
@@ -14,63 +13,73 @@
 #include <radix/geometry.h>
 #include <radix/tile.h>
 
+#include "error/Result.h"
+#include "error/try.h"
+#include "error/utils.h"
 #include "srs/transform_points.h"
 #include "srs/transformation.h"
 
 namespace srs {
 
-inline radix::tile::SrsBounds non_exact_bounds_transform(OGRCoordinateTransformation *transform, const radix::tile::SrsBounds &bounds) {
+[[nodiscard]]
+inline alp::Result<radix::tile::SrsBounds, UntransformablePoint> non_exact_bounds_transform(OGRCoordinateTransformation *transform, const radix::tile::SrsBounds &bounds) {
     std::array xs = {bounds.min.x, bounds.max.x};
     std::array ys = {bounds.min.y, bounds.max.y};
     if (!transform->Transform(2, xs.data(), ys.data())) {
-        throw std::runtime_error("srs::non_exact_bounds_transform failed");
+        return alp::make_unexpected(detail::make_untransformable_point(transform));
     }
-    return {
+    return radix::tile::SrsBounds{
         {std::min(xs[0], xs[1]), std::min(ys[0], ys[1])},
         {std::max(xs[0], xs[1]), std::max(ys[0], ys[1])}};
 }
-inline radix::tile::SrsBounds non_exact_bounds_transform(const radix::tile::SrsBounds &bounds, const OGRSpatialReference &sourceSrs, const OGRSpatialReference &targetSrs) {
-    const auto transform = transformation(sourceSrs, targetSrs);
+[[nodiscard]]
+inline alp::Result<radix::tile::SrsBounds, TransformError> non_exact_bounds_transform(const radix::tile::SrsBounds &bounds, const OGRSpatialReference &sourceSrs, const OGRSpatialReference &targetSrs) {
+    ALP_TRY(const auto transform, transformation(sourceSrs, targetSrs));
     return non_exact_bounds_transform(transform.get(), bounds);
 }
-inline radix::geometry::Aabb3d non_exact_bounds_transform(OGRCoordinateTransformation *transform, const radix::geometry::Aabb3d &bounds) {
+[[nodiscard]]
+inline alp::Result<radix::geometry::Aabb3d, UntransformablePoint> non_exact_bounds_transform(OGRCoordinateTransformation *transform, const radix::geometry::Aabb3d &bounds) {
     std::array xs = {bounds.min.x, bounds.max.x};
     std::array ys = {bounds.min.y, bounds.max.y};
     std::array zs = {bounds.min.z, bounds.max.z};
     if (!transform->Transform(2, xs.data(), ys.data(), zs.data())) {
-        throw std::runtime_error("srs::non_exact_bounds_transform failed");
+        return alp::make_unexpected(detail::make_untransformable_point(transform));
     }
-    return {{xs[0], ys[0], zs[0]}, {xs[1], ys[1], zs[1]}};
+    return radix::geometry::Aabb3d{{xs[0], ys[0], zs[0]}, {xs[1], ys[1], zs[1]}};
 }
-inline radix::geometry::Aabb3d non_exact_bounds_transform(const radix::geometry::Aabb3d &bounds, const OGRSpatialReference &sourceSrs, const OGRSpatialReference &targetSrs) {
-    const auto transform = transformation(sourceSrs, targetSrs);
+[[nodiscard]]
+inline alp::Result<radix::geometry::Aabb3d, TransformError> non_exact_bounds_transform(const radix::geometry::Aabb3d &bounds, const OGRSpatialReference &sourceSrs, const OGRSpatialReference &targetSrs) {
+    ALP_TRY(const auto transform, transformation(sourceSrs, targetSrs));
     return non_exact_bounds_transform(transform.get(), bounds);
 }
 
 /// Transforms bounds from one srs to another,
 /// in such a way that all points inside the original bounds are guaranteed to also be in the new bounds.
 /// But there can be points inside the new bounds that were not present in the original ones.
-inline radix::tile::SrsBounds encompassing_bounds_transfer(OGRCoordinateTransformation *transform, const radix::tile::SrsBounds &source_bounds) {
+[[nodiscard]]
+inline alp::Result<radix::tile::SrsBounds, UntransformablePoint> encompassing_bounds_transfer(OGRCoordinateTransformation *transform, const radix::tile::SrsBounds &source_bounds) {
     radix::tile::SrsBounds target_bounds;
     const int result = transform->TransformBounds(
         source_bounds.min.x, source_bounds.min.y, source_bounds.max.x, source_bounds.max.y,
         &target_bounds.min.x, &target_bounds.min.y, &target_bounds.max.x, &target_bounds.max.y,
         21);
     if (result != TRUE) {
-        throw std::runtime_error("srs::encompassing_bounding_box_transfer failed");
+        return alp::make_unexpected(detail::make_untransformable_point(transform));
     }
     return target_bounds;
 }
-inline radix::tile::SrsBounds encompassing_bounds_transfer(const OGRSpatialReference &source_srs, const OGRSpatialReference &target_srs, const radix::tile::SrsBounds &source_bounds) {
+[[nodiscard]]
+inline alp::Result<radix::tile::SrsBounds, TransformError> encompassing_bounds_transfer(const OGRSpatialReference &source_srs, const OGRSpatialReference &target_srs, const radix::tile::SrsBounds &source_bounds) {
     if (source_srs.IsSame(&target_srs)) {
         return source_bounds;
     }
 
-    const std::shared_ptr<OGRCoordinateTransformation> transformation = srs::transformation(source_srs, target_srs);
+    ALP_TRY(const std::shared_ptr<OGRCoordinateTransformation> transformation, srs::transformation(source_srs, target_srs));
     return encompassing_bounds_transfer(transformation.get(), source_bounds);
 }
 
-inline radix::geometry::Aabb3d encompassing_bounds_transfer(
+[[nodiscard]]
+inline alp::Result<radix::geometry::Aabb3d, UntransformablePoint> encompassing_bounds_transfer(
     OGRCoordinateTransformation *transform,
     const radix::geometry::Aabb3d &source_bounds,
     const uint32_t intermediate_points_edges = 21,
@@ -113,7 +122,7 @@ inline radix::geometry::Aabb3d encompassing_bounds_transfer(
     }
 
     // Transform all collected points
-    transform_points_inplace(transform, points);
+    ALP_TRY(transform_points_inplace(transform, points));
 
     // Compute bounds from transformed points
     radix::geometry::Aabb3d target_bounds;
@@ -125,7 +134,8 @@ inline radix::geometry::Aabb3d encompassing_bounds_transfer(
 
     return target_bounds;
 }
-inline radix::geometry::Aabb3d encompassing_bounds_transfer(
+[[nodiscard]]
+inline alp::Result<radix::geometry::Aabb3d, TransformError> encompassing_bounds_transfer(
     const OGRSpatialReference &source_srs,
     const OGRSpatialReference &target_srs,
     const radix::geometry::Aabb3d &source_bounds,
@@ -135,7 +145,7 @@ inline radix::geometry::Aabb3d encompassing_bounds_transfer(
         return source_bounds;
     }
 
-    const auto transform = srs::transformation(source_srs, target_srs);
+    ALP_TRY(const auto transform, srs::transformation(source_srs, target_srs));
     return encompassing_bounds_transfer(transform.get(), source_bounds, intermediate_points_edges, intermediate_points_faces);
 }
 

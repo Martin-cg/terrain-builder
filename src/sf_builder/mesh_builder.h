@@ -7,6 +7,7 @@
 
 #include "Dataset.h"
 #include "srs.h"
+#include "srs/error.h"
 
 #include "error/Error.h"
 #include "error/Result.h"
@@ -39,7 +40,7 @@ inline std::string_view format_as(const EmptyRegion) {
 }
 
 // An error from building a mesh from a height dataset.
-using BuildMeshError = alp::Error<OutOfBounds, EmptyRegion, gdal::CplError>;
+using BuildMeshError = alp::Error<OutOfBounds, EmptyRegion, gdal::CplError, srs::TransformError>;
 
 /// Builds a mesh from the given height dataset.
 [[nodiscard]]

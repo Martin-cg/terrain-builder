@@ -135,7 +135,7 @@ radix::geometry::Aabb3d parse_target_bounds(
     UNREACHABLE();
 }
 
-void log_dataset_overview(const Dataset &dataset) {
+alp::Result<void, srs::TransformError> log_dataset_overview(const Dataset &dataset) {
     const std::string name = dataset.name();
 
     const uint32_t widthPx = dataset.widthInPixels();
@@ -146,8 +146,8 @@ void log_dataset_overview(const Dataset &dataset) {
     const glm::dvec2 pixelSize = dataset.pixelSizeIn(datasetSrs);
     const auto bounds = dataset.bounds3d(true);
 
-    const auto boundsEcef =
-        srs::encompassing_bounds_transfer(datasetSrs, srs::ecef(), bounds);
+    ALP_TRY(const auto boundsEcef,
+        srs::encompassing_bounds_transfer(datasetSrs, srs::ecef(), bounds));
 
     const octree::Space earth = octree::Space::earth();
     const auto enclosingNode =
@@ -173,6 +173,7 @@ void log_dataset_overview(const Dataset &dataset) {
              enclosingNode.coords().y,
              enclosingNode.coords().z);
     LOG_INFO("  octree      : scale level={}", scaleLevel);
+    return {};
 }
 
 std::unique_ptr<TileProvider> make_tile_provider(const cli::BaseArgs &args) {
@@ -248,7 +249,7 @@ alp::Result<void> run(const cli::Args &args) {
 
     ALP_TRY(Dataset dataset, Dataset::open_raster(base_args.dataset_path));
     ALP_TRY(dataset.geo_transform());
-    log_dataset_overview(dataset);
+    ALP_TRY(log_dataset_overview(dataset));
     ALP_TRY(const OGRSpatialReference mesh_srs, srs::from_user_input(base_args.mesh_srs_input));
     const OGRSpatialReference texture_srs = srs::webmercator();
     const std::unique_ptr<TileProvider> tile_provider = make_tile_provider(base_args);

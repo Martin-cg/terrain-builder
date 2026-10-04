@@ -11,11 +11,12 @@
 #include "octree/Id.h"
 #include "mesh/SimpleMesh.h"
 #include "mesh/io/error.h"
+#include "srs/error.h"
 #include "tile_provider.h"
 
 namespace terrainbuilder {
 
-alp::Result<void, gdal::CplError, TileError, mesh::io::Error> build_and_save_patch(
+alp::Result<void, gdal::CplError, TileError, srs::TransformError, mesh::io::Error> build_and_save_patch(
     Dataset &dataset,
     const OGRSpatialReference &target_bounds_srs,
     const radix::geometry::Aabb3d &target_bounds,
@@ -25,7 +26,7 @@ alp::Result<void, gdal::CplError, TileError, mesh::io::Error> build_and_save_pat
     const std::filesystem::path &output_path);
 
 // The mesh for the target bounds, or nothing if the dataset holds no terrain there.
-alp::Result<std::optional<SimpleMesh>, gdal::CplError, TileError> build_patch(
+alp::Result<std::optional<SimpleMesh>, gdal::CplError, TileError, srs::TransformError> build_patch(
     Dataset &dataset,
     const OGRSpatialReference &target_bounds_srs,
     const radix::geometry::Aabb3d &target_bounds,

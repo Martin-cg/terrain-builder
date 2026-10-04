@@ -2,43 +2,66 @@
 
 #include <array>
 #include <cstddef>
-#include <stdexcept>
 #include <type_traits>
 #include <vector>
 
 #include <glm/glm.hpp>
+#include <libassert/assert.hpp>
 #include <ogr_spatialref.h>
 
+#include "error/Result.h"
+#include "error/try.h"
+#include "error/utils.h"
+#include "srs.h"
+#include "srs/error.h"
 #include "srs/transformation.h"
 
 namespace srs {
 
+namespace detail {
+
+// Creates the code for a point that `transform` cannot map.
+inline UntransformablePoint make_untransformable_point(const OGRCoordinateTransformation *transform) {
+    const OGRSpatialReference *source_srs = ASSERT_VAL(transform->GetSourceCS());
+    const OGRSpatialReference *target_srs = ASSERT_VAL(transform->GetTargetCS());
+    return UntransformablePoint{.source = friendly_name(*source_srs), .target = friendly_name(*target_srs)};
+}
+
+} // namespace detail
+
 template <typename T>
-inline glm::tvec2<T> transform_point(OGRCoordinateTransformation *transform, glm::tvec2<T> p) {
-    if (!transform->Transform(1, &p.x, &p.y))
-        throw std::runtime_error("srs::transform_point(glm::tvec2<T>) failed");
+[[nodiscard]]
+inline alp::Result<glm::tvec2<T>, UntransformablePoint> transform_point(OGRCoordinateTransformation *transform, glm::tvec2<T> p) {
+    if (!transform->Transform(1, &p.x, &p.y)) {
+        return alp::make_unexpected(detail::make_untransformable_point(transform));
+    }
     return p;
 }
 template <typename T>
-inline glm::tvec3<T> transform_point(OGRCoordinateTransformation *transform, glm::tvec3<T> p) {
-    if (!transform->Transform(1, &p.x, &p.y, &p.z))
-        throw std::runtime_error("srs::transform_point(glm::tvec3<T>) failed");
+[[nodiscard]]
+inline alp::Result<glm::tvec3<T>, UntransformablePoint> transform_point(OGRCoordinateTransformation *transform, glm::tvec3<T> p) {
+    if (!transform->Transform(1, &p.x, &p.y, &p.z)) {
+        return alp::make_unexpected(detail::make_untransformable_point(transform));
+    }
     return p;
 }
 
 template <typename T>
-inline glm::tvec2<T> transform_point(const OGRSpatialReference &source_srs, const OGRSpatialReference &target_srs, glm::tvec2<T> p) {
-    const auto transform = transformation(source_srs, target_srs);
+[[nodiscard]]
+inline alp::Result<glm::tvec2<T>, TransformError> transform_point(const OGRSpatialReference &source_srs, const OGRSpatialReference &target_srs, glm::tvec2<T> p) {
+    ALP_TRY(const auto transform, transformation(source_srs, target_srs));
     return transform_point(transform.get(), p);
 }
 template <typename T>
-inline glm::tvec3<T> transform_point(const OGRSpatialReference &source_srs, const OGRSpatialReference& target_srs, glm::tvec3<T> p){
-    const auto transform = transformation(source_srs, target_srs);
+[[nodiscard]]
+inline alp::Result<glm::tvec3<T>, TransformError> transform_point(const OGRSpatialReference &source_srs, const OGRSpatialReference& target_srs, glm::tvec3<T> p){
+    ALP_TRY(const auto transform, transformation(source_srs, target_srs));
     return transform_point(transform.get(), p);
 }
 
 template <typename Container>
-inline void transform_points_inplace(OGRCoordinateTransformation *transform, Container &points) {
+[[nodiscard]]
+inline alp::Result<void, UntransformablePoint> transform_points_inplace(OGRCoordinateTransformation *transform, Container &points) {
     using PointType = typename Container::value_type;
     using T = typename PointType::value_type;
     constexpr bool is_3d = (PointType::length() == 3);
@@ -76,7 +99,7 @@ inline void transform_points_inplace(OGRCoordinateTransformation *transform, Con
     }
 
     if (!success) {
-        throw std::runtime_error("srs::transform_points_inplace failed");
+        return alp::make_unexpected(detail::make_untransformable_point(transform));
     }
 
     for (size_t i = 0; i < size; i++) {
@@ -86,19 +109,22 @@ inline void transform_points_inplace(OGRCoordinateTransformation *transform, Con
             points[i] = PointType(xs[i], ys[i]);
         }
     }
+    return {};
 }
 
 template <typename Container>
-inline Container transform_points(const OGRSpatialReference &source_srs, const OGRSpatialReference &target_srs, Container points) {
-    const auto transform = transformation(source_srs, target_srs);
-    transform_points_inplace(transform.get(), points);
+[[nodiscard]]
+inline alp::Result<Container, TransformError> transform_points(const OGRSpatialReference &source_srs, const OGRSpatialReference &target_srs, Container points) {
+    ALP_TRY(const auto transform, transformation(source_srs, target_srs));
+    ALP_TRY(transform_points_inplace(transform.get(), points));
     return points;
 }
 
 
 // TODO: somehow integrate into a single transform_points
 template <typename T>
-inline std::vector<glm::tvec2<T>> transform_points_to_2d(OGRCoordinateTransformation *transform, const std::vector<glm::tvec3<T>> &points) {
+[[nodiscard]]
+inline alp::Result<std::vector<glm::tvec2<T>>, UntransformablePoint> transform_points_to_2d(OGRCoordinateTransformation *transform, const std::vector<glm::tvec3<T>> &points) {
     std::vector<T> xs;
     std::vector<T> ys;
     std::vector<T> zs;
@@ -114,7 +140,7 @@ inline std::vector<glm::tvec2<T>> transform_points_to_2d(OGRCoordinateTransforma
     }
 
     if (!transform->Transform(points.size(), xs.data(), ys.data(), zs.data())) {
-        throw std::runtime_error("srs::transform_points_to_2d(OGRCoordinateTransformation *, std::vector<glm::tvec3<T>>) failed");
+        return alp::make_unexpected(detail::make_untransformable_point(transform));
     }
 
     std::vector<glm::tvec2<T>> transformed;
