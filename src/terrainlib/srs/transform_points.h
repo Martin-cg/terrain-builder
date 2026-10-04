@@ -29,6 +29,7 @@ inline UntransformablePoint make_untransformable_point(const OGRCoordinateTransf
 
 } // namespace detail
 
+// TODO: a region at the antimeridian gets wrong bounds and wrong UVs from the transforms below.
 template <typename T>
 [[nodiscard]]
 inline alp::Result<glm::tvec2<T>, UntransformablePoint> transform_point(OGRCoordinateTransformation *transform, glm::tvec2<T> p) {
