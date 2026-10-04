@@ -196,5 +196,5 @@ TEST_CASE("Opening a missing dataset fails, keeping the message GDAL reported", 
     }
 
     CPLErrorReset();
-    CHECK(error->message() != gdal::CplError::from_last_error().message());
+    CHECK(error->message() != gdal::CplError::get_last_error().message());
 }

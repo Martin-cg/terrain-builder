@@ -17,7 +17,7 @@ public:
     }
 
     // The error GDAL last recorded on this thread, or an application-defined one if it recorded none.
-    static CplError from_last_error() {
+    static CplError get_last_error() {
         const CPLErrorNum code = CPLGetLastErrorNo();
         if (code == CPLE_None) {
             return CplError(CPLE_AppDefined, "GDAL recorded no error");
