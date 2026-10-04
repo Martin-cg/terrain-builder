@@ -140,6 +140,7 @@ if(TARGET bvhbuilderlib)
     add_executable(unittests_bvhbuilder
         catch2_helpers.h
         temp_directory.h
+        bvh_builder/frontier_helpers.h
         bvh_builder/batch_cache.cpp
         bvh_builder/batch_reader.cpp
         bvh_builder/batch_storage.cpp
@@ -148,11 +149,14 @@ if(TARGET bvhbuilderlib)
         bvh_builder/flat_traverse.cpp
         bvh_builder/lbvh.cpp
         bvh_builder/merging_receiver.cpp
+        bvh_builder/merge_runs.cpp
         bvh_builder/merging_writer.cpp
         bvh_builder/node_cache.cpp
         bvh_builder/ploc.cpp
         bvh_builder/row_buffer.cpp
+        bvh_builder/sort_by_morton.cpp
         bvh_builder/sort_frontier.cpp
+        bvh_builder/split_into_sorted_runs.cpp
         bvh_builder/tabulate_splits.cpp
         bvh_builder/traverse.cpp
         bvh_builder/traverse_dag.cpp
