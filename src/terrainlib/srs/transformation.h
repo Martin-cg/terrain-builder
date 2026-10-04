@@ -19,15 +19,13 @@ inline MissingTransformation make_missing_transformation(const OGRSpatialReferen
     return MissingTransformation{.source = friendly_name(source_srs), .target = friendly_name(target_srs)};
 }
 
-} // namespace detail
-
-namespace {
 struct TransformationCacheEntry {
     OGRSpatialReference source;
     OGRSpatialReference target;
     std::shared_ptr<OGRCoordinateTransformation> transform;
 };
-}
+
+} // namespace detail
 
 [[nodiscard]]
 inline alp::Result<std::unique_ptr<OGRCoordinateTransformation>, MissingTransformation> uncached_transformation(const OGRSpatialReference &source_srs, const OGRSpatialReference &target_srs) {
@@ -43,7 +41,7 @@ inline alp::Result<std::unique_ptr<OGRCoordinateTransformation>, MissingTransfor
 // Fails when no transformation exists from `source_srs` to `target_srs`.
 [[nodiscard]]
 inline alp::Result<std::shared_ptr<OGRCoordinateTransformation>, MissingTransformation> transformation(const OGRSpatialReference& source_srs, const OGRSpatialReference& target_srs) {
-    thread_local std::vector<TransformationCacheEntry> cache;
+    thread_local std::vector<detail::TransformationCacheEntry> cache;
 
     // Check forward
     for (auto &entry : cache) {
