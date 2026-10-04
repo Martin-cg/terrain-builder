@@ -37,8 +37,9 @@
 #include "frontier/Storage.h"
 #include "frontier/layout.h"
 #include "frontier/merge_entry.h"
-#include "frontier/sort.h"
 #include "frontier/traverse.h"
+#include "sort/options.h"
+#include "sort/sort_by_morton.h"
 
 namespace ploc {
 
@@ -385,6 +386,12 @@ public:
         return frontier::Storage::create(this->get_round_path(round) / "sorted");
     }
 
+    // The directory the sort of a round keeps its runs in.
+    [[nodiscard]]
+    std::filesystem::path get_sort_runs_path(const uint32_t round) const {
+        return this->get_round_path(round) / "sort-runs";
+    }
+
 private:
     [[nodiscard]]
     std::filesystem::path get_round_path(const uint32_t round) const {
@@ -407,10 +414,9 @@ inline alp::Result<bvh::Reference, io::Error, io::DirectoryNotEmpty> build(
     const auto context = alp::make_context("building a tree from {} to {}", std::filesystem::path(input.directory()), output.directory());
 
     const detail::RoundLayout layout(scratch_root);
-    const frontier::SortOptions sort_options{
+    const sort::Options sort_options{
         .max_batch_bytes = options.max_batch_bytes,
         .max_resident_bytes = options.max_resident_bytes,
-        .prefix_bits = options.sort_prefix_bits,
     };
 
     detail::EntryRing ring(options.chunk_size, options.chunk_count, 2 * options.search_radius);
@@ -430,8 +436,7 @@ inline alp::Result<bvh::Reference, io::Error, io::DirectoryNotEmpty> build(
         LOG_DEBUG("ploc round {} left {} entries on the frontier", round, remaining);
 
         ALP_TRY_CONTEXT(frontier::Storage sorted, layout.create_sort_scratch(round), context);
-        ALP_TRY_CONTEXT(frontier::sort_by_morton(merged, sorted, sort_options), context);
-        ALP_TRY_CONTEXT(sorted.save_index(), context);
+        ALP_TRY_CONTEXT(sort::sort_by_morton(merged, sorted, layout.get_sort_runs_path(round), sort_options), context);
 
         if (remaining == 1) {
             ALP_TRY_CONTEXT(const frontier::Batch batch, sorted.read(0), context);

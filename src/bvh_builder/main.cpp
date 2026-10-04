@@ -26,7 +26,8 @@
 #include "bvh/Storage.h"
 #include "bvh/earth.h"
 #include "frontier/Storage.h"
-#include "frontier/sort.h"
+#include "sort/options.h"
+#include "sort/sort_by_morton.h"
 #include "widen/build.h"
 
 namespace {
@@ -81,12 +82,11 @@ alp::Result<void> build_bvh(const cli::Args &args) {
 
     ALP_TRY(frontier::Storage sorted, frontier::Storage::create(scratch.path() / "sorted"));
 
-    const frontier::SortOptions sort_options{
+    const sort::Options sort_options{
         .max_batch_bytes = args.max_batch_bytes,
         .max_resident_bytes = args.max_resident_bytes,
     };
-    ALP_TRY(frontier::sort_by_morton(run, sorted, sort_options));
-    ALP_TRY(sorted.save_index());
+    ALP_TRY(sort::sort_by_morton(run, sorted, scratch.path() / "sort-runs", sort_options));
     LOG_INFO("Sorted the frontier into {} batches", sorted.size());
 
     ALP_TRY(const bvh::Reference root, build_tree(args, std::move(sorted), nodes));
