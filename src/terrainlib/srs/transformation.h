@@ -1,6 +1,8 @@
 #pragma once
 
 #include <memory>
+#include <optional>
+#include <utility>
 #include <vector>
 
 #include <ogr_spatialref.h>
@@ -8,6 +10,7 @@
 #include "error/Result.h"
 #include "error/try.h"
 #include "error/utils.h"
+#include "gdal/CplError.h"
 #include "srs.h"
 #include "srs/error.h"
 
@@ -15,8 +18,8 @@ namespace srs {
 
 namespace detail {
 
-inline MissingTransformation make_missing_transformation(const OGRSpatialReference &source_srs, const OGRSpatialReference &target_srs) {
-    return MissingTransformation{.source = friendly_name(source_srs), .target = friendly_name(target_srs)};
+inline MissingTransformation make_missing_transformation(const OGRSpatialReference &source_srs, const OGRSpatialReference &target_srs, std::optional<gdal::CplError> gdal_error) {
+    return MissingTransformation{.source = friendly_name(source_srs), .target = friendly_name(target_srs), .gdal_error = std::move(gdal_error)};
 }
 
 struct TransformationCacheEntry {
@@ -29,9 +32,12 @@ struct TransformationCacheEntry {
 
 [[nodiscard]]
 inline alp::Result<std::unique_ptr<OGRCoordinateTransformation>, MissingTransformation> uncached_transformation(const OGRSpatialReference &source_srs, const OGRSpatialReference &target_srs) {
-    std::unique_ptr<OGRCoordinateTransformation> transform(OGRCreateCoordinateTransformation(&source_srs, &target_srs));
+    auto [created, gdal_error] = gdal::capture_error([&] {
+        return OGRCreateCoordinateTransformation(&source_srs, &target_srs);
+    });
+    std::unique_ptr<OGRCoordinateTransformation> transform(created);
     if (!transform) {
-        return alp::make_unexpected(detail::make_missing_transformation(source_srs, target_srs));
+        return alp::make_unexpected(detail::make_missing_transformation(source_srs, target_srs, std::move(gdal_error)));
     }
     return transform;
 }
@@ -53,9 +59,12 @@ inline alp::Result<std::shared_ptr<OGRCoordinateTransformation>, MissingTransfor
     // Check inverse 
     for (auto &entry : cache) {
         if (entry.source.IsSame(&target_srs) && entry.target.IsSame(&source_srs)) {
-            std::shared_ptr<OGRCoordinateTransformation> inverse(entry.transform->GetInverse());
+            auto [inverted, gdal_error] = gdal::capture_error([&] {
+                return entry.transform->GetInverse();
+            });
+            std::shared_ptr<OGRCoordinateTransformation> inverse(inverted);
             if (!inverse) {
-                return alp::make_unexpected(detail::make_missing_transformation(source_srs, target_srs));
+                return alp::make_unexpected(detail::make_missing_transformation(source_srs, target_srs, std::move(gdal_error)));
             }
             cache.push_back({source_srs, target_srs, inverse});
             return inverse;

@@ -2,7 +2,9 @@
 
 #include <array>
 #include <cstddef>
+#include <optional>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include <glm/glm.hpp>
@@ -12,6 +14,7 @@
 #include "error/Result.h"
 #include "error/try.h"
 #include "error/utils.h"
+#include "gdal/CplError.h"
 #include "srs.h"
 #include "srs/error.h"
 #include "srs/transformation.h"
@@ -21,10 +24,10 @@ namespace srs {
 namespace detail {
 
 // Creates the code for a point that `transform` cannot map.
-inline UntransformablePoint make_untransformable_point(const OGRCoordinateTransformation *transform) {
+inline UntransformablePoint make_untransformable_point(const OGRCoordinateTransformation *transform, std::optional<gdal::CplError> gdal_error) {
     const OGRSpatialReference *source_srs = ASSERT_VAL(transform->GetSourceCS());
     const OGRSpatialReference *target_srs = ASSERT_VAL(transform->GetTargetCS());
-    return UntransformablePoint{.source = friendly_name(*source_srs), .target = friendly_name(*target_srs)};
+    return UntransformablePoint{.source = friendly_name(*source_srs), .target = friendly_name(*target_srs), .gdal_error = std::move(gdal_error)};
 }
 
 } // namespace detail
@@ -33,16 +36,22 @@ inline UntransformablePoint make_untransformable_point(const OGRCoordinateTransf
 template <typename T>
 [[nodiscard]]
 inline alp::Result<glm::tvec2<T>, UntransformablePoint> transform_point(OGRCoordinateTransformation *transform, glm::tvec2<T> p) {
-    if (!transform->Transform(1, &p.x, &p.y)) {
-        return alp::make_unexpected(detail::make_untransformable_point(transform));
+    auto [success, gdal_error] = gdal::capture_error([&] {
+        return transform->Transform(1, &p.x, &p.y);
+    });
+    if (!success) {
+        return alp::make_unexpected(detail::make_untransformable_point(transform, std::move(gdal_error)));
     }
     return p;
 }
 template <typename T>
 [[nodiscard]]
 inline alp::Result<glm::tvec3<T>, UntransformablePoint> transform_point(OGRCoordinateTransformation *transform, glm::tvec3<T> p) {
-    if (!transform->Transform(1, &p.x, &p.y, &p.z)) {
-        return alp::make_unexpected(detail::make_untransformable_point(transform));
+    auto [success, gdal_error] = gdal::capture_error([&] {
+        return transform->Transform(1, &p.x, &p.y, &p.z);
+    });
+    if (!success) {
+        return alp::make_unexpected(detail::make_untransformable_point(transform, std::move(gdal_error)));
     }
     return p;
 }
@@ -92,15 +101,16 @@ inline alp::Result<void, UntransformablePoint> transform_points_inplace(OGRCoord
         }
     }
 
-    bool success;
-    if constexpr (is_3d) {
-        success = transform->Transform(size, xs.data(), ys.data(), zs.data());
-    } else {
-        success = transform->Transform(size, xs.data(), ys.data());
-    }
+    auto [success, gdal_error] = gdal::capture_error([&] {
+        if constexpr (is_3d) {
+            return transform->Transform(size, xs.data(), ys.data(), zs.data());
+        } else {
+            return transform->Transform(size, xs.data(), ys.data());
+        }
+    });
 
     if (!success) {
-        return alp::make_unexpected(detail::make_untransformable_point(transform));
+        return alp::make_unexpected(detail::make_untransformable_point(transform, std::move(gdal_error)));
     }
 
     for (size_t i = 0; i < size; i++) {
@@ -140,8 +150,11 @@ inline alp::Result<std::vector<glm::tvec2<T>>, UntransformablePoint> transform_p
         zs[i] = points[i].z;
     }
 
-    if (!transform->Transform(points.size(), xs.data(), ys.data(), zs.data())) {
-        return alp::make_unexpected(detail::make_untransformable_point(transform));
+    auto [success, gdal_error] = gdal::capture_error([&] {
+        return transform->Transform(points.size(), xs.data(), ys.data(), zs.data());
+    });
+    if (!success) {
+        return alp::make_unexpected(detail::make_untransformable_point(transform, std::move(gdal_error)));
     }
 
     std::vector<glm::tvec2<T>> transformed;

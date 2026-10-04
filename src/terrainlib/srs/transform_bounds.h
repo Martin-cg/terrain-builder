@@ -16,6 +16,7 @@
 #include "error/Result.h"
 #include "error/try.h"
 #include "error/utils.h"
+#include "gdal/CplError.h"
 #include "srs/transform_points.h"
 #include "srs/transformation.h"
 
@@ -25,8 +26,11 @@ namespace srs {
 inline alp::Result<radix::tile::SrsBounds, UntransformablePoint> non_exact_bounds_transform(OGRCoordinateTransformation *transform, const radix::tile::SrsBounds &bounds) {
     std::array xs = {bounds.min.x, bounds.max.x};
     std::array ys = {bounds.min.y, bounds.max.y};
-    if (!transform->Transform(2, xs.data(), ys.data())) {
-        return alp::make_unexpected(detail::make_untransformable_point(transform));
+    auto [success, gdal_error] = gdal::capture_error([&] {
+        return transform->Transform(2, xs.data(), ys.data());
+    });
+    if (!success) {
+        return alp::make_unexpected(detail::make_untransformable_point(transform, std::move(gdal_error)));
     }
     return radix::tile::SrsBounds{
         {std::min(xs[0], xs[1]), std::min(ys[0], ys[1])},
@@ -42,8 +46,11 @@ inline alp::Result<radix::geometry::Aabb3d, UntransformablePoint> non_exact_boun
     std::array xs = {bounds.min.x, bounds.max.x};
     std::array ys = {bounds.min.y, bounds.max.y};
     std::array zs = {bounds.min.z, bounds.max.z};
-    if (!transform->Transform(2, xs.data(), ys.data(), zs.data())) {
-        return alp::make_unexpected(detail::make_untransformable_point(transform));
+    auto [success, gdal_error] = gdal::capture_error([&] {
+        return transform->Transform(2, xs.data(), ys.data(), zs.data());
+    });
+    if (!success) {
+        return alp::make_unexpected(detail::make_untransformable_point(transform, std::move(gdal_error)));
     }
     return radix::geometry::Aabb3d{{xs[0], ys[0], zs[0]}, {xs[1], ys[1], zs[1]}};
 }
@@ -59,12 +66,14 @@ inline alp::Result<radix::geometry::Aabb3d, TransformError> non_exact_bounds_tra
 [[nodiscard]]
 inline alp::Result<radix::tile::SrsBounds, UntransformablePoint> encompassing_bounds_transfer(OGRCoordinateTransformation *transform, const radix::tile::SrsBounds &source_bounds) {
     radix::tile::SrsBounds target_bounds;
-    const int result = transform->TransformBounds(
-        source_bounds.min.x, source_bounds.min.y, source_bounds.max.x, source_bounds.max.y,
-        &target_bounds.min.x, &target_bounds.min.y, &target_bounds.max.x, &target_bounds.max.y,
-        21);
-    if (result != TRUE) {
-        return alp::make_unexpected(detail::make_untransformable_point(transform));
+    auto [success, gdal_error] = gdal::capture_error([&] {
+        return transform->TransformBounds(
+            source_bounds.min.x, source_bounds.min.y, source_bounds.max.x, source_bounds.max.y,
+            &target_bounds.min.x, &target_bounds.min.y, &target_bounds.max.x, &target_bounds.max.y,
+            21);
+    });
+    if (!success) {
+        return alp::make_unexpected(detail::make_untransformable_point(transform, std::move(gdal_error)));
     }
     return target_bounds;
 }
