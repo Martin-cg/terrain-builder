@@ -30,7 +30,7 @@
 #include "range_utils.h"
 #include "spatial_lookup/Hashmap.h"
 #include "validate.h"
-#include "numeric/StrongDouble.h"
+#include "geometry/compare.h"
 #include "optional_utils.h"
 
 namespace detail {
@@ -89,12 +89,12 @@ struct CandidateEdge {
     double distance_sq;
 
     auto operator<=>(const CandidateEdge &other) const {
-        return std::tuple(StrongDouble{this->distance_sq}, start_index, end_index) <=>
-               std::tuple(StrongDouble{other.distance_sq}, other.start_index, other.end_index);
+        return geometry::tie_strong(this->distance_sq, start_index, end_index) <=>
+               geometry::tie_strong(other.distance_sq, other.start_index, other.end_index);
     }
     auto operator==(const CandidateEdge &other) const {
-        return std::tuple(StrongDouble{this->distance_sq}, start_index, end_index) ==
-               std::tuple(StrongDouble{other.distance_sq}, other.start_index, other.end_index);
+        return geometry::tie_strong(this->distance_sq, start_index, end_index) ==
+               geometry::tie_strong(other.distance_sq, other.start_index, other.end_index);
     }
 };
 
