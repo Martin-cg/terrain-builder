@@ -153,6 +153,7 @@ if(TARGET bvhbuilderlib)
         bvh_builder/merging_writer.cpp
         bvh_builder/node_cache.cpp
         bvh_builder/ploc.cpp
+        bvh_builder/prefix_map.cpp
         bvh_builder/row_buffer.cpp
         bvh_builder/sort_by_morton.cpp
         bvh_builder/sort_frontier.cpp
