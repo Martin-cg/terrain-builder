@@ -218,11 +218,10 @@ alp::Result<void> build_all_patches(
     const auto ecef_srs = srs::ecef();
     ALP_TRY(const auto ecef_bounds, srs::encompassing_bounds_transfer(dataset_srs, ecef_srs, dataset_bounds));
     const auto space = octree::Space::earth();
-    ALP_TRY(
-        const octree::Id root_node,
-        alp::to_expected(
-            space.find_smallest_node_encompassing_bounds(ecef_bounds),
-            "the dataset lies outside the octree root node"));
+    ALP_TRY(const octree::Id root_node, alp::to_expected(
+        space.find_smallest_node_encompassing_bounds(ecef_bounds),
+        "the dataset lies outside the octree root node")
+    );
 
     tbb::concurrent_vector<octree::Id> concurrent_targets;
 
