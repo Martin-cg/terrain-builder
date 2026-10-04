@@ -67,6 +67,7 @@ add_executable(unittests_terrainlib
     terrainlib/octree_odd_level_shifted.cpp
     terrainlib/octree_storage.cpp
     terrainlib/once_cell.cpp
+    terrainlib/parallel.cpp
     terrainlib/polygon_clip.cpp
     terrainlib/polygon_triangulate.cpp
     terrainlib/progress_indicator_test.cpp
