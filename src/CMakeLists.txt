@@ -27,6 +27,8 @@ alp_setup_gdal(GDAL_VERSION v3.10.3 PROJ_VERSION 9.6.0)
 
 alp_setup_cmake_project(cgal URL https://github.com/CGAL/cgal.git COMMITISH "v6.0.1" CMAKE_ARGUMENTS -DBUILD_TESTING=OFF -DWITH_examples=OFF)
 find_package(CGAL REQUIRED)
+# CGAL leaves PACKAGE_VERSION set, which breaks the libdwarf build that libassert pulls in (https://github.com/jeremy-rifkin/libassert/issues/146).
+unset(PACKAGE_VERSION)
 
 include(../cmake/SetupOpenCV.cmake)
 alp_setup_opencv(4.11.0)
@@ -52,7 +54,7 @@ alp_add_git_repository(zpp_bits URL https://github.com/eyalz800/zpp_bits.git COM
 add_library(zpp_bits INTERFACE)
 target_include_directories(zpp_bits SYSTEM INTERFACE ${zpp_bits_SOURCE_DIR})
 
-alp_add_git_repository(libassert URL https://github.com/jeremy-rifkin/libassert.git COMMITISH v2.1.0)
+alp_add_git_repository(libassert URL https://github.com/jeremy-rifkin/libassert.git COMMITISH v2.2.1)
 alp_add_git_repository(magic_enum URL https://github.com/Neargye/magic_enum.git COMMITISH v0.9.7)
 alp_add_git_repository(meshoptimizer URL https://github.com/zeux/meshoptimizer.git COMMITISH v1.0.1)
 
