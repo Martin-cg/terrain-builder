@@ -21,7 +21,6 @@
 
 #include <tbb/concurrent_vector.h>
 #include <tbb/enumerable_thread_specific.h>
-#include <tbb/parallel_for.h>
 #include <tbb/task_group.h>
 
 #include "Dataset.h"
@@ -47,6 +46,7 @@
 #include "octree/Storage.h"
 #include "octree/disk/layout/strategy/LevelAndCoordinateDirectories.h"
 #include "octree/utils.h"
+#include "parallel.h"
 
 namespace terrainbuilder {
 
@@ -293,13 +293,10 @@ alp::Result<void> build_all_patches(
         logger->set_level(new_level);
     }
 
-    tbb::task_group_context context;
-    std::optional<BuildError> first_error;
-    tbb::parallel_for(size_t(0), target_nodes.size(), [&](size_t i) {
-        const auto &node = target_nodes[i];
+    alp::BasicResult<void, BuildError> build_result = parallel::try_for_each(target_nodes, [&](const octree::Id &node) -> alp::BasicResult<void, BuildError> {
         if (!overwrite_existing && storage.has(node)) {
             progress.task_finished(); // TODO: correctly handle virtual nodes
-            return;
+            return {};
         }
 
         auto &dataset = local_dataset.local();
@@ -316,16 +313,10 @@ alp::Result<void> build_all_patches(
             tile_provider,
             mesh_srs,
             storage);
-        if (!result.has_value()) {
-            if (context.cancel_group_execution()) {
-                first_error = std::move(result).error();
-            } else {
-                LOG_UNEXPECTED(result.error());
-            }
-        }
 
         progress.task_finished();
-    }, context);
+        return result;
+    });
 
     // Restore original level
     logger->set_level(original_level);
@@ -333,9 +324,7 @@ alp::Result<void> build_all_patches(
     progress_thread.request_stop();
     progress_thread.join();
 
-    if (first_error.has_value()) {
-        return alp::propagate(std::move(first_error).value());
-    }
+    ALP_TRY(std::move(build_result));
     ALP_TRY(storage.save_or_create_index());
     return {};
 }
