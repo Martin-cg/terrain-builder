@@ -16,15 +16,17 @@
 #include "mesh/reindex.h"
 #include "mesh/connectivity/vertex_index_range.h"
 
-namespace {
+namespace mesh {
+namespace detail {
 using VertexIndex = uint32_t;
 using ComponentIndex = uint32_t;
-} // namespace
+}
 
-namespace mesh {
 struct ComponentsIndex {
-    std::vector<ComponentIndex> vertex_to_component;
+    std::vector<detail::ComponentIndex> vertex_to_component;
     size_t component_count;
+
+    bool operator==(const ComponentsIndex &) const = default;
 };
 
 namespace detail {
@@ -40,6 +42,7 @@ inline UnionFind build_union_find(const std::span<const glm::uvec3> &triangles, 
 }
 }
 
+// Finds the connected components of `triangles`, where triangles sharing a vertex are connected.
 inline ComponentsIndex find_connected_components(const std::span<const glm::uvec3> &triangles, const size_t vertex_count) {
     if (vertex_count == 0) {
         return {};
@@ -49,14 +52,13 @@ inline ComponentsIndex find_connected_components(const std::span<const glm::uvec
     UnionFind components = detail::build_union_find(triangles, vertex_count);
 
     // Convert to vertex to component index mapping
-    std::unordered_map<VertexIndex, ComponentIndex> rep_to_index;
-    ComponentIndex next_index = 0;
+    detail::ComponentIndex next_index = 0;
 
-    const ComponentIndex invalid_component = std::numeric_limits<ComponentIndex>::max();
-    std::vector<ComponentIndex> vertex_to_component(vertex_count, invalid_component);
+    const detail::ComponentIndex invalid_component = std::numeric_limits<detail::ComponentIndex>::max();
+    std::vector<detail::ComponentIndex> vertex_to_component(vertex_count, invalid_component);
 
-    for (VertexIndex vertex_index = 0; vertex_index < vertex_count; vertex_index++) {
-        const VertexIndex rep = components.find(vertex_index);
+    for (detail::VertexIndex vertex_index = 0; vertex_index < vertex_count; vertex_index++) {
+        const detail::VertexIndex rep = components.find(vertex_index);
         uint32_t& component_index = vertex_to_component[rep];
         if (component_index == invalid_component) {
             // representative has not been encountered yet
@@ -126,29 +128,9 @@ inline std::vector<std::vector<glm::uvec3>> split_into_connected_components(cons
     return triangles_per_component;
 }
 
-namespace detail {
-// Requires packed indices, set_count counts unreferenced vertices as their own sets.
 inline size_t count_connected_components(const std::span<const glm::uvec3> triangles, const size_t vertex_count) {
-    DEBUG_ASSERT(vertex_count == compute_vertex_count(triangles));
-    DEBUG_ASSERT(vertex_count == find_max_vertex_index(triangles) + 1);
-    if (vertex_count == 0 || triangles.empty()) {
-        return 0;
-    }
-
-    UnionFind components = detail::build_union_find(triangles, vertex_count);
+    const UnionFind components = detail::build_union_find(triangles, vertex_count);
     return components.set_count();
-}
-} // namespace detail
-inline size_t count_connected_components(const std::span<const glm::uvec3> triangles, const size_t vertex_count) {
-    DEBUG_ASSERT(vertex_count >= vertex_buffer_size(triangles));
-    const uint32_t max_vertex_index = find_max_vertex_index(triangles);
-    if (vertex_count == max_vertex_index + 1) {
-        return detail::count_connected_components(triangles, vertex_count);
-    } else {
-        const std::vector<glm::uvec3> reindexed = reindex(triangles);
-        const uint32_t new_vertex_count = find_max_vertex_index(reindexed) + 1;
-        return detail::count_connected_components(reindexed, new_vertex_count);
-    }
 }
 template <glm::length_t n_dims, typename T>
 size_t count_connected_components(const mesh::View_<n_dims, T> &mesh) {
