@@ -27,7 +27,8 @@
 #include "Dataset.h"
 #include "DatasetReader.h"
 #include "ctb/types.hpp"
-#include "srs.h"
+#include "srs/transform_bounds.h"
+#include "srs/transformation.h"
 #include "../result_helpers.h"
 
 using namespace radix;

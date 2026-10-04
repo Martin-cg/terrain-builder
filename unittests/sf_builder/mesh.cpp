@@ -44,6 +44,7 @@
 #include "octree/Id.h"
 #include "octree/Space.h"
 #include "srs.h"
+#include "srs/transform_points.h"
 #include "mesh/cgal.h"
 #include "mesh/convert.h"
 

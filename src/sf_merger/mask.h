@@ -20,6 +20,9 @@
 #include "mesh/validate.h"
 #include "mesh/bounds.h"
 #include "srs.h"
+#include "srs/transform_bounds.h"
+#include "srs/transform_points.h"
+#include "srs/transformation.h"
 #include "SphereProjector.h"
 
 #include <CGAL/Boolean_set_operations_2.h>

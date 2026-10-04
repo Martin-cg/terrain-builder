@@ -35,7 +35,7 @@
 #include "ctb/GlobalMercator.hpp"
 #include "ctb/types.hpp"
 #include "init.h"
-#include "srs.h"
+#include "srs/transform_bounds.h"
 
 using namespace radix;
 using Catch::Approx;

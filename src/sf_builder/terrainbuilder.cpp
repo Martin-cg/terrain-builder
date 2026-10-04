@@ -27,6 +27,8 @@
 #include "ctb/GlobalMercator.hpp"
 #include "ctb/Grid.hpp"
 #include "srs.h"
+#include "srs/transform_bounds.h"
+#include "srs/transformation.h"
 
 #include "ProgressIndicator.h"
 #include "error/log.h"

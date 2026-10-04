@@ -20,7 +20,7 @@
 #include "numeric/glm_math.h"
 #include "numeric/int_math.h"
 #include "optional_utils.h"
-#include "srs.h"
+#include "srs/transform_bounds.h"
 
 #include "error/try.h"
 #include "tile_provider.h"
