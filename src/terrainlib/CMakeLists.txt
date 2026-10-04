@@ -80,6 +80,7 @@ target_link_libraries(terrainlib PUBLIC
     opencv_imgproc
     opencv_imgcodecs
     libassert::assert
+    cpptrace::cpptrace
     magic_enum::magic_enum
     meshoptimizer
     WideInteger

@@ -5,6 +5,7 @@
 #include <span>
 #include <string>
 
+#include <cpptrace/utils.hpp>
 #include <fmt/format.h>
 
 #include "enumerate.h"
@@ -85,7 +86,7 @@ private:
     };
 
     static std::string format_location(const std::source_location location) {
-        return fmt::format("at {}:{}:{} in {}", location.file_name(), location.line(), location.column(), location.function_name());
+        return fmt::format("{} at {}:{}:{}", cpptrace::prune_symbol(location.function_name()), location.file_name(), location.line(), location.column());
     }
 
     Form _form = Form::Message;
