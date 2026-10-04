@@ -28,9 +28,9 @@
 
 namespace frontier {
 
-// Entries in ascending morton order.
+// Sorts `entries` in ascending order.
 inline void sort_entries(const std::span<Entry> entries) {
-    std::ranges::sort(entries, {}, &Entry::morton);
+    std::ranges::sort(entries);
 }
 
 // Sorts every batch of the run in itself.

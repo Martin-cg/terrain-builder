@@ -18,6 +18,9 @@ struct Entry {
     bvh::Reference ref;
 
     bool operator==(const Entry &) const = default;
+
+    // Orders entries by Morton code, then by header, then by reference.
+    auto operator<=>(const Entry &) const = default;
 };
 
 // Admitted and held are recomputed per round from the limit, never stored.

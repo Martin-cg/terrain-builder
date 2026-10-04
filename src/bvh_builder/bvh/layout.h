@@ -1,5 +1,6 @@
 #pragma once
 
+#include <compare>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -10,6 +11,7 @@
 #include <libassert/assert.hpp>
 #include <radix/geometry.h>
 
+#include "geometry/compare.h"
 #include "mem.h"
 #include "variant_utils.h"
 #include "zpp_bits_utils.h"
@@ -37,6 +39,12 @@ struct NodeHeader {
     Bounds bounds;
 
     bool operator==(const NodeHeader &) const = default;
+
+    // Orders headers by their error interval, then by their bounds.
+    std::strong_ordering operator<=>(const NodeHeader &other) const {
+        return geometry::tie_strong(this->min_child_error, this->max_parent_error, this->bounds) <=>
+               geometry::tie_strong(other.min_child_error, other.max_parent_error, other.bounds);
+    }
 };
 
 struct Node {
