@@ -29,11 +29,19 @@
 #include "srs/transform_bounds.h"
 #include "srs/transformation.h"
 
+#include "octree/Id.h"
+#include "octree/Space.h"
+#include "octree/Storage.h"
+#include "octree/disk/layout/strategy/LevelAndCoordinateDirectories.h"
+#include "octree/utils.h"
+
 #include "ProgressIndicator.h"
 #include "error/log.h"
 #include "error/try.h"
 #include "error/utils.h"
+#include "LogScope.h"
 #include "log.h"
+#include "mem.h"
 #include "mesh/SimpleMesh.h"
 #include "mesh/io.h"
 #include "mesh_builder.h"
@@ -41,12 +49,6 @@
 #include "texture_assembler.h"
 #include "tile_provider.h"
 #include "mesh/validate.h"
-
-#include "octree/Id.h"
-#include "octree/Space.h"
-#include "octree/Storage.h"
-#include "octree/disk/layout/strategy/LevelAndCoordinateDirectories.h"
-#include "octree/utils.h"
 #include "parallel.h"
 
 namespace terrainbuilder {
@@ -273,13 +275,7 @@ alp::Result<void> build_all_patches(
     });
 
     // Decrease log level to error to avoid excessive logging during mesh building
-    auto logger = Log::get_logger();
-    const auto original_level = logger->level();
-    const auto new_level = spdlog::level::err;
-    // Only set to if it's more restrictive than current level
-    if (new_level >= original_level) {
-        logger->set_level(new_level);
-    }
+    LogScope log_scope(spdlog::level::err);
 
     alp::BasicResult<void, BuildError> build_result = parallel::try_for_each(target_nodes, [&](const octree::Id &node) -> alp::BasicResult<void, BuildError> {
         if (!overwrite_existing && storage.has(node)) {
@@ -307,7 +303,7 @@ alp::Result<void> build_all_patches(
     });
 
     // Restore original level
-    logger->set_level(original_level);
+    drop(std::move(log_scope));
 
     progress_thread.request_stop();
     progress_thread.join();
