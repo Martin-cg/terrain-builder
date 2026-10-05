@@ -2,10 +2,10 @@
 #include <cstddef>
 #include <cstdlib>
 #include <filesystem>
-#include <functional>
 #include <iomanip>
 #include <memory>
 #include <optional>
+#include <ranges>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -21,7 +21,6 @@
 
 #include <tbb/concurrent_vector.h>
 #include <tbb/enumerable_thread_specific.h>
-#include <tbb/task_group.h>
 
 #include "Dataset.h"
 #include "ctb/GlobalMercator.hpp"
@@ -33,7 +32,6 @@
 #include "ProgressIndicator.h"
 #include "error/log.h"
 #include "error/try.h"
-#include "error/unwrap.h"
 #include "error/utils.h"
 #include "log.h"
 #include "mesh/SimpleMesh.h"
@@ -228,43 +226,32 @@ alp::Result<void> build_all_patches(
 
     tbb::concurrent_vector<octree::Id> concurrent_targets;
 
-    tbb::task_group tg;
-    std::function<void(octree::Id)> process_node;
-
-    tbb::enumerable_thread_specific<std::shared_ptr<OGRCoordinateTransformation>> transform_ecef_dataset([&]() {
-        auto local_ecef_srs = ecef_srs;
-        auto local_dataset_srs = dataset_srs;
-        auto transform = alp::unwrap(srs::transformation(local_ecef_srs, local_dataset_srs));
-        return transform;
-    });
-
-    process_node = [&](octree::Id node) {
+    ALP_TRY(parallel::try_for_each(std::views::single(root_node), [&](const octree::Id &node, parallel::Feeder<octree::Id> &feeder) -> alp::Result<void, srs::TransformError> {
         // Check if node intersects with ecef bounds of dataset
         const auto node_bounds = space.get_node_bounds(node);
         if (!radix::geometry::intersect(node_bounds, ecef_bounds)) {
-            return;
+            return {};
         }
 
         // Check if node bounds in dataset srs intersect with dataset
-        const auto node_bounds_dataset_srs = alp::unwrap(srs::encompassing_bounds_transfer(
-            &*transform_ecef_dataset.local(), node_bounds, 7, 3));
+        ALP_TRY(const auto transform_ecef_dataset, srs::transformation(ecef_srs, dataset_srs));
+        ALP_TRY(const auto node_bounds_dataset_srs, srs::encompassing_bounds_transfer(
+            transform_ecef_dataset.get(), node_bounds, 7, 3));
         if (!radix::geometry::intersect(node_bounds_dataset_srs, dataset_bounds)) {
-            return;
+            return {};
         }
 
         if (node.level() < target_level) {
             if (auto children = node.children(); children.has_value()) {
                 for (const auto &child : *children) {
-                    tg.run([&, child] { process_node(child); });
+                    feeder.add(child);
                 }
             }
         } else if (node.level() == target_level) {
             concurrent_targets.push_back(node);
         }
-    };
-
-    tg.run([&] { process_node(root_node); });
-    tg.wait(); // Wait for all tasks
+        return {};
+    }));
 
     std::vector<octree::Id> target_nodes;
     target_nodes.assign(concurrent_targets.begin(), concurrent_targets.end());
