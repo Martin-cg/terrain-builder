@@ -45,6 +45,7 @@ add_executable(unittests_terrainlib
     terrainlib/index_traverse.cpp
     terrainlib/io.cpp
     terrainlib/io_filesystem.cpp
+    terrainlib/mem.cpp
     terrainlib/mesh_boundary.cpp
     terrainlib/mesh_bounds.cpp
     terrainlib/mesh_cleanup.cpp
