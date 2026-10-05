@@ -145,9 +145,9 @@ alp::Result<void, gdal::CplError, TileError, srs::TransformError, mesh::io::Erro
     start = std::chrono::high_resolution_clock::now();
     // TODO: use a JSON libary instead
     std::unordered_map<std::string, std::string> metadata;
-    metadata["mesh_srs"] = mesh_srs.GetAuthorityCode(nullptr);
-    metadata["bounds_srs"] = target_bounds_srs.GetAuthorityCode(nullptr);
-    metadata["texture_srs"] = texture_srs.GetAuthorityCode(nullptr);
+    metadata["mesh_srs"] = srs::friendly_name(mesh_srs);
+    metadata["bounds_srs"] = srs::friendly_name(target_bounds_srs);
+    metadata["texture_srs"] = srs::friendly_name(texture_srs);
     metadata["bounds"] = fmt::format(
         "{{ \"min\": {{ \"x\": {}, \"y\": {} }}, \"max\": {{ \"x\": {}, \"y\": {} }} }}",
         target_bounds.min.x, target_bounds.min.y, target_bounds.max.x, target_bounds.max.y);
