@@ -54,7 +54,11 @@ alp_add_git_repository(zpp_bits URL https://github.com/eyalz800/zpp_bits.git COM
 add_library(zpp_bits INTERFACE)
 target_include_directories(zpp_bits SYSTEM INTERFACE ${zpp_bits_SOURCE_DIR})
 
+# Also used by libassert; keep in sync with the version it expects.
+alp_add_git_repository(cpptrace URL https://github.com/jeremy-rifkin/cpptrace.git COMMITISH v1.0.4 DO_NOT_ADD_SUBPROJECT)
+set(FETCHCONTENT_SOURCE_DIR_CPPTRACE ${cpptrace_SOURCE_DIR} CACHE INTERNAL "" FORCE)
 alp_add_git_repository(libassert URL https://github.com/jeremy-rifkin/libassert.git COMMITISH v2.2.1)
+
 alp_add_git_repository(magic_enum URL https://github.com/Neargye/magic_enum.git COMMITISH v0.9.7)
 alp_add_git_repository(meshoptimizer URL https://github.com/zeux/meshoptimizer.git COMMITISH v1.0.1)
 
