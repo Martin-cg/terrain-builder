@@ -74,6 +74,15 @@ inline std::unique_ptr<System> clone(const System &srs) {
     return std::unique_ptr<System>(cloned);
 }
 
+// Creates a copy of `srs` that several threads may use at the same time.
+[[nodiscard]]
+inline std::unique_ptr<const System> make_thread_safe(const System &srs) {
+    // A copy of a thread-safe system is not thread-safe, so the result lives where nobody copies it by accident.
+    auto thread_safe = std::make_unique<System>();
+    thread_safe->AssignAndSetThreadSafe(srs);
+    return thread_safe;
+}
+
 [[nodiscard]]
 inline alp::Result<System, gdal::OgrError> from_epsg(const uint32_t epsg) {
     System srs;

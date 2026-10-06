@@ -211,11 +211,11 @@ alp::Result<void> build_all_patches(
     ));
     storage.settings().allow_overwrite = overwrite_existing;
 
-    const auto dataset_srs = dataset.srs();
+    const auto dataset_srs = srs::make_thread_safe(dataset.srs());
     const auto dataset_bounds = dataset.bounds3d(true);
 
-    const auto ecef_srs = srs::ecef();
-    ALP_TRY(const auto ecef_bounds, srs::encompassing_bounds_transfer(dataset_srs, ecef_srs, dataset_bounds));
+    const auto ecef_srs = srs::make_thread_safe(srs::ecef());
+    ALP_TRY(const auto ecef_bounds, srs::encompassing_bounds_transfer(*dataset_srs, *ecef_srs, dataset_bounds));
     const auto space = octree::Space::earth();
     ALP_TRY(const octree::Id root_node, alp::to_expected(
         space.find_smallest_node_encompassing_bounds(ecef_bounds),
@@ -232,7 +232,7 @@ alp::Result<void> build_all_patches(
         }
 
         // Check if node bounds in dataset srs intersect with dataset
-        ALP_TRY(const srs::Transform transform_ecef_dataset, srs::get_transform(ecef_srs, dataset_srs));
+        ALP_TRY(const srs::Transform transform_ecef_dataset, srs::get_transform(*ecef_srs, *dataset_srs));
         ALP_TRY(const auto node_bounds_dataset_srs, srs::encompassing_bounds_transfer(
             transform_ecef_dataset, node_bounds, 7, 3));
         if (!radix::geometry::intersect(node_bounds_dataset_srs, dataset_bounds)) {
@@ -257,18 +257,9 @@ alp::Result<void> build_all_patches(
     ProgressIndicator progress(target_nodes.size());
     std::jthread progress_thread = progress.start_monitoring();
 
-    // Clone dataset and SRSs for each thread
+    // Clone dataset for each thread
     tbb::enumerable_thread_specific<Dataset> local_dataset([&]() {
         return dataset.clone();
-    });
-    tbb::enumerable_thread_specific<std::unique_ptr<srs::System>> local_ecef_srs([&]() {
-        return srs::clone(ecef_srs);
-    });
-    tbb::enumerable_thread_specific<std::unique_ptr<srs::System>> local_texture_srs([&]() {
-        return srs::clone(texture_srs);
-    });
-    tbb::enumerable_thread_specific<std::unique_ptr<srs::System>> local_mesh_srs([&]() {
-        return srs::clone(mesh_srs);
     });
 
     // Decrease log level to error to avoid excessive logging during mesh building
@@ -281,15 +272,12 @@ alp::Result<void> build_all_patches(
         }
 
         auto &dataset = local_dataset.local();
-        auto &ecef_srs = *local_ecef_srs.local();
-        auto &texture_srs = *local_texture_srs.local();
-        auto &mesh_srs = *local_mesh_srs.local();
 
         auto result = build_and_save_node(
             dataset,
             space,
             node,
-            ecef_srs,
+            *ecef_srs,
             texture_srs,
             tile_provider,
             mesh_srs,

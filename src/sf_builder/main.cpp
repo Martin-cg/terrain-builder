@@ -250,11 +250,12 @@ alp::Result<void> run(const cli::Args &args) {
     ALP_TRY(Dataset dataset, Dataset::open_raster(base_args.dataset_path));
     ALP_TRY(dataset.geo_transform());
     ALP_TRY(log_dataset_overview(dataset));
-    ALP_TRY(const srs::System mesh_srs, srs::from_user_input(base_args.mesh_srs_input));
-    const srs::System texture_srs = srs::webmercator();
-    const std::unique_ptr<TileProvider> tile_provider = make_tile_provider(base_args);
+    ALP_TRY(const auto parsed_mesh_srs, srs::from_user_input(base_args.mesh_srs_input));
+    const auto mesh_srs = srs::make_thread_safe(parsed_mesh_srs);
+    const auto texture_srs = srs::make_thread_safe(srs::webmercator());
+    const auto tile_provider = make_tile_provider(base_args);
 
-    return std::visit([&](const auto &args) { return run(args, dataset, mesh_srs, texture_srs, tile_provider.get()); }, args);
+    return std::visit([&](const auto &args) { return run(args, dataset, *mesh_srs, *texture_srs, tile_provider.get()); }, args);
 }
 
 int main(int argc, char **argv) {
