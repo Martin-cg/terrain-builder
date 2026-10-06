@@ -39,7 +39,6 @@
 #include "init.h"
 #include "log.h"
 #include "srs/transform_bounds.h"
-#include "srs/transformation.h"
 
 void GDALDatasetDeleter::operator()(GDALDataset *dataset) const {
     if (dataset) {
@@ -171,54 +170,12 @@ radix::tile::SrsAndHeightBounds Dataset::bounds3d(bool approx_ok) const {
 
 radix::tile::SrsBounds Dataset::bounds(const OGRSpatialReference &targetSrs) const {
     const auto l_bounds = bounds();
-    const auto west = l_bounds.min.x;
-    const auto east = l_bounds.max.x;
-    const auto north = l_bounds.max.y;
-    const auto south = l_bounds.min.y;
-
-    const auto data_srs = srs();
-    if (targetSrs.IsSame(&data_srs))
-        return l_bounds;
-
-    // We need to transform the bounds to the target SRS
-    // this might involve warping, i.e. some of the edges can be arcs.
-    // therefore we want to walk the perimiter and get min/max from there.
-    // a resolution of 2000 samples per border should give a good enough approximation.
-
-    // hey, check out inline virtual int TransformBounds(const double xmin, const double ymin, const double xmax, const double ymax, double *out_xmin, double *out_ymin, double *out_xmax, double *out_ymax, const int densify_pts)
-    std::vector<double> x;
-    std::vector<double> y;
-    auto addCoordinate = [&](double xv, double yv) { x.emplace_back(xv); y.emplace_back(yv); };
-
-    const auto deltaX = l_bounds.width() / 2000.0;
-    if (deltaX <= 0.0)
+    if (l_bounds.width() <= 0.0)
         throw std::runtime_error("west coordinate > east coordinate. This is not supported.");
-    for (double s = west; s < east; s += deltaX) {
-        addCoordinate(s, south);
-        addCoordinate(s, north);
-    }
-    const auto deltaY = (north - south) / 2000.0;
-    if (deltaY <= 0.0)
+    if (l_bounds.height() <= 0.0)
         throw std::runtime_error("south coordinate > north coordinate. This is not supported.");
-    for (double s = south; s < north; s += deltaY) {
-        addCoordinate(west, s);
-        addCoordinate(east, s);
-    }
-    // don't wanna miss out the max/max edge vertex
-    addCoordinate(east, north);
 
-    const auto transformer = alp::unwrap(srs::transformation(srs(), targetSrs));
-    if (!transformer->Transform(int(x.size()), x.data(), y.data())) {
-        throw std::runtime_error("Could not transform dataset bounds to target SRS");
-    }
-
-    DEBUG_ASSERT(!x.empty());
-    DEBUG_ASSERT(!y.empty());
-    const double target_minX = *std::min_element(x.begin(), x.end());
-    const double target_maxX = *std::max_element(x.begin(), x.end());
-    const double target_minY = *std::min_element(y.begin(), y.end());
-    const double target_maxY = *std::max_element(y.begin(), y.end());
-    return {{target_minX, target_minY}, {target_maxX, target_maxY}};
+    return alp::unwrap(srs::encompassing_bounds_transfer(srs(), targetSrs, l_bounds, 2000));
 }
 
 OGRSpatialReference Dataset::srs() const {

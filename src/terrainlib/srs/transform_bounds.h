@@ -64,13 +64,13 @@ inline alp::Result<radix::geometry::Aabb3d, TransformError> non_exact_bounds_tra
 /// in such a way that all points inside the original bounds are guaranteed to also be in the new bounds.
 /// But there can be points inside the new bounds that were not present in the original ones.
 [[nodiscard]]
-inline alp::Result<radix::tile::SrsBounds, UntransformablePoint> encompassing_bounds_transfer(OGRCoordinateTransformation *transform, const radix::tile::SrsBounds &source_bounds) {
+inline alp::Result<radix::tile::SrsBounds, UntransformablePoint> encompassing_bounds_transfer(OGRCoordinateTransformation *transform, const radix::tile::SrsBounds &source_bounds, const uint32_t intermediate_points_edges = 21) {
     radix::tile::SrsBounds target_bounds;
     auto [success, gdal_error] = gdal::capture_error([&] {
         return transform->TransformBounds(
             source_bounds.min.x, source_bounds.min.y, source_bounds.max.x, source_bounds.max.y,
             &target_bounds.min.x, &target_bounds.min.y, &target_bounds.max.x, &target_bounds.max.y,
-            21);
+            static_cast<int>(intermediate_points_edges));
     });
     if (!success) {
         return alp::make_unexpected(detail::make_untransformable_point(transform, std::move(gdal_error)));
@@ -78,13 +78,13 @@ inline alp::Result<radix::tile::SrsBounds, UntransformablePoint> encompassing_bo
     return target_bounds;
 }
 [[nodiscard]]
-inline alp::Result<radix::tile::SrsBounds, TransformError> encompassing_bounds_transfer(const OGRSpatialReference &source_srs, const OGRSpatialReference &target_srs, const radix::tile::SrsBounds &source_bounds) {
+inline alp::Result<radix::tile::SrsBounds, TransformError> encompassing_bounds_transfer(const OGRSpatialReference &source_srs, const OGRSpatialReference &target_srs, const radix::tile::SrsBounds &source_bounds, const uint32_t intermediate_points_edges = 21) {
     if (source_srs.IsSame(&target_srs)) {
         return source_bounds;
     }
 
     ALP_TRY(const std::shared_ptr<OGRCoordinateTransformation> transformation, srs::transformation(source_srs, target_srs));
-    return encompassing_bounds_transfer(transformation.get(), source_bounds);
+    return encompassing_bounds_transfer(transformation.get(), source_bounds, intermediate_points_edges);
 }
 
 [[nodiscard]]
