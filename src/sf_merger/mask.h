@@ -233,7 +233,7 @@ namespace detail {
 
 [[nodiscard]]
 inline alp::Result<ReferencedPolygonMask, ContentError> load_referenced_from_dataset(Dataset& mask_dataset) {
-    GDALDataset *dataset = mask_dataset.gdalDataset();
+    GDALDataset *dataset = mask_dataset.as_gdal();
 
     MultipolygonWithHoles2 polygons;
     for (auto &&feature_layer_pair : dataset->GetFeatures()) {

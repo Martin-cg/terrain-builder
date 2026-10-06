@@ -258,10 +258,10 @@ unsigned Dataset::n_bands() const {
     return unsigned(n);
 }
 
-GDALDataset *Dataset::gdalDataset() {
+GDALDataset *Dataset::as_gdal() {
     return m_gdal_dataset.get();
 }
-const GDALDataset *Dataset::gdalDataset() const {
+const GDALDataset *Dataset::as_gdal() const {
     return m_gdal_dataset.get();
 }
 

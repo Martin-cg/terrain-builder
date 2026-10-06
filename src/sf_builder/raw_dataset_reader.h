@@ -26,7 +26,7 @@ namespace terrainbuilder {
 class RawDatasetReader {
 public:
     RawDatasetReader(Dataset &target_dataset)
-        : dataset(target_dataset.gdalDataset()), geo_transform(alp::unwrap(target_dataset.geo_transform())) {}
+        : dataset(target_dataset.as_gdal()), geo_transform(alp::unwrap(target_dataset.geo_transform())) {}
 
     GDALDataset *gdal_dataset() {
         return this->dataset;

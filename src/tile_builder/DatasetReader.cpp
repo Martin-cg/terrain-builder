@@ -59,7 +59,7 @@ GdalImageTransformArgsPtr make_image_transform_args(const DatasetReader& reader,
         transformOptions.SetNameValue("SRC_SRS", reader.dataset_srs_wkt().c_str());
         transformOptions.SetNameValue("DST_SRS", reader.target_srs_wkt().c_str());
     }
-    auto args = GdalImageTransformArgsPtr(GDALCreateGenImgProjTransformer2(dataset->gdalDataset(), nullptr, transformOptions.List()), &GDALDestroyGenImgProjTransformer);
+    auto args = GdalImageTransformArgsPtr(GDALCreateGenImgProjTransformer2(dataset->as_gdal(), nullptr, transformOptions.List()), &GDALDestroyGenImgProjTransformer);
     if (!args) {
         throw Exception("GDALCreateGenImgProjTransformer2 failed.");
     }
@@ -76,7 +76,7 @@ using WarpOptionData = std::pair<GdalWarpOptionsPtr, GdalImageTransformArgsPtr>;
 WarpOptionData makeWarpOptions(const DatasetReader& reader, Dataset* dataset, const radix::tile::SrsBounds& bounds, unsigned width, unsigned height)
 {
     auto options = GdalWarpOptionsPtr(GDALCreateWarpOptions(), &GDALDestroyWarpOptions);
-    options->hSrcDS = dataset->gdalDataset();
+    options->hSrcDS = dataset->as_gdal();
     options->nBandCount = 1;
     options->eResampleAlg = GDALResampleAlg::GRA_Cubic;
     options->panSrcBands = static_cast<int*>(CPLMalloc(sizeof(int) * 1));
@@ -87,7 +87,7 @@ WarpOptionData makeWarpOptions(const DatasetReader& reader, Dataset* dataset, co
     options->padfDstNoDataImag = static_cast<double*>(CPLMalloc(sizeof(double) * 1));
     {
         int bGotNoData = false;
-        double noDataValue = dataset->gdalDataset()->GetRasterBand(1)->GetNoDataValue(&bGotNoData);
+        double noDataValue = dataset->as_gdal()->GetRasterBand(1)->GetNoDataValue(&bGotNoData);
         if (!bGotNoData)
             noDataValue = -32768;
 
@@ -117,7 +117,7 @@ WarpOptionData makeWarpOptions(const DatasetReader& reader, Dataset* dataset, co
 #ifdef ALP_ENABLE_OVERVIEW_READING
 std::shared_ptr<Dataset> getOverviewDataset(const std::shared_ptr<Dataset>& dataset, void* hTransformerArg, bool warn_on_missing_overviews)
 {
-    GDALDataset* poSrcDS = dataset->gdalDataset();
+    GDALDataset* poSrcDS = dataset->as_gdal();
     int nOvLevel = -2;
     int nOvCount = poSrcDS->GetRasterBand(1)->GetOverviewCount();
 
@@ -209,9 +209,9 @@ HeightData DatasetReader::readFrom(const std::shared_ptr<Dataset>& source_datase
 
     auto warp_options = makeWarpOptions(*this, source_dataset.get(), bounds, width, height);
     auto adfGeoTransform = computeGeoTransform(bounds, width, height);
-    auto warped_dataset = Dataset(static_cast<GDALDataset*>(GDALCreateWarpedVRT(source_dataset->gdalDataset(), int(width), int(height), adfGeoTransform.data(), warp_options.first.get())));
+    auto warped_dataset = Dataset(static_cast<GDALDataset*>(GDALCreateWarpedVRT(source_dataset->as_gdal(), int(width), int(height), adfGeoTransform.data(), warp_options.first.get())));
 
-    auto* heights_band = warped_dataset.gdalDataset()->GetRasterBand(1); // non-owning pointer
+    auto* heights_band = warped_dataset.as_gdal()->GetRasterBand(1); // non-owning pointer
     auto heights_data = HeightData(width, height);
     if (heights_band->RasterIO(GF_Read, 0, 0, int(width), int(height),
             static_cast<void*>(heights_data.data()), int(width), int(height), GDT_Float32, 0, 0)

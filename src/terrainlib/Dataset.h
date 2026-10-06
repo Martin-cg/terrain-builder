@@ -71,8 +71,8 @@ public:
     [[nodiscard]] double widthInPixels(const radix::tile::SrsBounds &bounds, const OGRSpatialReference &bounds_srs) const;
     [[nodiscard]] double heightInPixels(const radix::tile::SrsBounds &bounds, const OGRSpatialReference &bounds_srs) const;
     [[nodiscard]] unsigned int n_bands() const;
-    [[nodiscard]] GDALDataset *gdalDataset();
-    [[nodiscard]] const GDALDataset *gdalDataset() const;
+    [[nodiscard]] GDALDataset *as_gdal();
+    [[nodiscard]] const GDALDataset *as_gdal() const;
 
     [[nodiscard]] double gridResolution(const OGRSpatialReference &target_srs) const;
     [[nodiscard]] double pixelWidthIn(const OGRSpatialReference &target_srs) const;
