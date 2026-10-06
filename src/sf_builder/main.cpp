@@ -31,14 +31,6 @@
 #include "ctb/GlobalMercator.hpp"
 #include "ctb/Grid.hpp"
 
-int32_t srs_dimension(const srs::System &srs) {
-    if (srs.IsCompound())
-        return 3;
-    if (srs.IsGeographic() || srs.IsProjected())
-        return 2;
-    return 2; // fallback
-}
-
 radix::geometry::Aabb3d extend_bounds_to_3d(radix::geometry::Aabb2d bounds2d) {
     const double infinity = std::numeric_limits<double>::infinity();
     const glm::dvec3 min(bounds2d.min, -infinity);
@@ -47,7 +39,7 @@ radix::geometry::Aabb3d extend_bounds_to_3d(radix::geometry::Aabb2d bounds2d) {
 }
 
 radix::geometry::Aabb3d parse_bounds_from_values(const std::vector<double> &data, const srs::System &srs) {
-    const int32_t dim = srs_dimension(srs);
+    const int32_t dim = srs.GetAxesCount();
     const size_t expected = (dim == 3) ? 6 : 4;
 
     if (data.size() != expected) {
