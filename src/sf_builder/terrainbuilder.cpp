@@ -151,9 +151,6 @@ alp::Result<void, gdal::CplError, TileError, srs::TransformError, mesh::io::Erro
     metadata["bounds"] = fmt::format(
         "{{ \"min\": {{ \"x\": {}, \"y\": {} }}, \"max\": {{ \"x\": {}, \"y\": {} }} }}",
         target_bounds.min.x, target_bounds.min.y, target_bounds.max.x, target_bounds.max.y);
-    // metadata["texture_bounds"] = fmt::format(
-    //     "{{ \"min\": {{ \"x\": {}, \"y\": {} }}, \"max\": {{ \"x\": {}, \"y\": {} }} }}",
-    //    texture_bounds.min.x, texture_bounds.min.y, texture_bounds.max.x, texture_bounds.max.y);
     ALP_TRY(mesh::io::save_to_path(mesh, output_path, mesh::io::SaveOptions{.metadata = metadata}));
     LOG_DEBUG("Writing mesh took {}s", format_secs_since(start));
     LOG_INFO("Done writing mesh to {}", output_path);
