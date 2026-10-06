@@ -169,7 +169,7 @@ radix::tile::SrsAndHeightBounds Dataset::bounds3d(bool approx_ok) const {
     return bounds3d;
 }
 
-radix::tile::SrsBounds Dataset::bounds(const OGRSpatialReference &targetSrs) const {
+radix::tile::SrsBounds Dataset::bounds(const srs::System &targetSrs) const {
     const auto l_bounds = bounds();
     if (l_bounds.width() <= 0.0)
         throw std::runtime_error("west coordinate > east coordinate. This is not supported.");
@@ -179,8 +179,8 @@ radix::tile::SrsBounds Dataset::bounds(const OGRSpatialReference &targetSrs) con
     return alp::unwrap(srs::encompassing_bounds_transfer(srs(), targetSrs, l_bounds, 2000));
 }
 
-OGRSpatialReference Dataset::srs() const {
-    const OGRSpatialReference *source_srs = m_gdal_dataset->GetSpatialRef();
+srs::System Dataset::srs() const {
+    const srs::System *source_srs = m_gdal_dataset->GetSpatialRef();
     for (int layer_index = 0; source_srs == nullptr && layer_index < m_gdal_dataset->GetLayerCount(); ++layer_index) {
         if (OGRLayer *layer = m_gdal_dataset->GetLayer(layer_index)) {
             source_srs = layer->GetSpatialRef();
@@ -202,11 +202,11 @@ unsigned Dataset::heightInPixels() const {
     return ctb::i_pixel(m_gdal_dataset->GetRasterYSize());
 }
 
-double Dataset::widthInPixels(const radix::tile::SrsBounds &bounds, const OGRSpatialReference &bounds_srs) const {
+double Dataset::widthInPixels(const radix::tile::SrsBounds &bounds, const srs::System &bounds_srs) const {
     return bounds.width() / pixelWidthIn(bounds_srs);
 }
 
-double Dataset::heightInPixels(const radix::tile::SrsBounds &bounds, const OGRSpatialReference &bounds_srs) const {
+double Dataset::heightInPixels(const radix::tile::SrsBounds &bounds, const srs::System &bounds_srs) const {
     return bounds.height() / pixelHeightIn(bounds_srs);
 }
 
@@ -223,21 +223,21 @@ const GDALDataset *Dataset::as_gdal() const {
     return m_gdal_dataset.get();
 }
 
-double Dataset::gridResolution(const OGRSpatialReference &target_srs) const {
+double Dataset::gridResolution(const srs::System &target_srs) const {
     return std::min(pixelWidthIn(target_srs), pixelHeightIn(target_srs));
 }
 
-double Dataset::pixelWidthIn(const OGRSpatialReference &target_srs) const {
+double Dataset::pixelWidthIn(const srs::System &target_srs) const {
     const auto b0 = bounds();
     const auto b1 = alp::unwrap(srs::non_exact_bounds_transform(b0, srs(), target_srs));
     return b1.width() / widthInPixels();
 }
 
-double Dataset::pixelHeightIn(const OGRSpatialReference &target_srs) const {
+double Dataset::pixelHeightIn(const srs::System &target_srs) const {
     const auto b = alp::unwrap(srs::non_exact_bounds_transform(bounds(), srs(), target_srs));
     return b.height() / heightInPixels();
 }
 
-glm::dvec2 Dataset::pixelSizeIn(const OGRSpatialReference &target_srs) const {
+glm::dvec2 Dataset::pixelSizeIn(const srs::System &target_srs) const {
     return glm::dvec2(this->pixelWidthIn(target_srs), this->pixelHeightIn(target_srs));
 }

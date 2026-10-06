@@ -88,13 +88,13 @@ SimpleMesh meshify(const raster::Raster<glm::dvec3>& source_points, const raster
     return SimpleMesh(triangles, positions);
 }
 
-alp::Result<SimpleMesh, srs::TransformError> transform_mesh(SimpleMesh&& source_mesh, const OGRSpatialReference &source_srs, const OGRSpatialReference &target_srs) {
+alp::Result<SimpleMesh, srs::TransformError> transform_mesh(SimpleMesh&& source_mesh, const srs::System &source_srs, const srs::System &target_srs) {
     ALP_TRY(const srs::Transform transform, srs::get_transform(source_srs, target_srs));
     ALP_TRY(transform.apply_inplace(source_mesh.positions));
     return source_mesh;
 }
 /*
-SimpleMesh transform_mesh(const SimpleMesh &source_mesh, const OGRSpatialReference &source_srs, const OGRSpatialReference& target_srs) {
+SimpleMesh transform_mesh(const SimpleMesh &source_mesh, const srs::System &source_srs, const srs::System& target_srs) {
     SimpleMesh target_mesh;
     target_mesh.positions = srs::transform_points(source_srs, target_srs, source_mesh.positions);
     target_mesh.triangles = source_mesh.triangles;
@@ -104,7 +104,7 @@ SimpleMesh transform_mesh(const SimpleMesh &source_mesh, const OGRSpatialReferen
 }
 */
 
-alp::Result<std::vector<glm::dvec2>, srs::TransformError> generate_uv_space(const std::vector<glm::dvec3>& positions, const OGRSpatialReference &mesh_srs, const OGRSpatialReference &texture_srs, radix::tile::SrsBounds& texture_bounds) {
+alp::Result<std::vector<glm::dvec2>, srs::TransformError> generate_uv_space(const std::vector<glm::dvec3>& positions, const srs::System &mesh_srs, const srs::System &texture_srs, radix::tile::SrsBounds& texture_bounds) {
     ALP_TRY(const srs::Transform transform, srs::get_transform(mesh_srs, texture_srs));
     std::vector<glm::dvec2> uvs(positions.size());
     ALP_TRY(transform.apply_into(positions, uvs));
@@ -120,11 +120,11 @@ alp::Result<std::vector<glm::dvec2>, srs::TransformError> generate_uv_space(cons
 
 alp::Result<SimpleMesh, BuildMeshError> build_reference_mesh_patch(
     Dataset &dataset,
-    const OGRSpatialReference &mesh_srs,
-    const OGRSpatialReference &clip_srs, const radix::geometry::Aabb3d &clip_bounds,
-    const OGRSpatialReference &texture_srs, radix::tile::SrsBounds &texture_bounds) {
+    const srs::System &mesh_srs,
+    const srs::System &clip_srs, const radix::geometry::Aabb3d &clip_bounds,
+    const srs::System &texture_srs, radix::tile::SrsBounds &texture_bounds) {
     const auto context = alp::make_context("building a mesh for {} from {}", clip_bounds, dataset.name());
-    const OGRSpatialReference &source_srs = dataset.srs();
+    const srs::System &source_srs = dataset.srs();
 
     // Translate tile bounds from tile srs into the source srs, so we know what data to read.
     radix::tile::SrsBounds target_bounds_in_source_srs;

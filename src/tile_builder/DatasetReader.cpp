@@ -34,7 +34,7 @@
 #include "log.h"
 
 namespace {
-std::string toWkt(const OGRSpatialReference& srs)
+std::string toWkt(const srs::System& srs)
 {
     char* wkt_char_string = nullptr;
     srs.exportToWkt(&wkt_char_string);
@@ -173,7 +173,7 @@ std::shared_ptr<Dataset> getOverviewDataset(const std::shared_ptr<Dataset>& data
 
 }
 
-DatasetReader::DatasetReader(const std::shared_ptr<Dataset>& dataset, const OGRSpatialReference& targetSRS, unsigned band, bool warn_on_missing_overviews)
+DatasetReader::DatasetReader(const std::shared_ptr<Dataset>& dataset, const srs::System& targetSRS, unsigned band, bool warn_on_missing_overviews)
     : m_dataset(dataset)
     , m_dataset_srs_wkt(toWkt(dataset->srs()))
     , m_target_srs_wkt(toWkt(targetSRS))

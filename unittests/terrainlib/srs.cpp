@@ -35,8 +35,8 @@ TEST_CASE("Parsing invalid spatial reference input fails", "[srs]") {
 }
 
 TEST_CASE("get_transform fails between spatial references of different celestial bodies", "[srs]") {
-    const OGRSpatialReference earth = REQUIRE_VALUE(srs::from_user_input("EPSG:4326"));
-    const OGRSpatialReference mars = REQUIRE_VALUE(srs::from_user_input("IAU_2015:49900"));
+    const srs::System earth = REQUIRE_VALUE(srs::from_user_input("EPSG:4326"));
+    const srs::System mars = REQUIRE_VALUE(srs::from_user_input("IAU_2015:49900"));
 
     const alp::Error<srs::MissingTransform> error = REQUIRE_ERROR(srs::get_transform(earth, mars));
 
@@ -48,8 +48,8 @@ TEST_CASE("get_transform fails between spatial references of different celestial
 
 // The orthographic projection onto the north pole maps no point south of the equator.
 TEST_CASE("transforming fails for points outside the projection domain", "[srs]") {
-    const OGRSpatialReference geographic = REQUIRE_VALUE(srs::from_user_input("EPSG:4326"));
-    const OGRSpatialReference orthographic = REQUIRE_VALUE(srs::from_user_input("ESRI:102035"));
+    const srs::System geographic = REQUIRE_VALUE(srs::from_user_input("EPSG:4326"));
+    const srs::System orthographic = REQUIRE_VALUE(srs::from_user_input("ESRI:102035"));
     const srs::Transform transform = REQUIRE_VALUE(srs::get_transform(geographic, orthographic));
 
     std::optional<alp::Error<srs::Untransformable>> error_opt;
@@ -96,8 +96,8 @@ TEST_CASE("transforming fails for points outside the projection domain", "[srs]"
 }
 
 TEST_CASE("apply succeeds on an empty range", "[srs]") {
-    const OGRSpatialReference geographic = REQUIRE_VALUE(srs::from_user_input("EPSG:4326"));
-    const OGRSpatialReference mercator = REQUIRE_VALUE(srs::from_user_input("EPSG:3857"));
+    const srs::System geographic = REQUIRE_VALUE(srs::from_user_input("EPSG:4326"));
+    const srs::System mercator = REQUIRE_VALUE(srs::from_user_input("EPSG:3857"));
     const srs::Transform transform = REQUIRE_VALUE(srs::get_transform(geographic, mercator));
 
     SECTION("apply_inplace") {

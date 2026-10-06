@@ -46,7 +46,7 @@ using BuildMeshError = alp::Error<OutOfBounds, EmptyRegion, gdal::CplError, srs:
 [[nodiscard]]
 alp::Result<SimpleMesh, BuildMeshError> build_reference_mesh_patch(
     Dataset &dataset,
-    const OGRSpatialReference &mesh_srs,
-    const OGRSpatialReference &clip_srs, const radix::geometry::Aabb3d &clip_bounds,
-    const OGRSpatialReference &texture_srs, radix::tile::SrsBounds &texture_bounds);
+    const srs::System &mesh_srs,
+    const srs::System &clip_srs, const radix::geometry::Aabb3d &clip_bounds,
+    const srs::System &texture_srs, radix::tile::SrsBounds &texture_bounds);
 }

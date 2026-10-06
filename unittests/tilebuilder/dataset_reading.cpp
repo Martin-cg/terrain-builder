@@ -34,7 +34,7 @@
 using namespace radix;
 
 namespace {
-void require_projection_available(const Dataset& dataset, const OGRSpatialReference& target_srs)
+void require_projection_available(const Dataset& dataset, const srs::System& target_srs)
 {
     const auto dataset_srs = dataset.srs();
     const auto source_bounds = dataset.bounds();
@@ -72,7 +72,7 @@ TEST_CASE("reading")
         "/austria/pizbuin_1m_epsg4326.tif",
     };
 
-    OGRSpatialReference geodetic_srs;
+    srs::System geodetic_srs;
     geodetic_srs.importFromEPSG(4326);
     geodetic_srs.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
@@ -106,7 +106,7 @@ TEST_CASE("reading")
             for (std::string dataset_name : test_datasets) {
                 const auto dataset = REQUIRE_VALUE(Dataset::open_shared_raster(ALP_TEST_DATA_DIR + std::string(dataset_name)));
                 for (const auto& test_srs : test_srses) {
-                    OGRSpatialReference srs;
+                    srs::System srs;
                     srs.importFromEPSG(test_srs);
                     srs.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 

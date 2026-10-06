@@ -31,9 +31,9 @@
 #include "gdal/CplError.h"
 #include "gdal/GeoTransform.h"
 #include "log.h"
+#include "srs.h"
 
 class GDALDataset;
-class OGRSpatialReference;
 
 struct GDALDatasetDeleter {
     void operator()(GDALDataset *dataset) const;
@@ -64,20 +64,20 @@ public:
 
     [[nodiscard]] radix::tile::SrsBounds bounds() const;
     [[nodiscard]] radix::tile::SrsAndHeightBounds bounds3d(bool approx_ok = false) const;
-    [[nodiscard]] radix::tile::SrsBounds bounds(const OGRSpatialReference &targetSrs) const;
-    [[nodiscard]] OGRSpatialReference srs() const;
+    [[nodiscard]] radix::tile::SrsBounds bounds(const srs::System &targetSrs) const;
+    [[nodiscard]] srs::System srs() const;
     [[nodiscard]] unsigned int widthInPixels() const;
     [[nodiscard]] unsigned int heightInPixels() const;
-    [[nodiscard]] double widthInPixels(const radix::tile::SrsBounds &bounds, const OGRSpatialReference &bounds_srs) const;
-    [[nodiscard]] double heightInPixels(const radix::tile::SrsBounds &bounds, const OGRSpatialReference &bounds_srs) const;
+    [[nodiscard]] double widthInPixels(const radix::tile::SrsBounds &bounds, const srs::System &bounds_srs) const;
+    [[nodiscard]] double heightInPixels(const radix::tile::SrsBounds &bounds, const srs::System &bounds_srs) const;
     [[nodiscard]] unsigned int n_bands() const;
     [[nodiscard]] GDALDataset *as_gdal();
     [[nodiscard]] const GDALDataset *as_gdal() const;
 
-    [[nodiscard]] double gridResolution(const OGRSpatialReference &target_srs) const;
-    [[nodiscard]] double pixelWidthIn(const OGRSpatialReference &target_srs) const;
-    [[nodiscard]] double pixelHeightIn(const OGRSpatialReference &target_srs) const;
-    [[nodiscard]] glm::dvec2 pixelSizeIn(const OGRSpatialReference &target_srs) const;
+    [[nodiscard]] double gridResolution(const srs::System &target_srs) const;
+    [[nodiscard]] double pixelWidthIn(const srs::System &target_srs) const;
+    [[nodiscard]] double pixelHeightIn(const srs::System &target_srs) const;
+    [[nodiscard]] glm::dvec2 pixelSizeIn(const srs::System &target_srs) const;
 
 private:
     Dataset(const std::filesystem::path path, GDALDataset *dataset);

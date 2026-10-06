@@ -46,7 +46,7 @@ using CoordinateBuffer = HybridVector<double, 8>;
 // Whether GDAL mapped each point of a range, which stays off the heap for a few points.
 using SuccessBuffer = HybridVector<int, 8>;
 
-inline MissingTransform make_missing_transform(const OGRSpatialReference &source_srs, const OGRSpatialReference &target_srs, std::optional<gdal::CplError> gdal_error) {
+inline MissingTransform make_missing_transform(const System &source_srs, const System &target_srs, std::optional<gdal::CplError> gdal_error) {
     return MissingTransform{
         .source = friendly_name(source_srs),
         .target = friendly_name(target_srs),
@@ -56,8 +56,8 @@ inline MissingTransform make_missing_transform(const OGRSpatialReference &source
 
 // Creates the code for a point that `transform` cannot map.
 inline Untransformable make_untransformable(const OGRCoordinateTransformation *transform, std::optional<gdal::CplError> gdal_error) {
-    const OGRSpatialReference *source_srs = ASSERT_VAL(transform->GetSourceCS());
-    const OGRSpatialReference *target_srs = ASSERT_VAL(transform->GetTargetCS());
+    const System *source_srs = ASSERT_VAL(transform->GetSourceCS());
+    const System *target_srs = ASSERT_VAL(transform->GetTargetCS());
     return Untransformable{
         .source = friendly_name(*source_srs),
         .target = friendly_name(*target_srs),
@@ -159,8 +159,8 @@ private:
 namespace detail {
 
 struct TransformCacheEntry {
-    OGRSpatialReference source;
-    OGRSpatialReference target;
+    System source;
+    System target;
     Transform transform;
 };
 
@@ -169,7 +169,7 @@ struct TransformCacheEntry {
 // Creates a transform from `source_srs` to `target_srs` that no other request receives.
 // Fails if GDAL has no transform between them.
 [[nodiscard]]
-inline alp::Result<Transform, MissingTransform> create_transform(const OGRSpatialReference &source_srs, const OGRSpatialReference &target_srs) {
+inline alp::Result<Transform, MissingTransform> create_transform(const System &source_srs, const System &target_srs) {
     initialize_gdal_once();
     auto [created, gdal_error] = gdal::capture_error([&] {
         return OGRCreateCoordinateTransformation(&source_srs, &target_srs);
@@ -184,7 +184,7 @@ inline alp::Result<Transform, MissingTransform> create_transform(const OGRSpatia
 // Gives the calling thread its transform from `source_srs` to `target_srs`.
 // Fails if GDAL has no transform between them.
 [[nodiscard]]
-inline alp::Result<Transform, MissingTransform> get_transform(const OGRSpatialReference &source_srs, const OGRSpatialReference &target_srs) {
+inline alp::Result<Transform, MissingTransform> get_transform(const System &source_srs, const System &target_srs) {
     thread_local std::vector<detail::TransformCacheEntry> cache;
 
     // Check forward
@@ -221,7 +221,7 @@ inline alp::Result<Transform, MissingTransform> get_transform(const OGRSpatialRe
 // Fails if GDAL has no transform between them or the point has no image there.
 template <Point P>
 [[nodiscard]]
-inline alp::Result<P, TransformError> transform_point(const OGRSpatialReference &source_srs, const OGRSpatialReference &target_srs, const P point) {
+inline alp::Result<P, TransformError> transform_point(const System &source_srs, const System &target_srs, const P point) {
     ALP_TRY(const Transform transform, get_transform(source_srs, target_srs));
     return transform.apply(point);
 }
@@ -230,7 +230,7 @@ inline alp::Result<P, TransformError> transform_point(const OGRSpatialReference 
 // Fails if GDAL has no transform between them or one of the points has no image there.
 template <Point P>
 [[nodiscard]]
-inline alp::Result<std::vector<P>, TransformError> transform_points(const OGRSpatialReference &source_srs, const OGRSpatialReference &target_srs, std::vector<P> points) {
+inline alp::Result<std::vector<P>, TransformError> transform_points(const System &source_srs, const System &target_srs, std::vector<P> points) {
     ALP_TRY(const Transform transform, get_transform(source_srs, target_srs));
     ALP_TRY(transform.apply_inplace(points));
     return points;

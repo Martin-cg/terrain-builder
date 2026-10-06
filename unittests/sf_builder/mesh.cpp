@@ -122,8 +122,8 @@ TEST_CASE("can build reference mesh patches for various datasets", "[terrainbuil
     struct TestData {
         std::string path_suffix;
         radix::geometry::Aabb3d target_bounds;
-        OGRSpatialReference target_srs;
-        OGRSpatialReference mesh_srs;
+        srs::System target_srs;
+        srs::System mesh_srs;
         double resolution; // in m
     };
 
@@ -286,7 +286,7 @@ TEST_CASE("neighbouring patches fit together", "[terrainbuilder]") {
 
 TEST_CASE("Building a mesh for a region beside the dataset fails, holding both regions", "[mesh_builder]") {
     Dataset dataset(std::filesystem::path(ALP_TEST_DATA_DIR) / "austria/at_mgi.tif");
-    const OGRSpatialReference srs = dataset.srs();
+    const srs::System srs = dataset.srs();
     const radix::tile::SrsBounds available = dataset.bounds();
     const double infinity = std::numeric_limits<double>::infinity();
     const glm::dvec2 offset(10 * available.width(), 0);
@@ -304,7 +304,7 @@ TEST_CASE("Building a mesh for a region beside the dataset fails, holding both r
 
 TEST_CASE("Building a mesh for heights the terrain does not reach fails as an empty region", "[mesh_builder]") {
     Dataset dataset(std::filesystem::path(ALP_TEST_DATA_DIR) / "austria/at_mgi.tif");
-    const OGRSpatialReference srs = dataset.srs();
+    const srs::System srs = dataset.srs();
     const radix::tile::SrsBounds available = dataset.bounds();
     const glm::dvec2 centre = (available.min + available.max) * 0.5;
     const glm::dvec2 half_size(5000, 5000);

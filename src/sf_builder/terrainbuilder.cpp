@@ -65,11 +65,11 @@ std::string format_secs_since(const std::chrono::high_resolution_clock::time_poi
 
 alp::Result<std::optional<SimpleMesh>, gdal::CplError, TileError, srs::TransformError> build_patch(
     Dataset &dataset,
-    const OGRSpatialReference &target_bounds_srs,
+    const srs::System &target_bounds_srs,
     const radix::geometry::Aabb3d &target_bounds,
-    const OGRSpatialReference &texture_srs,
+    const srs::System &texture_srs,
     const TileProvider* tile_provider,
-    const OGRSpatialReference &mesh_srs) {
+    const srs::System &mesh_srs) {
     const ctb::Grid grid = ctb::GlobalMercator();
     radix::tile::SrsBounds texture_bounds;
 
@@ -119,11 +119,11 @@ alp::Result<std::optional<SimpleMesh>, gdal::CplError, TileError, srs::Transform
 
 alp::Result<void, gdal::CplError, TileError, srs::TransformError, mesh::io::Error> build_and_save_patch(
     Dataset &dataset,
-    const OGRSpatialReference &target_bounds_srs,
+    const srs::System &target_bounds_srs,
     const radix::geometry::Aabb3d &target_bounds,
-    const OGRSpatialReference &texture_srs,
+    const srs::System &texture_srs,
     const TileProvider *tile_provider,
-    const OGRSpatialReference &mesh_srs,
+    const srs::System &mesh_srs,
     const std::filesystem::path &output_path) {
     ALP_TRY(
         std::optional<SimpleMesh> mesh_opt,
@@ -166,10 +166,10 @@ alp::BasicResult<void, BuildError> build_and_save_node(
     Dataset &dataset,
     const octree::Space &space,
     const octree::Id &node,
-    const OGRSpatialReference &ecef_srs,
-    const OGRSpatialReference &texture_srs,
+    const srs::System &ecef_srs,
+    const srs::System &texture_srs,
     const TileProvider *tile_provider,
-    const OGRSpatialReference &mesh_srs,
+    const srs::System &mesh_srs,
     octree::Storage &storage) {
     ALP_TRY_CONTEXT(
         std::optional<SimpleMesh> mesh_opt,
@@ -195,9 +195,9 @@ alp::BasicResult<void, BuildError> build_and_save_node(
 alp::Result<void> build_all_patches(
     Dataset &dataset,
     const octree::Id::Level target_level,
-    const OGRSpatialReference &texture_srs,
+    const srs::System &texture_srs,
     const TileProvider *tile_provider,
-    const OGRSpatialReference &mesh_srs,
+    const srs::System &mesh_srs,
     const std::filesystem::path &output_base_path,
     const std::string &output_format,
     const bool overwrite_existing
@@ -261,13 +261,13 @@ alp::Result<void> build_all_patches(
     tbb::enumerable_thread_specific<Dataset> local_dataset([&]() {
         return dataset.clone();
     });
-    tbb::enumerable_thread_specific<std::unique_ptr<OGRSpatialReference>> local_ecef_srs([&]() {
+    tbb::enumerable_thread_specific<std::unique_ptr<srs::System>> local_ecef_srs([&]() {
         return srs::clone(ecef_srs);
     });
-    tbb::enumerable_thread_specific<std::unique_ptr<OGRSpatialReference>> local_texture_srs([&]() {
+    tbb::enumerable_thread_specific<std::unique_ptr<srs::System>> local_texture_srs([&]() {
         return srs::clone(texture_srs);
     });
-    tbb::enumerable_thread_specific<std::unique_ptr<OGRSpatialReference>> local_mesh_srs([&]() {
+    tbb::enumerable_thread_specific<std::unique_ptr<srs::System>> local_mesh_srs([&]() {
         return srs::clone(mesh_srs);
     });
 

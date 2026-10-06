@@ -28,7 +28,7 @@ inline alp::Result<radix::tile::SrsBounds, Untransformable> non_exact_bounds_tra
     return radix::tile::SrsBounds{glm::min(corners[0], corners[1]), glm::max(corners[0], corners[1])};
 }
 [[nodiscard]]
-inline alp::Result<radix::tile::SrsBounds, TransformError> non_exact_bounds_transform(const radix::tile::SrsBounds &bounds, const OGRSpatialReference &sourceSrs, const OGRSpatialReference &targetSrs) {
+inline alp::Result<radix::tile::SrsBounds, TransformError> non_exact_bounds_transform(const radix::tile::SrsBounds &bounds, const System &sourceSrs, const System &targetSrs) {
     ALP_TRY(const Transform transform, get_transform(sourceSrs, targetSrs));
     return non_exact_bounds_transform(transform, bounds);
 }
@@ -39,7 +39,7 @@ inline alp::Result<radix::geometry::Aabb3d, Untransformable> non_exact_bounds_tr
     return radix::geometry::Aabb3d{corners[0], corners[1]};
 }
 [[nodiscard]]
-inline alp::Result<radix::geometry::Aabb3d, TransformError> non_exact_bounds_transform(const radix::geometry::Aabb3d &bounds, const OGRSpatialReference &sourceSrs, const OGRSpatialReference &targetSrs) {
+inline alp::Result<radix::geometry::Aabb3d, TransformError> non_exact_bounds_transform(const radix::geometry::Aabb3d &bounds, const System &sourceSrs, const System &targetSrs) {
     ALP_TRY(const Transform transform, get_transform(sourceSrs, targetSrs));
     return non_exact_bounds_transform(transform, bounds);
 }
@@ -62,7 +62,7 @@ inline alp::Result<radix::tile::SrsBounds, Untransformable> encompassing_bounds_
     return target_bounds;
 }
 [[nodiscard]]
-inline alp::Result<radix::tile::SrsBounds, TransformError> encompassing_bounds_transfer(const OGRSpatialReference &source_srs, const OGRSpatialReference &target_srs, const radix::tile::SrsBounds &source_bounds, const uint32_t intermediate_points_edges = 21) {
+inline alp::Result<radix::tile::SrsBounds, TransformError> encompassing_bounds_transfer(const System &source_srs, const System &target_srs, const radix::tile::SrsBounds &source_bounds, const uint32_t intermediate_points_edges = 21) {
     if (source_srs.IsSame(&target_srs)) {
         return source_bounds;
     }
@@ -129,8 +129,8 @@ inline alp::Result<radix::geometry::Aabb3d, Untransformable> encompassing_bounds
 }
 [[nodiscard]]
 inline alp::Result<radix::geometry::Aabb3d, TransformError> encompassing_bounds_transfer(
-    const OGRSpatialReference &source_srs,
-    const OGRSpatialReference &target_srs,
+    const System &source_srs,
+    const System &target_srs,
     const radix::geometry::Aabb3d &source_bounds,
     const uint32_t intermediate_points_edges = 21,
     const uint32_t intermediate_points_faces = 5) {

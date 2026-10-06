@@ -45,7 +45,7 @@ using MultipolygonWithHoles2 = CGAL::Multipolygon_with_holes_2<Kernel>;
 
 struct ReferencedPolygonMask {
     MultipolygonWithHoles2 polygons;
-    OGRSpatialReference srs;
+    srs::System srs;
 };
 
 struct SpherePolygonMask {
@@ -171,7 +171,7 @@ void process_geometry(const OGRGeometry &geometry, MultipolygonWithHoles2 &out) 
     }
 }
 
-void convert_to_ecef_and_project_onto_sphere(MultipolygonWithHoles2 &polygons, const SphereProjector &projector, const OGRSpatialReference &srs) {
+void convert_to_ecef_and_project_onto_sphere(MultipolygonWithHoles2 &polygons, const SphereProjector &projector, const srs::System &srs) {
     const srs::Transform srs_transform = alp::unwrap(srs::get_transform(srs, srs::ecef()));
     for (auto &polygon : polygons.polygons_with_holes()) {
         for (auto &cgal_point : polygon.outer_boundary()) {
@@ -245,7 +245,7 @@ inline alp::Result<ReferencedPolygonMask, ContentError> load_referenced_from_dat
         return alp::make_unexpected(ContentError::NoPolygons);
     }
 
-    OGRSpatialReference srs;
+    srs::System srs;
     // TODO: remove this try catch
     try {
         srs = mask_dataset.srs();

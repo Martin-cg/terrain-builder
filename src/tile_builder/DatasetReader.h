@@ -24,14 +24,14 @@
 #include <string>
 
 #include "Image.h"
+#include "srs.h"
 #include <radix/tile.h>
 
 class Dataset;
-class OGRSpatialReference;
 
 class DatasetReader {
 public:
-    DatasetReader(const std::shared_ptr<Dataset>& dataset, const OGRSpatialReference& targetSRS, unsigned band, bool warn_on_missing_overviews = true);
+    DatasetReader(const std::shared_ptr<Dataset>& dataset, const srs::System& targetSRS, unsigned band, bool warn_on_missing_overviews = true);
 
     HeightData read(const radix::tile::SrsBounds& bounds, unsigned width, unsigned height) const;
     HeightData readWithOverviews(const radix::tile::SrsBounds& bounds, unsigned width, unsigned height) const;

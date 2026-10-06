@@ -31,7 +31,7 @@
 #include "ctb/GlobalMercator.hpp"
 #include "ctb/Grid.hpp"
 
-int32_t srs_dimension(const OGRSpatialReference &srs) {
+int32_t srs_dimension(const srs::System &srs) {
     if (srs.IsCompound())
         return 3;
     if (srs.IsGeographic() || srs.IsProjected())
@@ -46,7 +46,7 @@ radix::geometry::Aabb3d extend_bounds_to_3d(radix::geometry::Aabb2d bounds2d) {
     return radix::geometry::Aabb3d(min, max);
 }
 
-radix::geometry::Aabb3d parse_bounds_from_values(const std::vector<double> &data, const OGRSpatialReference &srs) {
+radix::geometry::Aabb3d parse_bounds_from_values(const std::vector<double> &data, const srs::System &srs) {
     const int32_t dim = srs_dimension(srs);
     const size_t expected = (dim == 3) ? 6 : 4;
 
@@ -70,12 +70,12 @@ radix::geometry::Aabb3d parse_bounds_from_values(const std::vector<double> &data
 radix::geometry::Aabb3d parse_bounds_from_tile(
     const std::vector<uint32_t> &data,
     radix::tile::Scheme scheme,
-    const OGRSpatialReference &srs) {
+    const srs::System &srs) {
 
     // Determine the correct Grid type based on SRS
     std::optional<ctb::Grid> grid;
-    const OGRSpatialReference &webmercator_srs = srs::webmercator();
-    const OGRSpatialReference &wgs84_srs = srs::wgs84();
+    const srs::System &webmercator_srs = srs::webmercator();
+    const srs::System &wgs84_srs = srs::wgs84();
     if (srs.IsSame(&webmercator_srs)) {
         grid = ctb::GlobalMercator();
     } else if (srs.IsSame(&wgs84_srs)) {
@@ -91,9 +91,9 @@ radix::geometry::Aabb3d parse_bounds_from_tile(
     return extend_bounds_to_3d(grid->srsBounds(target_tile, false));
 }
 
-radix::geometry::Aabb3d parse_bounds_from_node(const std::vector<uint64_t> &data, const OGRSpatialReference &srs) {
+radix::geometry::Aabb3d parse_bounds_from_node(const std::vector<uint64_t> &data, const srs::System &srs) {
     // Validate node SRS (only ECEF)
-    const OGRSpatialReference &ecef_srs = srs::ecef();
+    const srs::System &ecef_srs = srs::ecef();
     if (!srs.IsSame(&ecef_srs)) {
         LOG_ERROR_AND_EXIT("Only ECEF (EPSG:4978) supported for --node.");
     }
@@ -118,7 +118,7 @@ radix::geometry::Aabb3d parse_target_bounds(
     const std::vector<uint64_t> &node_data,
     const std::vector<uint32_t> &tile_data,
     radix::tile::Scheme tile_scheme,
-    OGRSpatialReference &srs) {
+    srs::System &srs) {
 
     if (!bounds_data.empty()) {
         return parse_bounds_from_values(bounds_data, srs);
@@ -195,10 +195,10 @@ std::unique_ptr<TileProvider> make_tile_provider(const cli::BaseArgs &args) {
 alp::Result<void> run(
     const cli::SingleArgs &args,
     Dataset &dataset,
-    const OGRSpatialReference &mesh_srs,
-    const OGRSpatialReference &texture_srs,
+    const srs::System &mesh_srs,
+    const srs::System &texture_srs,
     const TileProvider *tile_provider) {
-    ALP_TRY(OGRSpatialReference target_srs, srs::from_user_input(args.target_srs_input));
+    ALP_TRY(srs::System target_srs, srs::from_user_input(args.target_srs_input));
     const radix::geometry::Aabb3d target_bounds = parse_target_bounds(
         args.target_bounds_data,
         args.target_node_data,
@@ -220,8 +220,8 @@ alp::Result<void> run(
 alp::Result<void> run(
     const cli::BatchArgs &args,
     Dataset &dataset,
-    const OGRSpatialReference &mesh_srs,
-    const OGRSpatialReference &texture_srs,
+    const srs::System &mesh_srs,
+    const srs::System &texture_srs,
     const TileProvider *tile_provider) {
     std::optional<tbb::global_control> tbb_control;
     if (args.num_threads > 0) {
@@ -250,8 +250,8 @@ alp::Result<void> run(const cli::Args &args) {
     ALP_TRY(Dataset dataset, Dataset::open_raster(base_args.dataset_path));
     ALP_TRY(dataset.geo_transform());
     ALP_TRY(log_dataset_overview(dataset));
-    ALP_TRY(const OGRSpatialReference mesh_srs, srs::from_user_input(base_args.mesh_srs_input));
-    const OGRSpatialReference texture_srs = srs::webmercator();
+    ALP_TRY(const srs::System mesh_srs, srs::from_user_input(base_args.mesh_srs_input));
+    const srs::System texture_srs = srs::webmercator();
     const std::unique_ptr<TileProvider> tile_provider = make_tile_provider(base_args);
 
     return std::visit([&](const auto &args) { return run(args, dataset, mesh_srs, texture_srs, tile_provider.get()); }, args);

@@ -58,11 +58,11 @@ TEST_CASE("datasets are as expected") {
     auto d_mgi = Dataset(ALP_TEST_DATA_DIR "/austria/at_mgi.tif");
     auto d_wgs84 = Dataset(ALP_TEST_DATA_DIR "/austria/at_wgs84.tif");
 
-    OGRSpatialReference webmercator;
+    srs::System webmercator;
     webmercator.importFromEPSG(3857);
     webmercator.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
-    OGRSpatialReference wgs84;
+    srs::System wgs84;
     wgs84.importFromEPSG(4326);
     wgs84.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 
@@ -129,13 +129,13 @@ TEST_CASE("vector datasets use the layer spatial reference") {
     GDALDataset *raw_dataset = driver->Create("", 0, 0, 0, GDT_Unknown, nullptr);
     REQUIRE(raw_dataset != nullptr);
 
-    OGRSpatialReference expected_srs;
+    srs::System expected_srs;
     REQUIRE(expected_srs.importFromEPSG(31287) == OGRERR_NONE);
     expected_srs.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
     REQUIRE(raw_dataset->CreateLayer("mask", &expected_srs, wkbPolygon, nullptr) != nullptr);
 
     Dataset dataset(raw_dataset);
-    const OGRSpatialReference actual_srs = dataset.srs();
+    const srs::System actual_srs = dataset.srs();
     CHECK(actual_srs.IsSame(&expected_srs));
 }
 
@@ -143,7 +143,7 @@ TEST_CASE("bbox width pixels") {
     auto d_mgi = Dataset(ALP_TEST_DATA_DIR "/austria/at_mgi.tif");
     auto d_wgs84 = Dataset(ALP_TEST_DATA_DIR "/austria/at_wgs84.tif");
 
-    OGRSpatialReference webmercator;
+    srs::System webmercator;
     webmercator.importFromEPSG(3857);
     webmercator.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
 

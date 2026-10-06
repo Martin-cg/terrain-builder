@@ -430,7 +430,7 @@ inline alp::Result<std::optional<AssembledTexture>, TileError, srs::TransformErr
     /// Specifes the grid used to organize the image tiles.
     const ctb::Grid &grid,
     /// Specifies the srs the target bounds are in.
-    const OGRSpatialReference &target_srs,
+    const srs::System &target_srs,
     /// The bounds for which texture data should be created.
     const radix::tile::SrsBounds &target_bounds,
     /// Provider class that maps tile ids to their textures.

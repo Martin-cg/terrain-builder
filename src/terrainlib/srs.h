@@ -34,8 +34,11 @@
 
 namespace srs {
 
-inline std::optional<int> epsg_code(const OGRSpatialReference &srs) {
-    OGRSpatialReference tmp = srs;
+// A spatial reference system.
+using System = OGRSpatialReference;
+
+inline std::optional<int> epsg_code(const System &srs) {
+    System tmp = srs;
     tmp.AutoIdentifyEPSG();
 
     const char *authName = tmp.GetAuthorityName(nullptr);
@@ -52,7 +55,7 @@ inline std::optional<int> epsg_code(const OGRSpatialReference &srs) {
     return std::atoi(authCode);
 }
 
-inline std::string friendly_name(const OGRSpatialReference &srs) {
+inline std::string friendly_name(const System &srs) {
     if (const auto code = epsg_code(srs)) {
         return "EPSG:" + std::to_string(*code);
     }
@@ -66,14 +69,14 @@ inline std::string friendly_name(const OGRSpatialReference &srs) {
     return "unknown";
 }
 
-inline std::unique_ptr<OGRSpatialReference> clone(const OGRSpatialReference &srs) {
+inline std::unique_ptr<System> clone(const System &srs) {
     auto cloned = srs.Clone();
-    return std::unique_ptr<OGRSpatialReference>(cloned);
+    return std::unique_ptr<System>(cloned);
 }
 
 [[nodiscard]]
-inline alp::Result<OGRSpatialReference, gdal::OgrError> from_epsg(const uint32_t epsg) {
-    OGRSpatialReference srs;
+inline alp::Result<System, gdal::OgrError> from_epsg(const uint32_t epsg) {
+    System srs;
     if (const OGRErr code = srs.importFromEPSG(epsg); code != OGRERR_NONE) {
         return alp::make_unexpected(gdal::OgrError(code), fmt::format("importing reference from EPSG code {}", epsg));
     }
@@ -82,8 +85,8 @@ inline alp::Result<OGRSpatialReference, gdal::OgrError> from_epsg(const uint32_t
 }
 
 [[nodiscard]]
-inline alp::Result<OGRSpatialReference, gdal::OgrError> from_user_input(const std::string &user_input) {
-    OGRSpatialReference srs;
+inline alp::Result<System, gdal::OgrError> from_user_input(const std::string &user_input) {
+    System srs;
     if (const OGRErr code = srs.SetFromUserInput(user_input.c_str()); code != OGRERR_NONE) {
         return alp::make_unexpected(gdal::OgrError(code), fmt::format("parsing a spatial reference from {}", user_input));
     }
@@ -91,16 +94,16 @@ inline alp::Result<OGRSpatialReference, gdal::OgrError> from_user_input(const st
     return srs;
 }
 
-inline OGRSpatialReference ecef() {
+inline System ecef() {
     return alp::unwrap(from_epsg(4978));
 }
-inline OGRSpatialReference webmercator() {
+inline System webmercator() {
     return alp::unwrap(from_epsg(3857));
 }
-inline OGRSpatialReference wgs84() {
+inline System wgs84() {
     return alp::unwrap(from_epsg(4326));
 }
-inline OGRSpatialReference mgi() {
+inline System mgi() {
     return alp::unwrap(from_epsg(4312));
 }
 
