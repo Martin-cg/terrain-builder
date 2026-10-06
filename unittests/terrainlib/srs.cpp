@@ -94,3 +94,21 @@ TEST_CASE("transforming fails for points outside the projection domain", "[srs]"
     CHECK(untransformable->source == "EPSG:4326");
     CHECK(untransformable->target == "North_Pole_Orthographic");
 }
+
+TEST_CASE("apply succeeds on an empty range", "[srs]") {
+    const OGRSpatialReference geographic = REQUIRE_VALUE(srs::from_user_input("EPSG:4326"));
+    const OGRSpatialReference mercator = REQUIRE_VALUE(srs::from_user_input("EPSG:3857"));
+    const srs::Transform transform = REQUIRE_VALUE(srs::get_transform(geographic, mercator));
+
+    SECTION("apply_inplace") {
+        std::vector<glm::dvec2> points;
+        REQUIRE_VALUE(transform.apply_inplace(points));
+        CHECK(points.empty());
+    }
+    SECTION("apply_into") {
+        const std::vector<glm::dvec3> points;
+        std::vector<glm::dvec2> out;
+        REQUIRE_VALUE(transform.apply_into(points, out));
+        CHECK(out.empty());
+    }
+}

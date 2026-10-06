@@ -102,6 +102,10 @@ public:
 
         const size_t point_count = std::ranges::size(points);
         ASSERT(std::ranges::size(out) == point_count);
+        if (point_count == 0) {
+            // Early return since GDAL reports an empty range as a failure.
+            return {};
+        }
 
         // GDAL takes every coordinate as its own array.
         detail::CoordinateBuffer xs;
