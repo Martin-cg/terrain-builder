@@ -1,7 +1,9 @@
 #include <mutex>
 
+#include <cpl_conv.h>
 #include <gdal.h>
 
+#include "build_config.h"
 #include "init.h"
 #include "log.h"
 
@@ -35,8 +37,14 @@ inline void GdalErrorHandler(CPLErr eErrClass, int err_no, const char *msg) {
 
 void initialize_gdal_once() {
     std::call_once(g_gdal_initialized_once_flag, []() {
-        LOG_DEBUG("calling GDALAllRegister...");
         CPLSetErrorHandler(GdalErrorHandler);
+
+        if constexpr (IS_DEBUG_BUILD) {
+            // Every coordinate transformation checks each result by mapping it back.
+            CPLSetConfigOption("CHECK_WITH_INVERT_PROJ", "YES");
+        }
+
+        LOG_DEBUG("calling GDALAllRegister...");
         GDALAllRegister();
     });
 }
