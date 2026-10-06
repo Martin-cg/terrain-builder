@@ -38,6 +38,7 @@
 #include "error/utils.h"
 #include "init.h"
 #include "log.h"
+#include "srs/transform.h"
 #include "srs/transform_bounds.h"
 
 void GDALDatasetDeleter::operator()(GDALDataset *dataset) const {

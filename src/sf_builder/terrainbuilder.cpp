@@ -26,8 +26,8 @@
 #include "ctb/GlobalMercator.hpp"
 #include "ctb/Grid.hpp"
 #include "srs.h"
+#include "srs/transform.h"
 #include "srs/transform_bounds.h"
-#include "srs/transformation.h"
 
 #include "octree/Id.h"
 #include "octree/Space.h"
@@ -232,9 +232,9 @@ alp::Result<void> build_all_patches(
         }
 
         // Check if node bounds in dataset srs intersect with dataset
-        ALP_TRY(const auto transform_ecef_dataset, srs::transformation(ecef_srs, dataset_srs));
+        ALP_TRY(const srs::Transform transform_ecef_dataset, srs::get_transform(ecef_srs, dataset_srs));
         ALP_TRY(const auto node_bounds_dataset_srs, srs::encompassing_bounds_transfer(
-            transform_ecef_dataset.get(), node_bounds, 7, 3));
+            transform_ecef_dataset, node_bounds, 7, 3));
         if (!radix::geometry::intersect(node_bounds_dataset_srs, dataset_bounds)) {
             return {};
         }

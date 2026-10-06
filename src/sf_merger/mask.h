@@ -21,9 +21,8 @@
 #include "mesh/validate.h"
 #include "mesh/bounds.h"
 #include "srs.h"
+#include "srs/transform.h"
 #include "srs/transform_bounds.h"
-#include "srs/transform_points.h"
-#include "srs/transformation.h"
 #include "SphereProjector.h"
 
 #include <CGAL/Boolean_set_operations_2.h>
@@ -173,18 +172,18 @@ void process_geometry(const OGRGeometry &geometry, MultipolygonWithHoles2 &out) 
 }
 
 void convert_to_ecef_and_project_onto_sphere(MultipolygonWithHoles2 &polygons, const SphereProjector &projector, const OGRSpatialReference &srs) {
-    const auto srs_transform = alp::unwrap(srs::transformation(srs, srs::ecef()));
+    const srs::Transform srs_transform = alp::unwrap(srs::get_transform(srs, srs::ecef()));
     for (auto &polygon : polygons.polygons_with_holes()) {
         for (auto &cgal_point : polygon.outer_boundary()) {
             const glm::dvec2 source_point = convert::to_glm_point(cgal_point);
-            const glm::dvec3 ecef_point = alp::unwrap(srs::transform_point(srs_transform.get(), glm::dvec3(source_point, 0)));
+            const glm::dvec3 ecef_point = alp::unwrap(srs_transform.apply(glm::dvec3(source_point, 0)));
             const glm::dvec2 projected_point = projector.project_point(ecef_point);
             cgal_point = convert::to_cgal_point<Kernel>(projected_point);
         }
         for (auto &hole : polygon.holes()) {
             for (auto &cgal_point : hole) {
                 const glm::dvec2 source_point = convert::to_glm_point(cgal_point);
-                const glm::dvec3 ecef_point = alp::unwrap(srs::transform_point(srs_transform.get(), glm::dvec3(source_point, 0)));
+                const glm::dvec3 ecef_point = alp::unwrap(srs_transform.apply(glm::dvec3(source_point, 0)));
                 const glm::dvec2 projected_point = projector.project_point(ecef_point);
                 cgal_point = convert::to_cgal_point<Kernel>(projected_point);
             }

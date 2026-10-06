@@ -19,9 +19,8 @@
 #include "mesh_builder.h"
 #include "raster.h"
 #include "raw_dataset_reader.h"
+#include "srs/transform.h"
 #include "srs/transform_bounds.h"
-#include "srs/transform_points.h"
-#include "srs/transformation.h"
 #include "mesh/clip.h"
 #include "mesh/validate.h"
 #include "mesh/bounds.h"
@@ -90,8 +89,8 @@ SimpleMesh meshify(const raster::Raster<glm::dvec3>& source_points, const raster
 }
 
 alp::Result<SimpleMesh, srs::TransformError> transform_mesh(SimpleMesh&& source_mesh, const OGRSpatialReference &source_srs, const OGRSpatialReference &target_srs) {
-    ALP_TRY(const auto transform, srs::transformation(source_srs, target_srs));
-    ALP_TRY(srs::transform_points_inplace(transform.get(), source_mesh.positions));
+    ALP_TRY(const srs::Transform transform, srs::get_transform(source_srs, target_srs));
+    ALP_TRY(transform.apply_inplace(source_mesh.positions));
     return source_mesh;
 }
 /*
@@ -106,8 +105,9 @@ SimpleMesh transform_mesh(const SimpleMesh &source_mesh, const OGRSpatialReferen
 */
 
 alp::Result<std::vector<glm::dvec2>, srs::TransformError> generate_uv_space(const std::vector<glm::dvec3>& positions, const OGRSpatialReference &mesh_srs, const OGRSpatialReference &texture_srs, radix::tile::SrsBounds& texture_bounds) {
-    ALP_TRY(const auto transform, srs::transformation(mesh_srs, texture_srs));
-    ALP_TRY(std::vector<glm::dvec2> uvs, srs::transform_points_to_2d(transform.get(), positions));
+    ALP_TRY(const srs::Transform transform, srs::get_transform(mesh_srs, texture_srs));
+    std::vector<glm::dvec2> uvs(positions.size());
+    ALP_TRY(transform.apply_into(positions, uvs));
     texture_bounds = radix::tile::SrsBounds(radix::geometry::find_bounds(std::span<const glm::dvec2>(uvs)));
 
     for (glm::dvec2 &uv : uvs) {

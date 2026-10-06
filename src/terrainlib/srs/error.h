@@ -11,16 +11,16 @@
 namespace srs {
 
 // No transformation exists from one spatial reference to another.
-struct MissingTransformation {
+struct MissingTransform {
     std::string source;
     std::string target;
     // The error GDAL recorded for the failure, if it recorded one.
     std::optional<gdal::CplError> gdal_error;
 
-    bool operator==(const MissingTransformation &) const = default;
+    bool operator==(const MissingTransform &) const = default;
 };
 
-inline std::string format_as(const MissingTransformation &error) {
+inline std::string format_as(const MissingTransform &error) {
     if (error.gdal_error.has_value()) {
         return fmt::format("no transformation exists from {} to {}: {}", error.source, error.target, error.gdal_error->message());
     }
@@ -28,16 +28,16 @@ inline std::string format_as(const MissingTransformation &error) {
 }
 
 // A transformation from one spatial reference to another cannot map at least one point.
-struct UntransformablePoint {
+struct Untransformable {
     std::string source;
     std::string target;
     // The error GDAL recorded for the failure, if it recorded one. (skipped after 20 errors)
     std::optional<gdal::CplError> gdal_error;
 
-    bool operator==(const UntransformablePoint &) const = default;
+    bool operator==(const Untransformable &) const = default;
 };
 
-inline std::string format_as(const UntransformablePoint &error) {
+inline std::string format_as(const Untransformable &error) {
     if (error.gdal_error.has_value()) {
         return fmt::format("a point cannot be transformed from {} to {}: {}", error.source, error.target, error.gdal_error->message());
     }
@@ -45,6 +45,6 @@ inline std::string format_as(const UntransformablePoint &error) {
 }
 
 // An error from transforming between two spatial references.
-using TransformError = alp::Error<MissingTransformation, UntransformablePoint>;
+using TransformError = alp::Error<MissingTransform, Untransformable>;
 
 }

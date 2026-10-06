@@ -27,8 +27,8 @@
 #include "Dataset.h"
 #include "DatasetReader.h"
 #include "ctb/types.hpp"
+#include "srs/transform.h"
 #include "srs/transform_bounds.h"
-#include "srs/transformation.h"
 #include "../result_helpers.h"
 
 using namespace radix;
@@ -39,13 +39,9 @@ void require_projection_available(const Dataset& dataset, const OGRSpatialRefere
     const auto dataset_srs = dataset.srs();
     const auto source_bounds = dataset.bounds();
 
-    std::shared_ptr<OGRCoordinateTransformation> transform;
-    transform = REQUIRE_VALUE(srs::transformation(dataset_srs, target_srs));
-    REQUIRE(transform != nullptr);
-
-    std::array xs = { (source_bounds.min.x + source_bounds.max.x) / 2.0 };
-    std::array ys = { (source_bounds.min.y + source_bounds.max.y) / 2.0 };
-    REQUIRE(transform->Transform(static_cast<int>(xs.size()), xs.data(), ys.data()));
+    const srs::Transform transform = REQUIRE_VALUE(srs::get_transform(dataset_srs, target_srs));
+    const glm::dvec2 center = (source_bounds.min + source_bounds.max) / 2.0;
+    REQUIRE_VALUE(transform.apply(center));
 }
 }
 
