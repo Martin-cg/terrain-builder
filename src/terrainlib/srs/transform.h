@@ -1,7 +1,9 @@
 #pragma once
 
+#include <algorithm>
 #include <concepts>
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <ranges>
@@ -40,6 +42,8 @@ namespace detail {
 
 // One coordinate of every point of a range, which stays off the heap for a few points.
 using CoordinateBuffer = HybridVector<double, 8>;
+// Whether GDAL mapped each point of a range, which stays off the heap for a few points.
+using SuccessBuffer = HybridVector<int, 8>;
 
 inline MissingTransform make_missing_transform(const OGRSpatialReference &source_srs, const OGRSpatialReference &target_srs, std::optional<gdal::CplError> gdal_error) {
     return MissingTransform{
@@ -124,14 +128,16 @@ public:
             }
         }
 
+        detail::SuccessBuffer successes;
+        successes.resize(point_count);
         auto [success, gdal_error] = gdal::capture_error([&] {
             if constexpr (is_source_3d) {
-                return this->_transform->Transform(point_count, xs.data(), ys.data(), zs.data());
+                return this->_transform->Transform(point_count, xs.data(), ys.data(), zs.data(), successes.data());
             } else {
-                return this->_transform->Transform(point_count, xs.data(), ys.data());
+                return this->_transform->Transform(point_count, xs.data(), ys.data(), nullptr, successes.data());
             }
         });
-        if (!success) {
+        if (!success || !std::ranges::all_of(successes, std::identity())) {
             return alp::make_unexpected(detail::make_untransformable(this->_transform.get(), std::move(gdal_error)));
         }
 
