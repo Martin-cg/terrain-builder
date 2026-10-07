@@ -6,9 +6,10 @@
 #include <fmt/format.h>
 
 #include "error/format.h"
+#include "macros.h"
 
-// The value of `result`; fails the test with the error's report if it holds none.
-#define REQUIRE_VALUE(...)                                                          \
+// REQUIRE_VALUE(expr) with its result variable spelled out.
+#define REQUIRE_VALUE_IMPL(result, ...)                                             \
     [&] {                                                                           \
         auto result = (__VA_ARGS__);                                                \
         if (!result.has_value()) {                                                  \
@@ -17,8 +18,11 @@
         return std::move(result).value();                                           \
     }()
 
-// The error of `result`; fails the test if it holds a value.
-#define REQUIRE_ERROR(...)                    \
+// The value of `result`; fails the test with the error's report if it holds none.
+#define REQUIRE_VALUE(...) REQUIRE_VALUE_IMPL(ALP_UNIQUE_IDENT(_require_value_result_), __VA_ARGS__)
+
+// REQUIRE_ERROR(expr) with its result variable spelled out.
+#define REQUIRE_ERROR_IMPL(result, ...)       \
     [&] {                                     \
         auto result = (__VA_ARGS__);          \
         if (result.has_value()) {             \
@@ -26,3 +30,6 @@
         }                                     \
         return std::move(result).error();     \
     }()
+
+// The error of `result`; fails the test if it holds a value.
+#define REQUIRE_ERROR(...) REQUIRE_ERROR_IMPL(ALP_UNIQUE_IDENT(_require_error_result_), __VA_ARGS__)
