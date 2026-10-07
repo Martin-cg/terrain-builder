@@ -163,6 +163,19 @@ TEST_CASE("splitting the frontier into chunks does not change the tree", "[build
     CHECK(read_shape(split_nodes, *split_root) == read_shape(single_nodes, *single_root));
 }
 
+TEST_CASE("the build writes its root into the last batch", "[build][ploc]") {
+    // One worker on a single chunk, and several workers on many.
+    const auto [worker_count, chunk_size] = GENERATE(std::pair<size_t, size_t>{1, 32}, std::pair<size_t, size_t>{4, 8});
+
+    const TempDirectory directory("ploc");
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "nodes"));
+    frontier::Storage frontier = write_frontier(directory.path() / "frontier", nodes, make_row(24));
+
+    const bvh::Reference root = REQUIRE_VALUE(ploc::build(std::move(frontier), nodes, directory.path() / "scratch", make_options(worker_count, chunk_size)));
+
+    CHECK(root.batch == nodes.size() - 1);
+}
+
 TEST_CASE("a frontier that cannot be read fails the build", "[build][ploc]") {
     const TempDirectory directory("ploc");
     bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "nodes"));

@@ -17,6 +17,7 @@
 #include "bvh/BatchWriter.h"
 #include "bvh/Storage.h"
 #include "frontier/Storage.h"
+#include "storage/batch_limits.h"
 
 namespace {
 
@@ -248,6 +249,25 @@ TEST_CASE("a batch limit below one node writes every inner node into a batch of 
 
     // Four entries take three inner nodes.
     CHECK(nodes.size() == 3);
+}
+
+TEST_CASE("the build writes its root into the last batch", "[build][lbvh]") {
+    const size_t max_batch_bytes = GENERATE(default_max_batch_bytes, size_t{1});
+
+    const TempDirectory directory("lbvh");
+    frontier::Storage run = REQUIRE_VALUE(frontier::Storage::create(directory.path() / "run"));
+    REQUIRE(run.write(frontier::Batch{.entries = {
+        frontier::Entry{.morton = morton::Code{0}, .header = {}, .ref = {.batch = 100, .node = 0}},
+        frontier::Entry{.morton = morton::Code{1}, .header = {}, .ref = {.batch = 100, .node = 1}},
+        frontier::Entry{.morton = morton::Code{2}, .header = {}, .ref = {.batch = 100, .node = 2}},
+        frontier::Entry{.morton = morton::Code{3}, .header = {}, .ref = {.batch = 100, .node = 3}},
+    }}).has_value());
+    REQUIRE(run.save_index().has_value());
+
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "nodes"));
+    const bvh::Reference root = REQUIRE_VALUE(lbvh::build(run, nodes, lbvh::Options{.max_batch_bytes = max_batch_bytes}));
+
+    CHECK(root.batch == nodes.size() - 1);
 }
 
 TEST_CASE("a run whose batches cannot be read fails the build", "[build][lbvh]") {

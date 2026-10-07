@@ -164,6 +164,7 @@ if(TARGET bvhbuilderlib)
         bvh_builder/traverse.cpp
         bvh_builder/traverse_dag.cpp
         bvh_builder/traverse_tree.cpp
+        bvh_builder/widen_build.cpp
         bvh_builder/write_wide_nodes.cpp
     )
     target_link_libraries(unittests_bvhbuilder PUBLIC bvhbuilderlib Catch2::Catch2WithMain)
