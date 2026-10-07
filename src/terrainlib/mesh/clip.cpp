@@ -4,7 +4,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
-#include <stdexcept>
 #include <type_traits>
 #include <unordered_map>
 #include <variant>
@@ -17,6 +16,7 @@
 #include <radix/geometry.h>
 
 #include "build_config.h"
+#include "error/utils.h"
 #include "hash_utils.h"
 #include "log.h"
 #include "mesh/cgal.h"
@@ -634,7 +634,7 @@ struct HasIntersectionsVisitor : public CGAL::Polygon_mesh_processing::Corefinem
 };
 } // namespace
 
-Cow<const SimpleMesh> clip_on_bounds_and_cap(const SimpleMesh &mesh, const radix::geometry::Aabb3d &bounds, const bool remesh_planar_patches) {
+alp::Result<Cow<const SimpleMesh>, NonManifoldResult> clip_on_bounds_and_cap(const SimpleMesh &mesh, const radix::geometry::Aabb3d &bounds, const bool remesh_planar_patches) {
     ASSERT(!mesh.has_uvs());
     cgal::Mesh cgal_mesh = convert::to_cgal_mesh(mesh);
 
@@ -646,7 +646,7 @@ Cow<const SimpleMesh> clip_on_bounds_and_cap(const SimpleMesh &mesh, const radix
         .visitor(visitor);
     const bool success = CGAL::Polygon_mesh_processing::clip(cgal_mesh, cgal_bounds, clip_params);
     if (!success) {
-        throw std::runtime_error("CGAL::Polygon_mesh_processing::clip failed");
+        return alp::make_unexpected(NonManifoldResult{});
     }
     if (cgal_mesh.number_of_faces() == 0) {
         return Cow(SimpleMesh());
@@ -765,7 +765,7 @@ struct UvInterpolatorVisitor : public CGAL::Polygon_mesh_processing::Corefinemen
 };
 } // namespace
 
-Cow<const SimpleMesh> clip_on_mesh(const SimpleMesh &mesh, const SimpleMesh &clip_mesh, const bool keep_inside) {
+alp::Result<Cow<const SimpleMesh>, NonManifoldResult> clip_on_mesh(const SimpleMesh &mesh, const SimpleMesh &clip_mesh, const bool keep_inside) {
     // short circuit the empty mesh case
     // this is a common case since we clip the mask in the terrainmerger on the octree node bounds
     // which often results in empty masks
@@ -806,7 +806,7 @@ Cow<const SimpleMesh> clip_on_mesh(const SimpleMesh &mesh, const SimpleMesh &cli
         has_intersections = visitor.has_intersections;
     }
     if (!success) {
-        throw std::runtime_error("CGAL::Polygon_mesh_processing::clip failed");
+        return alp::make_unexpected(NonManifoldResult{});
     }
     if (cgal_mesh.number_of_faces() == 0) {
         return Cow(SimpleMesh());

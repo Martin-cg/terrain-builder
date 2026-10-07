@@ -65,7 +65,8 @@ inline void cut_virtual_node(
         // TODO: split mask based on inner planes instead
         const auto child_bounds = geometry::pad_bounds_relative(ctx.space.get_node_bounds(child_id), 0.125);
         LOG_TRACE("Clipping mask for {}", child_id);
-        const auto child_mask = MeshMask(mesh::clip_on_bounds_and_cap(mask.mesh, child_bounds));
+        const Cow<const SimpleMesh> clipped_mask = alp::unwrap(mesh::clip_on_bounds_and_cap(mask.mesh, child_bounds));
+        const MeshMask child_mask(clipped_mask);
         cut_node(ctx, child_id, child_mask);
     }
 }

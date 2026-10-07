@@ -4,6 +4,7 @@
 #include <radix/geometry.h>
 
 #include "containers/Cow.h"
+#include "error/unwrap.h"
 #include "geometry/geometry.h"
 #include "mask.h"
 #include "mesh/SimpleMesh.h"
@@ -11,7 +12,7 @@
 #include "mesh/texture_trim.h"
 
 inline Cow<const SimpleMesh> clip_on_mask(const SimpleMesh &mesh, const MeshMask &mask, const bool keep_inside = true) {
-    Cow<const SimpleMesh> clipped = mesh::clip_on_mesh(mesh, mask.mesh, keep_inside);
+    Cow<const SimpleMesh> clipped = alp::unwrap(mesh::clip_on_mesh(mesh, mask.mesh, keep_inside));
     if (clipped.is_ref()) {
         return clipped;
     }

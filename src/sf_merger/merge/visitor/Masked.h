@@ -1,5 +1,6 @@
 #pragma once
 
+#include "error/unwrap.h"
 #include "mask.h"
 #include "merge/NodeData.h"
 #include "merge/Result.h"
@@ -70,7 +71,8 @@ public:
 
         LOG_TRACE("Clipping mask for {}", id);
         const auto bounds = geometry::pad_bounds_relative(this->_space.get_node_bounds(id), 0.05);
-        MeshMask mask(mesh::clip_on_bounds_and_cap(ctx.mask.mesh, bounds));
+        const Cow<const SimpleMesh> clipped_mask = alp::unwrap(mesh::clip_on_bounds_and_cap(ctx.mask.mesh, bounds));
+        const MeshMask mask(clipped_mask);
 
         // Same when the current mask is empty
         if constexpr (LeftStatus != Status::Missing) {
