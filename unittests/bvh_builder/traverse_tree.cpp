@@ -6,11 +6,16 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <string_view>
 #include <vector>
 
 #include <glm/glm.hpp>
 
 #include "enumerate.h"
+#include "error/Error.h"
+#include "error/Result.h"
+#include "error/utils.h"
+#include "io/Error.h"
 #include "range_utils.h"
 
 #include "bvh/BatchWriter.h"
@@ -21,6 +26,17 @@
 #include "storage/batch_limits.h"
 
 namespace {
+
+enum class VisitError {
+    Rejected,
+};
+
+std::string_view format_as(const VisitError) {
+    return "visit rejected";
+}
+
+// A walk whose visitor can fail on its own as well as on a read.
+using WalkError = alp::Error<io::Error, VisitError>;
 
 const bvh::NodeHeader root_header{.min_child_error = 1.0, .max_parent_error = 2.0, .bounds = {glm::dvec3{0.0}, glm::dvec3{4.0}}};
 
@@ -152,7 +168,7 @@ TEST_CASE("a view stays valid while the visitor reads through the same cache", "
     CHECK(children == std::vector{tree.left, tree.right});
 }
 
-TEST_CASE("a visitor returning false stops the walk", "[bvh][traverse_tree]") {
+TEST_CASE("a visitor breaking off stops the walk", "[bvh][traverse_tree]") {
     const TempDirectory directory("traverse_tree");
     bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path()));
     bvh::BatchWriter writer(nodes);
@@ -192,4 +208,92 @@ TEST_CASE("a child whose batch cannot be read fails the walk", "[bvh][traverse_t
 
     CHECK_FALSE(result.has_value());
     CHECK(visits == 1);
+}
+
+TEST_CASE("a pruned node's children are skipped and the walk goes on with its siblings", "[bvh][traverse_tree]") {
+    const TempDirectory directory("traverse_tree");
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path()));
+    bvh::BatchWriter writer(nodes);
+    const BalancedTree tree = write_balanced_tree(writer);
+    REQUIRE(nodes.save_index().has_value());
+
+    bvh::NodeCache cache(nodes, 1);
+    std::vector<bvh::Reference> visited;
+    const auto result = bvh::traverse_tree(cache, tree.root, [&](const bvh::Reference &reference, const bvh::NodeView &) {
+        visited.push_back(reference);
+        if (reference == tree.left) {
+            return bvh::Control::Prune;
+        } else {
+            return bvh::Control::Continue;
+        }
+    });
+
+    REQUIRE(result.value_or(false));
+    CHECK(visited == std::vector{tree.root, tree.left, tree.right, tree.leaves[2], tree.leaves[3]});
+}
+
+TEST_CASE("a pruned leaf goes on like a continued one", "[bvh][traverse_tree]") {
+    const TempDirectory directory("traverse_tree");
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path()));
+    bvh::BatchWriter writer(nodes);
+    const BalancedTree tree = write_balanced_tree(writer);
+    REQUIRE(nodes.save_index().has_value());
+
+    bvh::NodeCache cache(nodes, 1);
+    std::vector<bvh::Reference> visited;
+    const auto result = bvh::traverse_tree(cache, tree.root, [&](const bvh::Reference &reference, const bvh::NodeView &view) {
+        visited.push_back(reference);
+        if (view.is_leaf()) {
+            return bvh::Control::Prune;
+        } else {
+            return bvh::Control::Continue;
+        }
+    });
+
+    REQUIRE(result.value_or(false));
+    CHECK(visited == std::vector{tree.root, tree.left, tree.leaves[0], tree.leaves[1], tree.right, tree.leaves[2], tree.leaves[3]});
+}
+
+TEST_CASE("a failing visitor fails the walk with its error and visits nothing after it", "[bvh][traverse_tree]") {
+    const TempDirectory directory("traverse_tree");
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path()));
+    bvh::BatchWriter writer(nodes);
+    const BalancedTree tree = write_balanced_tree(writer);
+    REQUIRE(nodes.save_index().has_value());
+
+    bvh::NodeCache cache(nodes, 1);
+    std::vector<bvh::Reference> visited;
+    const auto result = bvh::traverse_tree<WalkError>(cache, tree.root, [&](const bvh::Reference &reference, const bvh::NodeView &) -> alp::Result<void, WalkError> {
+        visited.push_back(reference);
+        if (reference == tree.left) {
+            return alp::make_unexpected(VisitError::Rejected);
+        }
+        return {};
+    });
+
+    const WalkError error = REQUIRE_ERROR(result);
+    CHECK(error.holds(VisitError::Rejected));
+    CHECK(visited == std::vector{tree.root, tree.left});
+}
+
+TEST_CASE("a batch that cannot be read fails a walk with a wider error, holding the read's error", "[bvh][traverse_tree]") {
+    const TempDirectory directory("traverse_tree");
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path()));
+
+    // Reserved but never written, so reading it must fail rather than end the walk quietly.
+    const bvh::Batch missing = nodes.create_batch();
+
+    bvh::BatchWriter writer(nodes);
+    const auto root_result = writer.write_inner(bvh::NodeHeader{}, std::array{bvh::Reference{.batch = missing.index(), .node = 0}});
+    REQUIRE(root_result.has_value());
+    REQUIRE(writer.flush().has_value());
+    REQUIRE(nodes.save_index().has_value());
+
+    bvh::NodeCache cache(nodes, 1);
+    const auto result = bvh::traverse_tree<WalkError>(cache, *root_result, [&](const bvh::Reference &, const bvh::NodeView &) -> alp::Result<bool, WalkError> {
+        return true;
+    });
+
+    const WalkError error = REQUIRE_ERROR(result);
+    CHECK(error.holds_and<io::FileError>(&io::FileError::is_not_found));
 }
