@@ -21,6 +21,7 @@
 #include "numeric/int_math.h"
 #include "log.h"
 #include "merge/clusterings.h"
+#include "merge/weld.h"
 #include "mesh/SimpleMesh.h"
 #include "mesh/io.h"
 #include "octree/Id.h"
@@ -46,7 +47,7 @@ namespace dag {
 
 namespace {
 
-// Load a mesh from storage and clusterize it.
+// Load a mesh from storage, clusterize it and weld its positions.
 std::optional<Clustering> load_and_clusterize_mesh(
     const octree::MeshStorage &storage,
     const octree::Id &id) {
@@ -67,7 +68,8 @@ std::optional<Clustering> load_and_clusterize_mesh(
         mesh.vertex_count(),
         mesh.face_count());
 
-    return clusterize(mesh);
+    const Clustering clustering = clusterize(mesh);
+    return weld_clustering(clustering, 0.0);
 }
 
 // A clustering with its group structure.
