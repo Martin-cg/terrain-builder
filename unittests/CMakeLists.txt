@@ -25,6 +25,7 @@ add_executable(unittests_terrainlib
     terrainlib/error_error_code.cpp
     terrainlib/error_format.cpp
     terrainlib/error_result.cpp
+    terrainlib/error_result_fn.cpp
     terrainlib/error_trace.cpp
     terrainlib/error_try.cpp
     terrainlib/error_unwrap.cpp
