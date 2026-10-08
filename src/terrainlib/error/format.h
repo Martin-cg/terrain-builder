@@ -7,6 +7,7 @@
 
 #include <cpptrace/utils.hpp>
 #include <fmt/format.h>
+#include <libassert/assert.hpp>
 
 #include "enumerate.h"
 #include "error/Error.h"
