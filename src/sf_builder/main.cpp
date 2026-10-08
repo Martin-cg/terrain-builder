@@ -240,7 +240,7 @@ alp::Result<void> run(const cli::Args &args) {
     const cli::BaseArgs &base_args = std::visit([](const auto &args) -> const cli::BaseArgs & { return args; }, args);
 
     ALP_TRY(Dataset dataset, Dataset::open_raster(base_args.dataset_path));
-    ALP_TRY(dataset.geo_transform());
+    ALP_TRY(dataset.pixel_transform());
     ALP_TRY(log_dataset_overview(dataset));
     ALP_TRY(const auto parsed_mesh_srs, srs::from_user_input(base_args.mesh_srs_input));
     const auto mesh_srs = srs::make_thread_safe(parsed_mesh_srs);

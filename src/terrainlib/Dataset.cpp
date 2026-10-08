@@ -106,11 +106,11 @@ Dataset Dataset::clone() {
     return Dataset(this->m_path.value());
 }
 
-alp::Result<gdal::GeoTransform, gdal::GeoTransformError> Dataset::geo_transform() const {
+alp::Result<gdal::PixelTransform, gdal::PixelTransformError> Dataset::pixel_transform() const {
     ALP_TRY_CONTEXT(
-        gdal::GeoTransform transform,
-        gdal::GeoTransform::from_dataset(*this->m_gdal_dataset),
-        fmt::format("reading the geotransform of {}", this->name()));
+        gdal::PixelTransform transform,
+        gdal::PixelTransform::from_dataset(*this->m_gdal_dataset),
+        fmt::format("reading the pixel transform of {}", this->name()));
     return transform;
 }
 
@@ -133,7 +133,7 @@ std::string Dataset::name() const {
 Dataset::~Dataset() = default;
 
 radix::tile::SrsBounds Dataset::bounds() const {
-    const gdal::GeoTransform transform = alp::unwrap(this->geo_transform());
+    const gdal::PixelTransform transform = alp::unwrap(this->pixel_transform());
 
     // https://gdal.org/user/raster_data_model.html
     // gdal has a row/column raster format, where row 0 is the top most row.

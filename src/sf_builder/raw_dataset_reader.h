@@ -17,7 +17,7 @@
 #include "error/utils.h"
 #include "fmt_impls.h"
 #include "gdal/CplError.h"
-#include "gdal/GeoTransform.h"
+#include "gdal/PixelTransform.h"
 #include "log.h"
 #include "raster.h"
 
@@ -26,7 +26,7 @@ namespace terrainbuilder {
 class RawDatasetReader {
 public:
     RawDatasetReader(Dataset &target_dataset)
-        : dataset(target_dataset.as_gdal()), geo_transform(alp::unwrap(target_dataset.geo_transform())) {}
+        : dataset(target_dataset.as_gdal()), geo_transform(alp::unwrap(target_dataset.pixel_transform())) {}
 
     GDALDataset *gdal_dataset() {
         return this->dataset;
@@ -151,7 +151,7 @@ public:
 
 private:
     GDALDataset *dataset;
-    gdal::GeoTransform geo_transform;
+    gdal::PixelTransform geo_transform;
 };
 
 }

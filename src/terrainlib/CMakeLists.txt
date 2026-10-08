@@ -6,7 +6,7 @@ add_library(terrainlib
     ctb/TileCoordinate.hpp
     ctb/types.hpp
 
-    gdal/GeoTransform.cpp
+    gdal/PixelTransform.cpp
 
     io/bytes.cpp
 

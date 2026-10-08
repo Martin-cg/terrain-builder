@@ -29,7 +29,7 @@
 
 #include "error/Result.h"
 #include "gdal/CplError.h"
-#include "gdal/GeoTransform.h"
+#include "gdal/PixelTransform.h"
 #include "log.h"
 #include "srs.h"
 
@@ -60,7 +60,7 @@ public:
 
     [[nodiscard]] std::string name() const;
 
-    [[nodiscard]] alp::Result<gdal::GeoTransform, gdal::GeoTransformError> geo_transform() const;
+    [[nodiscard]] alp::Result<gdal::PixelTransform, gdal::PixelTransformError> pixel_transform() const;
 
     [[nodiscard]] radix::tile::SrsBounds bounds() const;
     [[nodiscard]] radix::tile::SrsAndHeightBounds bounds3d(bool approx_ok = false) const;
