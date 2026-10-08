@@ -9,6 +9,7 @@
 #include "error/Context.h"
 #include "error/Result.h"
 #include "error/utils.h"
+#include "fmt_impls.h"
 #include "io/FileError.h"
 
 namespace io::filesystem {

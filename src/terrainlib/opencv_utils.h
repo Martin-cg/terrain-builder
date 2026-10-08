@@ -3,6 +3,7 @@
 #include <stdexcept>
 
 #include <glm/common.hpp>
+#include <glm/glm.hpp>
 #include <opencv2/opencv.hpp>
 
 // Calls the visitor with the depth's channel type.
