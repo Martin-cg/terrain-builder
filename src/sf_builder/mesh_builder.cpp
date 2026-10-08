@@ -136,7 +136,7 @@ alp::Result<SimpleMesh, BuildMeshError> build_reference_mesh_patch(
     }
 
     // Read height data according to bounds directly from dataset (no interpolation).
-    RawDatasetReader reader(dataset);
+    ALP_TRY_CONTEXT(RawDatasetReader reader, RawDatasetReader::for_dataset(dataset), context);
     radix::geometry::Aabb2i pixel_bounds = reader.transform_srs_bounds_to_pixel_bounds(target_bounds_in_source_srs);
     add_border_to_aabb(pixel_bounds, Border(1));
     LOG_TRACE("Reading pixels [({}, {})-({}, {})] from dataset", pixel_bounds.min.x, pixel_bounds.min.y, pixel_bounds.max.x, pixel_bounds.max.y);

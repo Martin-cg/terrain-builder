@@ -18,7 +18,7 @@
 namespace terrainbuilder {
 
 // An error from building the mesh or texture of a patch.
-using BuildPatchError = alp::Error<gdal::CplError, TileError, srs::TransformError>;
+using BuildPatchError = alp::Error<gdal::CplError, gdal::PixelTransformError, TileError, srs::TransformError>;
 
 alp::Result<void, BuildPatchError, mesh::io::Error> build_and_save_patch(
     Dataset &dataset,

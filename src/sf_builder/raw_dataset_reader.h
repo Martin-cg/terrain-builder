@@ -13,7 +13,7 @@
 #include <radix/geometry.h>
 
 #include "error/Result.h"
-#include "error/unwrap.h"
+#include "error/try.h"
 #include "error/utils.h"
 #include "fmt_impls.h"
 #include "gdal/CplError.h"
@@ -25,8 +25,11 @@ namespace terrainbuilder {
 
 class RawDatasetReader {
 public:
-    RawDatasetReader(Dataset &target_dataset)
-        : dataset(target_dataset.as_gdal()), geo_transform(alp::unwrap(target_dataset.pixel_transform())) {}
+    [[nodiscard]]
+    static alp::Result<RawDatasetReader, gdal::PixelTransformError> for_dataset(Dataset &dataset) {
+        ALP_TRY(const gdal::PixelTransform pixel_transform, dataset.pixel_transform());
+        return RawDatasetReader(dataset.as_gdal(), pixel_transform);
+    }
 
     GDALDataset *gdal_dataset() {
         return this->dataset;
@@ -141,17 +144,20 @@ public:
 
     template <typename T>
     inline glm::dvec2 transform_srs_point_to_pixel_exact(const glm::tvec2<T> &p) const {
-        return this->geo_transform.apply_inverse(glm::dvec2(p));
+        return this->pixel_transform.apply_inverse(glm::dvec2(p));
     }
 
     template <typename T>
     inline glm::dvec2 transform_pixel_to_srs_point(const glm::tvec2<T> &p) const {
-        return this->geo_transform.apply(glm::dvec2(p));
+        return this->pixel_transform.apply(glm::dvec2(p));
     }
 
 private:
+    RawDatasetReader(GDALDataset *dataset, const gdal::PixelTransform &pixel_transform)
+        : dataset(dataset), pixel_transform(pixel_transform) {}
+
     GDALDataset *dataset;
-    gdal::PixelTransform geo_transform;
+    gdal::PixelTransform pixel_transform;
 };
 
 }

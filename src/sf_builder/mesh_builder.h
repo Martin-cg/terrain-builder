@@ -13,6 +13,7 @@
 #include "error/Result.h"
 #include "fmt_impls.h"
 #include "gdal/CplError.h"
+#include "gdal/PixelTransform.h"
 #include "mesh/SimpleMesh.h"
 #include "border.h"
 
@@ -43,7 +44,7 @@ inline std::string_view format_as(const EmptyRegion) {
 using NoTerrain = alp::Error<OutOfBounds, EmptyRegion>;
 
 // An error from building a mesh from a height dataset.
-using BuildMeshError = alp::Error<NoTerrain, gdal::CplError, srs::TransformError>;
+using BuildMeshError = alp::Error<NoTerrain, gdal::CplError, gdal::PixelTransformError, srs::TransformError>;
 
 /// Builds a mesh from the given height dataset.
 [[nodiscard]]
