@@ -17,7 +17,10 @@
 
 namespace terrainbuilder {
 
-alp::Result<void, gdal::CplError, TileError, srs::TransformError, mesh::io::Error> build_and_save_patch(
+// An error from building the mesh or texture of a patch.
+using BuildPatchError = alp::Error<gdal::CplError, TileError, srs::TransformError>;
+
+alp::Result<void, BuildPatchError, mesh::io::Error> build_and_save_patch(
     Dataset &dataset,
     const srs::System &target_bounds_srs,
     const radix::geometry::Aabb3d &target_bounds,
@@ -27,7 +30,7 @@ alp::Result<void, gdal::CplError, TileError, srs::TransformError, mesh::io::Erro
     const std::filesystem::path &output_path);
 
 // The mesh for the target bounds, or nothing if the dataset holds no terrain there.
-alp::Result<std::optional<SimpleMesh>, gdal::CplError, TileError, srs::TransformError> build_patch(
+alp::Result<std::optional<SimpleMesh>, BuildPatchError> build_patch(
     Dataset &dataset,
     const srs::System &target_bounds_srs,
     const radix::geometry::Aabb3d &target_bounds,

@@ -39,8 +39,11 @@ inline std::string_view format_as(const EmptyRegion) {
     return "the requested region holds no terrain";
 }
 
+// A requested region the dataset holds no terrain for.
+using NoTerrain = alp::Error<OutOfBounds, EmptyRegion>;
+
 // An error from building a mesh from a height dataset.
-using BuildMeshError = alp::Error<OutOfBounds, EmptyRegion, gdal::CplError, srs::TransformError>;
+using BuildMeshError = alp::Error<NoTerrain, gdal::CplError, srs::TransformError>;
 
 /// Builds a mesh from the given height dataset.
 [[nodiscard]]

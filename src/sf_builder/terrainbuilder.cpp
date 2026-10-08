@@ -63,7 +63,7 @@ std::string format_secs_since(const std::chrono::high_resolution_clock::time_poi
 }
 }
 
-alp::Result<std::optional<SimpleMesh>, gdal::CplError, TileError, srs::TransformError> build_patch(
+alp::Result<std::optional<SimpleMesh>, BuildPatchError> build_patch(
     Dataset &dataset,
     const srs::System &target_bounds_srs,
     const radix::geometry::Aabb3d &target_bounds,
@@ -82,11 +82,11 @@ alp::Result<std::optional<SimpleMesh>, gdal::CplError, TileError, srs::Transform
         target_bounds_srs, target_bounds,
         texture_srs, texture_bounds);
     if (!mesh_result.has_value()) {
-        auto narrow_result = std::move(mesh_result).error().narrow<gdal::CplError, srs::TransformError>();
-        if (narrow_result.has_value()) {
-            return alp::propagate(std::move(narrow_result).value());
+        auto split_result = std::move(mesh_result).error().split<NoTerrain>();
+        if (!split_result.has_value()) {
+            return alp::propagate(std::move(split_result).error());
         }
-        LOG_WARN("{:#}", narrow_result.error());
+        LOG_WARN("{:#}", split_result.value());
         return std::nullopt;
     }
     SimpleMesh mesh = mesh_result.value();
@@ -117,7 +117,7 @@ alp::Result<std::optional<SimpleMesh>, gdal::CplError, TileError, srs::Transform
     return mesh;
 }
 
-alp::Result<void, gdal::CplError, TileError, srs::TransformError, mesh::io::Error> build_and_save_patch(
+alp::Result<void, BuildPatchError, mesh::io::Error> build_and_save_patch(
     Dataset &dataset,
     const srs::System &target_bounds_srs,
     const radix::geometry::Aabb3d &target_bounds,
@@ -159,7 +159,7 @@ alp::Result<void, gdal::CplError, TileError, srs::TransformError, mesh::io::Erro
 
 namespace {
 // An error from building and saving a node.
-using BuildError = alp::Error<gdal::CplError, TileError, srs::TransformError, octree::Storage::save_error>;
+using BuildError = alp::Error<BuildPatchError, octree::Storage::save_error>;
 
 // Builds the mesh for `node` and saves it to `storage`, or saves nothing if the dataset holds no terrain there.
 alp::BasicResult<void, BuildError> build_and_save_node(
