@@ -15,7 +15,6 @@
 
 #include <fmt/core.h>
 #include <glm/glm.hpp>
-#include <ogr_spatialref.h>
 #include <opencv2/core/mat.hpp>
 #include <radix/geometry.h>
 

@@ -3,8 +3,6 @@
 #include <ranges>
 #include <vector>
 
-#include <gdal.h>
-#include <gdal_priv.h>
 #include <glm/glm.hpp>
 #include <radix/geometry.h>
 #include <glm/gtx/norm.hpp>
