@@ -27,6 +27,7 @@
 #include <glm/vec2.hpp>
 #include <radix/tile.h>
 
+#include "containers/UniqueResource.h"
 #include "error/Result.h"
 #include "gdal/CplError.h"
 #include "gdal/PixelTransform.h"
@@ -36,14 +37,13 @@
 class GDALDataset;
 
 struct GDALDatasetDeleter {
-    void operator()(GDALDataset *dataset) const;
+    void operator()(GDALDataset *dataset) const noexcept;
 };
 
 class Dataset {
 public:
     Dataset(std::filesystem::path path);
     Dataset(GDALDataset* dataset); // takes over ownership
-    ~Dataset();
     [[nodiscard]]
     static alp::Result<Dataset, gdal::CplError> open_raster(std::filesystem::path path);
     [[nodiscard]]
@@ -51,12 +51,6 @@ public:
     [[nodiscard]]
     static alp::Result<std::shared_ptr<Dataset>, gdal::CplError> open_shared_raster(std::filesystem::path path);
     Dataset clone();
-
-    Dataset(Dataset &&) noexcept = default;
-    Dataset &operator=(Dataset &&) noexcept = default;
-
-    Dataset(const Dataset &) = delete;
-    Dataset &operator=(const Dataset &) = delete;
 
     [[nodiscard]] std::string name() const;
 
@@ -81,6 +75,6 @@ public:
 
 private:
     Dataset(const std::filesystem::path path, GDALDataset *dataset);
-    std::unique_ptr<GDALDataset, GDALDatasetDeleter> m_gdal_dataset;
+    UniquePointer<GDALDataset, GDALDatasetDeleter> m_gdal_dataset;
     std::optional<std::filesystem::path> m_path;
 };

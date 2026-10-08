@@ -41,10 +41,8 @@
 #include "srs/transform.h"
 #include "srs/transform_bounds.h"
 
-void GDALDatasetDeleter::operator()(GDALDataset *dataset) const {
-    if (dataset) {
-        GDALClose(dataset);
-    }
+void GDALDatasetDeleter::operator()(GDALDataset *dataset) const noexcept {
+    GDALClose(dataset);
 }
 
 [[nodiscard]]
@@ -129,8 +127,6 @@ std::string Dataset::name() const {
     }
     UNREACHABLE();
 }
-
-Dataset::~Dataset() = default;
 
 radix::tile::SrsBounds Dataset::bounds() const {
     const gdal::PixelTransform transform = alp::unwrap(this->pixel_transform());
