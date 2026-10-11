@@ -23,6 +23,7 @@
  */
 
 #include "Grid.hpp"
+#include "srs/SharedSystem.h"
 
 namespace ctb {
 class GlobalMercator;
@@ -39,7 +40,7 @@ public:
     GlobalMercator(i_tile tileSize = 256)
         : Grid(tileSize,
                radix::tile::SrsBounds{{-cOriginShift, -cOriginShift}, {cOriginShift, cOriginShift}},
-               cSRS,
+               cSRS.get(),
                3857,
                std::vector<radix::tile::Id>{radix::tile::Id{0, {0, 0}, radix::tile::Scheme::Tms}},
                2) {
@@ -57,7 +58,7 @@ protected:
     static const double cOriginShift;
 
     /// The EPSG:3785 spatial reference system
-    static const OGRSpatialReference cSRS;
+    static const srs::SharedSystem cSRS;
 };
 
 #endif /* GLOBALMERCATOR_HPP */

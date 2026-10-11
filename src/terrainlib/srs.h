@@ -69,18 +69,9 @@ inline std::string friendly_name(const System &srs) {
     return "unknown";
 }
 
-inline std::unique_ptr<System> clone(const System &srs) {
-    auto cloned = srs.Clone();
-    return std::unique_ptr<System>(cloned);
-}
-
-// Creates a copy of `srs` that several threads may use at the same time.
-[[nodiscard]]
-inline std::unique_ptr<const System> make_thread_safe(const System &srs) {
-    // A copy of a thread-safe system is not thread-safe, so the result lives where nobody copies it by accident.
-    auto thread_safe = std::make_unique<System>();
-    thread_safe->AssignAndSetThreadSafe(srs);
-    return thread_safe;
+inline System clone(const System &srs) {
+    const std::unique_ptr<System> cloned(srs.Clone());
+    return std::move(*cloned);
 }
 
 [[nodiscard]]

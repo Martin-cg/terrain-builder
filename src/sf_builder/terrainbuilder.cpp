@@ -25,6 +25,7 @@
 #include "ctb/GlobalMercator.hpp"
 #include "ctb/Grid.hpp"
 #include "srs.h"
+#include "srs/SharedSystem.h"
 #include "srs/transform.h"
 #include "srs/transform_bounds.h"
 
@@ -210,11 +211,13 @@ alp::Result<void> build_all_patches(
     ));
     storage.settings().allow_overwrite = overwrite_existing;
 
-    const auto dataset_srs = srs::make_thread_safe(dataset.srs());
+    const srs::SharedSystem dataset_srs(dataset.srs());
     const auto dataset_bounds = dataset.bounds3d(true);
 
-    const auto ecef_srs = srs::make_thread_safe(srs::ecef());
-    ALP_TRY(const auto ecef_bounds, srs::encompassing_bounds_transfer(*dataset_srs, *ecef_srs, dataset_bounds));
+    const srs::SharedSystem ecef_srs(srs::ecef());
+    const srs::SharedSystem shared_texture_srs(texture_srs);
+    const srs::SharedSystem shared_mesh_srs(mesh_srs);
+    ALP_TRY(const auto ecef_bounds, srs::encompassing_bounds_transfer(dataset_srs.get(), ecef_srs.get(), dataset_bounds));
     const auto space = octree::Space::earth();
     ALP_TRY(const octree::Id root_node, alp::to_expected(
         space.find_smallest_node_encompassing_bounds(ecef_bounds),
@@ -231,7 +234,7 @@ alp::Result<void> build_all_patches(
         }
 
         // Check if node bounds in dataset srs intersect with dataset
-        ALP_TRY(const srs::Transform transform_ecef_dataset, srs::get_transform(*ecef_srs, *dataset_srs));
+        ALP_TRY(const srs::Transform transform_ecef_dataset, srs::get_transform(ecef_srs.get(), dataset_srs.get()));
         ALP_TRY(const auto node_bounds_dataset_srs, srs::encompassing_bounds_transfer(
             transform_ecef_dataset, node_bounds, 7, 3));
         if (!radix::geometry::intersect(node_bounds_dataset_srs, dataset_bounds)) {
@@ -276,10 +279,10 @@ alp::Result<void> build_all_patches(
             dataset,
             space,
             node,
-            *ecef_srs,
-            texture_srs,
+            ecef_srs.get(),
+            shared_texture_srs.get(),
             tile_provider,
-            mesh_srs,
+            shared_mesh_srs.get(),
             storage);
 
         progress.task_finished();
