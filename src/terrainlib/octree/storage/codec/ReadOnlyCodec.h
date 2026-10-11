@@ -3,7 +3,7 @@
 #include <expected>
 #include <filesystem>
 
-#include "log.h"
+#include <libassert/assert.hpp>
 
 namespace octree {
 
@@ -14,7 +14,7 @@ struct ReadOnlyCodec : Codec {
     [[nodiscard]]
     static std::expected<void, typename Codec::save_error> save_to_path(
         const typename Codec::value_type &, const std::filesystem::path &) noexcept {
-        LOG_ERROR_AND_EXIT("Attempted to write through a read-only codec");
+        PANIC("Attempted to write through a read-only codec");
     }
 };
 

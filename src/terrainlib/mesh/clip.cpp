@@ -298,9 +298,7 @@ Cow<const SimpleMesh> clip_on_bounds(const SimpleMesh &mesh, const radix::geomet
         return Cow(SimpleMesh());
     }
 
-    if (mesh.has_uvs() && mesh.uvs.size() != mesh.vertex_count()) {
-        LOG_ERROR_AND_EXIT("Mesh has Uvs, but the number of Uvs does not match the number of vertices.");
-    }
+    ASSERT(!mesh.has_uvs() || mesh.uvs.size() == mesh.vertex_count(), "Mesh has Uvs, but the number of Uvs does not match the number of vertices.");
 
     // Construct 6 axis-aligned clipping planes from the bounding box
     using Plane = radix::geometry::Plane<double>;

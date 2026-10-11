@@ -10,6 +10,8 @@
 #include <unordered_map>
 #include <utility>
 
+#include <libassert/assert.hpp>
+
 #include "error/log.h"
 #include "error/try.h"
 #include "error/utils.h"
@@ -176,9 +178,7 @@ public:
 
     [[nodiscard]]
     std::expected<void, save_error> save(const Id &id, const value_type &value) {
-        if (this->check_overwrite(id)) {
-            LOG_ERROR_AND_EXIT("tried to overwrite value when not allowed");
-        }
+        ASSERT(!this->check_overwrite(id), "tried to overwrite value when not allowed");
 
         const auto result = this->_inner.save(id, value);
         if (result.has_value()) {
@@ -194,10 +194,7 @@ public:
             return detail::make_index_miss(id, source._inner.layout());
         }
 
-        if (this->check_overwrite(id)) {
-            // TODO: proper error
-            LOG_ERROR_AND_EXIT("tried to overwrite value when not allowed");
-        }
+        ASSERT(!this->check_overwrite(id), "tried to overwrite value when not allowed");
 
         const auto result = this->_inner.copy_from(id, source._inner);
         if (result.has_value()) {

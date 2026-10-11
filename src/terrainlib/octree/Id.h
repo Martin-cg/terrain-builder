@@ -4,7 +4,6 @@
 #include <array>
 #include <cstdint>
 #include <optional>
-#include <stdexcept>
 #include <functional>
 #include <type_traits>
 
@@ -202,9 +201,7 @@ public:
     }
 
     [[nodiscard]] constexpr std::optional<Id_> child(size_t child_index) const {
-        if (child_index >= child_count) {
-            throw std::invalid_argument(fmt::format("Invalid child index (must be 0-{})", child_count));
-        }
+        ASSERT(child_index < child_count, "Invalid child index");
         if (!this->has_children()) {
             return std::nullopt;
         }
