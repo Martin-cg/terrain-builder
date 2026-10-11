@@ -148,6 +148,7 @@ if(TARGET bvhbuilderlib)
         bvh_builder/batch_storage.cpp
         bvh_builder/bounded_cache.cpp
         bvh_builder/build_frontier.cpp
+        bvh_builder/cut_rule.cpp
         bvh_builder/find_root.cpp
         bvh_builder/flat_traverse.cpp
         bvh_builder/frustum.cpp
@@ -159,6 +160,7 @@ if(TARGET bvhbuilderlib)
         bvh_builder/ploc.cpp
         bvh_builder/prefix_map.cpp
         bvh_builder/row_buffer.cpp
+        bvh_builder/select_cut.cpp
         bvh_builder/sort_by_morton.cpp
         bvh_builder/sort_frontier.cpp
         bvh_builder/split_into_sorted_runs.cpp
