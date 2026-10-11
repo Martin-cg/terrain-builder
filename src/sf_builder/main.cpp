@@ -38,12 +38,12 @@ radix::geometry::Aabb3d extend_bounds_to_3d(radix::geometry::Aabb2d bounds2d) {
     return radix::geometry::Aabb3d(min, max);
 }
 
-radix::geometry::Aabb3d parse_bounds_from_values(const std::vector<double> &data, const srs::System &srs) {
+alp::Result<radix::geometry::Aabb3d> parse_bounds_from_values(const std::vector<double> &data, const srs::System &srs) {
     const int32_t dim = srs.GetAxesCount();
     const size_t expected = (dim == 3) ? 6 : 4;
 
     if (data.size() != expected) {
-        LOG_ERROR_AND_EXIT("Target bounds expects {} values for {}D SRS.", expected, dim);
+        return alp::make_unexpected(fmt::format("Target bounds expects {} values for {}D SRS.", expected, dim));
     }
 
     if (data.size() == 4) {
@@ -55,11 +55,11 @@ radix::geometry::Aabb3d parse_bounds_from_values(const std::vector<double> &data
         const glm::dvec3 max(data[0] + data[1], data[2] + data[3], data[4] + data[5]);
         return radix::geometry::Aabb3d(min, max);
     } else {
-        LOG_ERROR_AND_EXIT("Invalid number of elements for --bounds. Expected 4 or 6.");
+        UNREACHABLE();
     }
 }
 
-radix::geometry::Aabb3d parse_bounds_from_tile(
+alp::Result<radix::geometry::Aabb3d> parse_bounds_from_tile(
     const std::vector<uint32_t> &data,
     radix::tile::Scheme scheme,
     const srs::System &srs) {
@@ -73,7 +73,7 @@ radix::geometry::Aabb3d parse_bounds_from_tile(
     } else if (srs.IsSame(&wgs84_srs)) {
         grid = ctb::GlobalGeodetic();
     } else {
-        LOG_ERROR_AND_EXIT("Only WebMercator (EPSG:3857) or WGS84 (EPSG:4326) supported for --tile.");
+        return alp::make_unexpected("Only WebMercator (EPSG:3857) or WGS84 (EPSG:4326) supported for --tile.");
     }
 
     const uint32_t zoom_level = data[0];
@@ -83,11 +83,11 @@ radix::geometry::Aabb3d parse_bounds_from_tile(
     return extend_bounds_to_3d(grid->srsBounds(target_tile, false));
 }
 
-radix::geometry::Aabb3d parse_bounds_from_node(const std::vector<uint64_t> &data, const srs::System &srs) {
+alp::Result<radix::geometry::Aabb3d> parse_bounds_from_node(const std::vector<uint64_t> &data, const srs::System &srs) {
     // Validate node SRS (only ECEF)
     const srs::System &ecef_srs = srs::ecef();
     if (!srs.IsSame(&ecef_srs)) {
-        LOG_ERROR_AND_EXIT("Only ECEF (EPSG:4978) supported for --node.");
+        return alp::make_unexpected("Only ECEF (EPSG:4978) supported for --node.");
     }
 
     const octree::Id::Level zoom_level = data[0];
@@ -99,13 +99,13 @@ radix::geometry::Aabb3d parse_bounds_from_node(const std::vector<uint64_t> &data
         const octree::Id::Coords coords(data[1], data[2], data[3]);
         target_node = {zoom_level, coords};
     } else {
-        LOG_ERROR_AND_EXIT("Invalid number of args for --node. Expected 2 or 4.");
+        return alp::make_unexpected("Invalid number of args for --node. Expected 2 or 4.");
     }
 
     return octree::Space::earth().get_node_bounds(target_node);
 }
 
-radix::geometry::Aabb3d parse_target_bounds(
+alp::Result<radix::geometry::Aabb3d> parse_target_bounds(
     const std::vector<double> &bounds_data,
     const std::vector<uint64_t> &node_data,
     const std::vector<uint32_t> &tile_data,
@@ -191,12 +191,12 @@ alp::Result<void> run(
     const srs::System &texture_srs,
     const TileProvider *tile_provider) {
     ALP_TRY(srs::System target_srs, srs::from_user_input(args.target_srs_input));
-    const radix::geometry::Aabb3d target_bounds = parse_target_bounds(
+    ALP_TRY(const radix::geometry::Aabb3d target_bounds, parse_target_bounds(
         args.target_bounds_data,
         args.target_node_data,
         args.target_tile_data,
         args.target_tile_scheme,
-        target_srs);
+        target_srs));
 
     ALP_TRY(terrainbuilder::build_and_save_patch(
         dataset,
