@@ -19,6 +19,9 @@
 
 #pragma once
 
+#include <algorithm>
+#include <cmath>
+
 #include <catch2/catch_all.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_tostring.hpp>
@@ -27,6 +30,7 @@
 #include <fmt/format.h>
 
 #include "fmt_impls.h"
+#include "geometry/geometry.h"
 #include "type_utils.h"
 
 namespace Catch {
@@ -47,4 +51,9 @@ struct StringMaker<radix::geometry::Aabb<N, T>> {
             value.max.x, value.max.y, value.max.z);
     }
 };
+}
+
+// Matches a value equal to `target` up to `geometry::epsilon<double>()`, scaled by its magnitude above 1.
+inline Catch::Matchers::WithinAbsMatcher WithinEpsilon(const double target) {
+    return Catch::Matchers::WithinAbs(target, geometry::epsilon<double>() * std::max(1.0, std::abs(target)));
 }
