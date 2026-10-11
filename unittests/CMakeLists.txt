@@ -156,6 +156,7 @@ if(TARGET bvhbuilderlib)
         bvh_builder/json_serialize.cpp
         bvh_builder/lbvh.cpp
         bvh_builder/merging_receiver.cpp
+        bvh_builder/merge_cost.cpp
         bvh_builder/merge_runs.cpp
         bvh_builder/merging_writer.cpp
         bvh_builder/morton_utils.cpp
