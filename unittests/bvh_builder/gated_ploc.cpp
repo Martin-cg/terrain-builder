@@ -24,7 +24,7 @@
 #include "bvh/traverse_tree.h"
 #include "frontier/Storage.h"
 #include "frontier/sort.h"
-#include "morton/code.h"
+#include "morton/utils.h"
 
 namespace {
 

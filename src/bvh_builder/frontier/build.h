@@ -17,7 +17,7 @@
 #include "frontier/BatchWriter.h"
 #include "frontier/Storage.h"
 #include "frontier/layout.h"
-#include "morton/code.h"
+#include "morton/utils.h"
 #include "bvh/earth.h"
 #include "error/Result.h"
 #include "error/try.h"

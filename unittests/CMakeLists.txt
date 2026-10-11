@@ -158,6 +158,7 @@ if(TARGET bvhbuilderlib)
         bvh_builder/merging_receiver.cpp
         bvh_builder/merge_runs.cpp
         bvh_builder/merging_writer.cpp
+        bvh_builder/morton_utils.cpp
         bvh_builder/nearest_search.cpp
         bvh_builder/node_cache.cpp
         bvh_builder/gated_ploc.cpp

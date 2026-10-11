@@ -1,7 +1,6 @@
 #pragma once
 
 #include <algorithm>
-#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <expected>
@@ -14,7 +13,6 @@
 #include <libassert/assert.hpp>
 
 #include "io/Error.h"
-#include "numeric/wide_integer.h"
 #include "error/Result.h"
 #include "error/try.h"
 #include "error/utils.h"
@@ -28,6 +26,7 @@
 #include "frontier/merge_entry.h"
 #include "frontier/traverse.h"
 #include "morton/code.h"
+#include "morton/utils.h"
 
 namespace lbvh {
 
@@ -36,23 +35,6 @@ struct Options {
 };
 
 namespace detail {
-
-// Counts the leading bits both codes share.
-template <typename Code>
-[[nodiscard]]
-uint32_t count_common_prefix_bits(const Code &a, const Code &b) {
-    const Code difference = a ^ b;
-    if (difference == Code{0}) {
-        return morton::code_bits;
-    }
-
-    // Only the matching branch may be instantiated; the other does not compile for this type.
-    if constexpr (is_wide_integer_v<Code>) {
-        return morton::code_bits - 1 - math::wide_integer::msb(difference);
-    } else {
-        return std::countl_zero(difference);
-    }
-}
 
 // Keeps the code's leading `bits` bits and clears the rest.
 [[nodiscard]]
@@ -71,7 +53,7 @@ inline morton::Code extract_prefix(const morton::Code &code, const uint32_t bits
 inline size_t find_split(const std::span<const frontier::Entry> entries) {
     DEBUG_ASSERT(entries.size() >= 2);
 
-    const uint32_t shared_bits = count_common_prefix_bits(entries.front().morton, entries.back().morton);
+    const uint32_t shared_bits = morton::count_common_prefix_bits(entries.front().morton, entries.back().morton);
     if (shared_bits == morton::code_bits) {
         return entries.size() / 2;
     }

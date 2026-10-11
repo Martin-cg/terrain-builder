@@ -46,19 +46,6 @@ std::vector<bvh::Reference> read_children(const bvh::Storage &nodes, const bvh::
 
 }
 
-TEST_CASE("the common prefix of two codes counts the leading bits they share", "[build][lbvh]") {
-    const morton::Code zero{0};
-
-    CHECK(lbvh::detail::count_common_prefix_bits(zero, zero) == morton::code_bits);
-    CHECK(lbvh::detail::count_common_prefix_bits(zero, top_bit) == 0);
-    CHECK(lbvh::detail::count_common_prefix_bits(zero, morton::Code{1}) == morton::code_bits - 1);
-
-    for (const uint32_t bit : range(morton::code_bits)) {
-        const morton::Code differing = morton::Code{1} << bit;
-        REQUIRE(lbvh::detail::count_common_prefix_bits(zero, differing) == morton::code_bits - 1 - bit);
-    }
-}
-
 TEST_CASE("a prefix keeps the leading bits of a code and clears the rest", "[build][lbvh]") {
     const morton::Code all_ones = std::numeric_limits<morton::Code>::max();
 

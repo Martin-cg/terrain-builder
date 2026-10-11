@@ -17,6 +17,7 @@
 #include "bvh/layout.h"
 #include "bvh/utils.h"
 #include "frontier/layout.h"
+#include "morton/utils.h"
 
 namespace frontier {
 
