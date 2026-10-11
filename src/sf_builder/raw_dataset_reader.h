@@ -17,6 +17,7 @@
 #include "error/utils.h"
 #include "fmt_impls.h"
 #include "gdal/CplError.h"
+#include "gdal/Dataset.h"
 #include "gdal/PixelTransform.h"
 #include "log.h"
 #include "raster.h"
