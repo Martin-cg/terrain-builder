@@ -12,6 +12,7 @@ namespace cli {
 enum class Mode : uint8_t {
     Lbvh,
     GatedPloc,
+    Hploc,
 };
 
 struct Args {

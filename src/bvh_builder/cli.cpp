@@ -18,6 +18,7 @@ namespace {
 const std::unordered_map<std::string, Mode> MODE_NAMES{
     {"lbvh", Mode::Lbvh},
     {"gated-ploc", Mode::GatedPloc},
+    {"hploc", Mode::Hploc},
 };
 
 const std::unordered_map<std::string, spdlog::level::level_enum> LOG_LEVEL_NAMES{

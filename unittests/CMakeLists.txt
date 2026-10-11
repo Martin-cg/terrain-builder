@@ -162,8 +162,10 @@ if(TARGET bvhbuilderlib)
         bvh_builder/nearest_search.cpp
         bvh_builder/node_cache.cpp
         bvh_builder/gated_ploc.cpp
+        bvh_builder/hploc_build.cpp
         bvh_builder/prefix_map.cpp
         bvh_builder/row_buffer.cpp
+        bvh_builder/segment_stack.cpp
         bvh_builder/select_cut.cpp
         bvh_builder/sort_by_morton.cpp
         bvh_builder/sort_frontier.cpp

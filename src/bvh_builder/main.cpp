@@ -11,6 +11,7 @@
 #include "cli.h"
 #include "lbvh/build.h"
 #include "gated_ploc/build.h"
+#include "hploc/build.h"
 #include "bvh/flatten_dag.h"
 #include "error/Result.h"
 #include "error/format.h"
@@ -45,6 +46,10 @@ alp::Result<bvh::Reference, io::Error, io::DirectoryNotEmpty> build_tree(
         return gated_ploc::build(std::move(sorted), nodes, args.scratch_path / "rounds", gated_ploc::Options{
             .max_batch_bytes = args.max_batch_bytes,
             .max_resident_bytes = args.max_resident_bytes,
+        });
+    case cli::Mode::Hploc:
+        return hploc::build(sorted, nodes, hploc::Options{
+            .max_batch_bytes = args.max_batch_bytes,
         });
     }
     UNREACHABLE("unknown build mode");
