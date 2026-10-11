@@ -42,7 +42,7 @@
 #include "sort/options.h"
 #include "sort/sort_by_morton.h"
 
-namespace ploc {
+namespace gated_ploc {
 
 struct AdmissionOptions {
     // Entries one limit is taken over.
@@ -403,7 +403,7 @@ private:
 
 } // namespace detail
 
-// Builds the tree by PLOC, pairing nearest neighbours on the frontier round by round until one node is left.
+// Builds the tree by gated PLOC, pairing nearest neighbours on the frontier round by round until one node is left.
 // The frontier must be non-empty and in morton order, and is removed once it has been read.
 [[nodiscard]]
 inline alp::Result<bvh::Reference, io::Error, io::DirectoryNotEmpty> build(
@@ -429,11 +429,11 @@ inline alp::Result<bvh::Reference, io::Error, io::DirectoryNotEmpty> build(
             const uint64_t remaining,
             alp::with_context(detail::run_round(current, merged, output, ring, options), alp::make_context("merging round {}", round)),
             context);
-        ASSERT(remaining < previous, "a ploc round left the frontier no smaller than it found it");
+        ASSERT(remaining < previous, "a gated ploc round left the frontier no smaller than it found it");
         previous = remaining;
 
         ALP_TRY_CONTEXT(merged.save_index(), context);
-        LOG_DEBUG("ploc round {} left {} entries on the frontier", round, remaining);
+        LOG_DEBUG("gated ploc round {} left {} entries on the frontier", round, remaining);
         ALP_TRY_CONTEXT(std::move(current).remove(), context);
 
         ALP_TRY_CONTEXT(frontier::Storage sorted, layout.create_sort_scratch(round), context);
@@ -452,4 +452,4 @@ inline alp::Result<bvh::Reference, io::Error, io::DirectoryNotEmpty> build(
     }
 }
 
-} // namespace ploc
+} // namespace gated_ploc

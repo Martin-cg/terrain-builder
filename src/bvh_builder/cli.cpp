@@ -17,7 +17,7 @@ namespace {
 
 const std::unordered_map<std::string, Mode> mode_names{
     {"lbvh", Mode::Lbvh},
-    {"ploc", Mode::Ploc},
+    {"gated-ploc", Mode::GatedPloc},
 };
 
 const std::unordered_map<std::string, spdlog::level::level_enum> log_level_names{
@@ -52,7 +52,7 @@ Args cli::parse(int argc, const char *const *argv) {
 
     app.add_option("--mode", args.mode, "Which algorithm builds the tree over the frontier")
         ->transform(CLI::CheckedTransformer(mode_names, CLI::ignore_case))
-        ->default_val("ploc");
+        ->default_val("gated-ploc");
 
     app.add_option("--max-batch-size", args.max_batch_bytes, "Maximum size a batch file, e.g. 512MB or 1GB")
         ->transform(CLI::AsSizeValue(false))

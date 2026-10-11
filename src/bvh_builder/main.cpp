@@ -10,7 +10,7 @@
 #include "frontier/build.h"
 #include "cli.h"
 #include "build/lbvh.h"
-#include "build/ploc.h"
+#include "build/gated_ploc.h"
 #include "bvh/flatten_dag.h"
 #include "error/Result.h"
 #include "error/format.h"
@@ -41,8 +41,8 @@ alp::Result<bvh::Reference, io::Error, io::DirectoryNotEmpty> build_tree(
         return lbvh::build(sorted, nodes, lbvh::Options{
             .max_batch_bytes = args.max_batch_bytes,
         });
-    case cli::Mode::Ploc:
-        return ploc::build(std::move(sorted), nodes, args.scratch_path / "rounds", ploc::Options{
+    case cli::Mode::GatedPloc:
+        return gated_ploc::build(std::move(sorted), nodes, args.scratch_path / "rounds", gated_ploc::Options{
             .max_batch_bytes = args.max_batch_bytes,
             .max_resident_bytes = args.max_resident_bytes,
         });
