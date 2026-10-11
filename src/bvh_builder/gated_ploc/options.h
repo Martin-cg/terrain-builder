@@ -1,0 +1,33 @@
+#pragma once
+
+#include <cstddef>
+
+#include "bvh/earth.h"
+#include "bvh/layout.h"
+#include "storage/batch_limits.h"
+
+namespace gated_ploc {
+
+struct AdmissionOptions {
+    // Entries one limit is taken over.
+    size_t region_size = 1 << 16;
+    // The order statistic a region measures its small nodes by.
+    double quantile = 0.33;
+    // How much larger than that a node may be and still merge.
+    double tolerance = 3.0;
+};
+
+struct Options {
+    size_t search_radius = 16;
+    double error_weight = 1.0;
+    bvh::Bounds scene_bounds = bvh::earth_bounds();
+    AdmissionOptions admission = {};
+
+    size_t chunk_size = 1 << 15;
+    size_t chunk_count = 32;
+    size_t worker_count = 8;
+    size_t max_batch_bytes = default_max_batch_bytes;
+    size_t max_resident_bytes = default_max_resident_bytes;
+};
+
+} // namespace gated_ploc
