@@ -25,8 +25,8 @@
 namespace bvh {
 
 struct FlattenOptions {
-    size_t max_batch_bytes = default_max_batch_bytes;
-    size_t max_resident_bytes = default_max_resident_bytes;
+    size_t max_batch_bytes = DEFAULT_MAX_BATCH_BYTES;
+    size_t max_resident_bytes = DEFAULT_MAX_RESIDENT_BYTES;
 };
 
 // The header a dag node carries as a bvh leaf.

@@ -15,12 +15,12 @@ using namespace cli;
 
 namespace {
 
-const std::unordered_map<std::string, Mode> mode_names{
+const std::unordered_map<std::string, Mode> MODE_NAMES{
     {"lbvh", Mode::Lbvh},
     {"gated-ploc", Mode::GatedPloc},
 };
 
-const std::unordered_map<std::string, spdlog::level::level_enum> log_level_names{
+const std::unordered_map<std::string, spdlog::level::level_enum> LOG_LEVEL_NAMES{
     {"off", spdlog::level::level_enum::off},
     {"critical", spdlog::level::level_enum::critical},
     {"error", spdlog::level::level_enum::err},
@@ -51,21 +51,21 @@ Args cli::parse(int argc, const char *const *argv) {
         ->default_str("<output>-scratch");
 
     app.add_option("--mode", args.mode, "Which algorithm builds the tree over the frontier")
-        ->transform(CLI::CheckedTransformer(mode_names, CLI::ignore_case))
+        ->transform(CLI::CheckedTransformer(MODE_NAMES, CLI::ignore_case))
         ->default_val("gated-ploc");
 
     app.add_option("--max-batch-size", args.max_batch_bytes, "Maximum size a batch file, e.g. 512MB or 1GB")
         ->transform(CLI::AsSizeValue(false))
-        ->default_val(default_max_batch_bytes)
+        ->default_val(DEFAULT_MAX_BATCH_BYTES)
         ->check(CLI::PositiveNumber);
 
     app.add_option("--max-resident-size", args.max_resident_bytes, "Target maximum memory to keep resident (e.g. for caches)")
         ->transform(CLI::AsSizeValue(false))
-        ->default_val(default_max_resident_bytes)
+        ->default_val(DEFAULT_MAX_RESIDENT_BYTES)
         ->check(CLI::PositiveNumber);
 
     app.add_option("--verbosity", args.log_level, "Verbosity level of logging")
-        ->transform(CLI::CheckedTransformer(log_level_names, CLI::ignore_case))
+        ->transform(CLI::CheckedTransformer(LOG_LEVEL_NAMES, CLI::ignore_case))
         ->default_val("info");
 
     try {

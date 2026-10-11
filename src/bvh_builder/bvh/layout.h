@@ -107,13 +107,13 @@ private:
 
 class Batch {
 public:
-    static constexpr BatchIndex unbound_index = std::numeric_limits<BatchIndex>::max();
+    static constexpr BatchIndex UNBOUND_INDEX = std::numeric_limits<BatchIndex>::max();
 
     friend zpp::bits::access;
     explicit Batch(const BatchIndex index) : _index(index) {}
 
     static Batch make_unbound() {
-        return Batch(unbound_index);
+        return Batch(UNBOUND_INDEX);
     }
 
     bool operator==(const Batch &) const = default;

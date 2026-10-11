@@ -41,7 +41,7 @@ using WalkError = alp::Error<io::Error, VisitError>;
 
 TEST_CASE("the walk visits every node once, each parent before its children and children in stored order", "[bvh][traverse_tree]") {
     // Spread over one batch per node as well, with room for a single one in memory, so the order cannot come from the batches.
-    const size_t max_batch_bytes = GENERATE(default_max_batch_bytes, size_t{1});
+    const size_t max_batch_bytes = GENERATE(DEFAULT_MAX_BATCH_BYTES, size_t{1});
 
     const TempDirectory directory("traverse_tree");
     bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path()));

@@ -53,11 +53,11 @@ public:
 
 private:
     // How many values are taken from a source at once.
-    static constexpr size_t prefetch_count = 64;
+    static constexpr size_t PREFETCH_COUNT = 64;
 
     struct Source {
         spsc::Receiver<T> channel;
-        std::array<T, prefetch_count> buffer{};
+        std::array<T, PREFETCH_COUNT> buffer{};
         std::span<T> ready{};
     };
 

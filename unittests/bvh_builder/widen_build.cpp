@@ -15,7 +15,7 @@
 
 TEST_CASE("widen writes its root into the last batch", "[widen][build]") {
     const uint32_t arity = GENERATE(2u, 4u);
-    const size_t max_batch_bytes = GENERATE(default_max_batch_bytes, size_t{1});
+    const size_t max_batch_bytes = GENERATE(DEFAULT_MAX_BATCH_BYTES, size_t{1});
 
     const TempDirectory directory("widen_build");
     bvh::Storage input = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "input"));

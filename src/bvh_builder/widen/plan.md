@@ -48,7 +48,7 @@ Its hit rate is the one number the design cannot predict. It depends on how well
 
 Each lands on its own.
 
-1. **Lower `default_max_batch_bytes`.** 100 MB is a very large unit for a streaming pipeline. Around 1 MB keeps the sequential passes saturating throughput while making a cache miss cheap. Worth doing on its own merits, and it is what makes step 3 viable.
+1. **Lower `DEFAULT_MAX_BATCH_BYTES`.** 100 MB is a very large unit for a streaming pipeline. Around 1 MB keeps the sequential passes saturating throughput while making a cache miss cheap. Worth doing on its own merits, and it is what makes step 3 viable.
 
 2. **Delete the mailbox architecture.** `widen/Mailbox.h`, `widen/assign_wide_parents.h`, `widen/write_wide_nodes.h`, `CostBatch` and `CostStorage` from `tabulate_splits.h`, and the untracked `src/bvh_builder/BatchWriter.h` left over from the rejected `ItemBatch` writer. `unittests/bvh_builder/mailbox.cpp` goes with them, which needs a line removed from `unittests/CMakeLists.txt` -- ask first.
 

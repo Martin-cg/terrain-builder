@@ -24,14 +24,14 @@ struct ReadOptions : glz::opts {
     bool error_on_missing_array_elements = true;
 };
 
-inline constexpr WriteOptions write_options{{.prettify = true}};
-inline constexpr ReadOptions read_options{{.null_terminated = false, .error_on_missing_keys = true}};
+inline constexpr WriteOptions WRITE_OPTIONS{{.prettify = true}};
+inline constexpr ReadOptions READ_OPTIONS{{.null_terminated = false, .error_on_missing_keys = true}};
 
 // Writes `value` as JSON into a new buffer of type `Buffer`.
 template <typename Buffer, typename T>
 alp::Result<Buffer, JsonError> write_to_buffer(const T &value) {
     Buffer buffer;
-    const glz::error_ctx error = glz::write<write_options>(value, buffer);
+    const glz::error_ctx error = glz::write<WRITE_OPTIONS>(value, buffer);
     if (error) {
         return alp::make_unexpected(JsonError(error.ec, glz::format_error(error, buffer)), fmt::format("encoding {}", type_name<T>()));
     }
@@ -42,7 +42,7 @@ alp::Result<Buffer, JsonError> write_to_buffer(const T &value) {
 template <typename T, typename Buffer>
 alp::Result<T, JsonError> read_from_buffer(const Buffer &buffer) {
     T value{};
-    const glz::error_ctx error = glz::read<read_options>(value, buffer);
+    const glz::error_ctx error = glz::read<READ_OPTIONS>(value, buffer);
     if (error) {
         return alp::make_unexpected(JsonError(error.ec, glz::format_error(error, buffer)), fmt::format("decoding {}", type_name<T>()));
     }

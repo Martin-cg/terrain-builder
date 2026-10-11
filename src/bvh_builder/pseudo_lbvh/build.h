@@ -31,7 +31,7 @@
 namespace lbvh {
 
 struct Options {
-    size_t max_batch_bytes = default_max_batch_bytes;
+    size_t max_batch_bytes = DEFAULT_MAX_BATCH_BYTES;
 };
 
 namespace detail {
@@ -43,7 +43,7 @@ inline morton::Code extract_prefix(const morton::Code &code, const uint32_t bits
         return morton::Code{0};
     }
 
-    const morton::Code mask = std::numeric_limits<morton::Code>::max() << (morton::code_bits - bits);
+    const morton::Code mask = std::numeric_limits<morton::Code>::max() << (morton::CODE_BITS - bits);
     return code & mask;
 }
 
@@ -54,12 +54,12 @@ inline size_t find_split(const std::span<const frontier::Entry> entries) {
     DEBUG_ASSERT(entries.size() >= 2);
 
     const uint32_t shared_bits = morton::count_common_prefix_bits(entries.front().morton, entries.back().morton);
-    if (shared_bits == morton::code_bits) {
+    if (shared_bits == morton::CODE_BITS) {
         return entries.size() / 2;
     }
 
     const morton::Code prefix = extract_prefix(entries.front().morton, shared_bits);
-    const morton::Code target = prefix | (morton::Code{1} << (morton::code_bits - shared_bits - 1));
+    const morton::Code target = prefix | (morton::Code{1} << (morton::CODE_BITS - shared_bits - 1));
     const auto first_right = std::ranges::lower_bound(entries, target, {}, &frontier::Entry::morton);
     return static_cast<size_t>(std::distance(entries.begin(), first_right));
 }

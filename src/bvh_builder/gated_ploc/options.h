@@ -27,8 +27,8 @@ struct Options {
     size_t chunk_size = 1 << 15;
     size_t chunk_count = 32;
     size_t worker_count = 8;
-    size_t max_batch_bytes = default_max_batch_bytes;
-    size_t max_resident_bytes = default_max_resident_bytes;
+    size_t max_batch_bytes = DEFAULT_MAX_BATCH_BYTES;
+    size_t max_resident_bytes = DEFAULT_MAX_RESIDENT_BYTES;
 };
 
 } // namespace gated_ploc

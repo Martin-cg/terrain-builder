@@ -18,7 +18,7 @@
 
 namespace {
 
-constexpr size_t entry_bytes = sizeof(frontier::Entry);
+constexpr size_t ENTRY_BYTES = sizeof(frontier::Entry);
 
 }
 
@@ -42,7 +42,7 @@ TEST_CASE("merge_runs writes the entries of all runs in morton order", "[sort][m
 
     frontier::Storage output = REQUIRE_VALUE(frontier::Storage::create(directory.path() / "output"));
 
-    REQUIRE_VALUE(sort::merge_runs(runs, output, 3 * entry_bytes));
+    REQUIRE_VALUE(sort::merge_runs(runs, output, 3 * ENTRY_BYTES));
 
     CHECK(read_batches(output) == std::vector<std::vector<frontier::Entry>>{
         {a, d, e},
@@ -66,7 +66,7 @@ TEST_CASE("merge_runs writes nothing without entries", "[sort][merge_runs]") {
 
     frontier::Storage output = REQUIRE_VALUE(frontier::Storage::create(directory.path() / "output"));
 
-    REQUIRE_VALUE(sort::merge_runs(runs, output, 3 * entry_bytes));
+    REQUIRE_VALUE(sort::merge_runs(runs, output, 3 * ENTRY_BYTES));
 
     CHECK(read_batches(output).empty());
 }
@@ -86,6 +86,6 @@ TEST_CASE("merge_runs reports a run it cannot read", "[sort][merge_runs]") {
 
     frontier::Storage output = REQUIRE_VALUE(frontier::Storage::create(directory.path() / "output"));
 
-    const io::Error error = REQUIRE_ERROR(sort::merge_runs(runs, output, 3 * entry_bytes));
+    const io::Error error = REQUIRE_ERROR(sort::merge_runs(runs, output, 3 * ENTRY_BYTES));
     CHECK(error.holds_and<io::FileError>([](const io::FileError &e) { return e.is_not_found(); }));
 }

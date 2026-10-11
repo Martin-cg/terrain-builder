@@ -35,7 +35,7 @@ inline Entry make_entry(const bvh::Reference &ref, const bvh::Node &node, const 
 }
 
 struct BuildOptions {
-    size_t max_batch_bytes = default_max_batch_bytes;
+    size_t max_batch_bytes = DEFAULT_MAX_BATCH_BYTES;
     bvh::Bounds scene_bounds = bvh::earth_bounds();
 };
 

@@ -44,7 +44,7 @@ class BaseBatchWriter {
 public:
     using Batch = typename Storage::Batch;
 
-    BaseBatchWriter(Storage &output, const size_t max_batch_bytes = default_max_batch_bytes) : _output(output), _max_batch_bytes(max_batch_bytes) {}
+    BaseBatchWriter(Storage &output, const size_t max_batch_bytes = DEFAULT_MAX_BATCH_BYTES) : _output(output), _max_batch_bytes(max_batch_bytes) {}
 
     // How much the batch being filled holds.
     size_t compute_buffered_bytes() const {

@@ -21,7 +21,7 @@
 
 namespace {
 
-const morton::Code top_bit = morton::Code{1} << (morton::code_bits - 1);
+const morton::Code TOP_BIT = morton::Code{1} << (morton::CODE_BITS - 1);
 
 // An entry holding nothing but `code`, for the tests that only look at codes.
 frontier::Entry make_entry(const morton::Code &code) {
@@ -50,12 +50,12 @@ TEST_CASE("a prefix keeps the leading bits of a code and clears the rest", "[bui
     const morton::Code all_ones = std::numeric_limits<morton::Code>::max();
 
     CHECK(lbvh::detail::extract_prefix(all_ones, 0) == morton::Code{0});
-    CHECK(lbvh::detail::extract_prefix(all_ones, morton::code_bits) == all_ones);
-    CHECK(lbvh::detail::extract_prefix(all_ones, 1) == top_bit);
-    CHECK(lbvh::detail::extract_prefix(morton::Code{1}, morton::code_bits - 1) == morton::Code{0});
+    CHECK(lbvh::detail::extract_prefix(all_ones, morton::CODE_BITS) == all_ones);
+    CHECK(lbvh::detail::extract_prefix(all_ones, 1) == TOP_BIT);
+    CHECK(lbvh::detail::extract_prefix(morton::Code{1}, morton::CODE_BITS - 1) == morton::Code{0});
 
-    for (const uint32_t bits : range<uint32_t>(1, morton::code_bits)) {
-        const morton::Code kept = all_ones << (morton::code_bits - bits);
+    for (const uint32_t bits : range<uint32_t>(1, morton::CODE_BITS)) {
+        const morton::Code kept = all_ones << (morton::CODE_BITS - bits);
         REQUIRE(lbvh::detail::extract_prefix(all_ones, bits) == kept);
     }
 }
@@ -64,7 +64,7 @@ TEST_CASE("a run splits at the highest bit its codes disagree on", "[build][lbvh
     const std::vector<frontier::Entry> low = transform_vector(std::array{morton::Code{0}, morton::Code{1}}, make_entry);
     CHECK(lbvh::detail::find_split(low) == 1);
 
-    const std::vector<frontier::Entry> high = transform_vector(std::array{morton::Code{0}, morton::Code{1}, top_bit, top_bit | morton::Code{1}}, make_entry);
+    const std::vector<frontier::Entry> high = transform_vector(std::array{morton::Code{0}, morton::Code{1}, TOP_BIT, TOP_BIT | morton::Code{1}}, make_entry);
     CHECK(lbvh::detail::find_split(high) == 2);
 }
 
@@ -82,7 +82,7 @@ TEST_CASE("a split never leaves either side empty", "[build][lbvh]") {
         make_ascending_codes(16),
         make_ascending_codes(17),
         {morton::Code{0}, morton::Code{0}, morton::Code{1}, morton::Code{1}, morton::Code{1}},
-        {morton::Code{0}, top_bit, top_bit, top_bit | morton::Code{1}},
+        {morton::Code{0}, TOP_BIT, TOP_BIT, TOP_BIT | morton::Code{1}},
     };
 
     for (const std::vector<morton::Code> &codes : runs) {
@@ -138,8 +138,8 @@ TEST_CASE("entries whose codes differ in the top bit end up in separate subtrees
     const std::array entries{
         frontier::Entry{.morton = morton::Code{0}, .header = {}, .ref = {.batch = 100, .node = 0}},
         frontier::Entry{.morton = morton::Code{1}, .header = {}, .ref = {.batch = 100, .node = 1}},
-        frontier::Entry{.morton = top_bit, .header = {}, .ref = {.batch = 100, .node = 2}},
-        frontier::Entry{.morton = top_bit | morton::Code{1}, .header = {}, .ref = {.batch = 100, .node = 3}},
+        frontier::Entry{.morton = TOP_BIT, .header = {}, .ref = {.batch = 100, .node = 2}},
+        frontier::Entry{.morton = TOP_BIT | morton::Code{1}, .header = {}, .ref = {.batch = 100, .node = 3}},
     };
 
     const TempDirectory directory("lbvh");
@@ -180,8 +180,8 @@ TEST_CASE("entries with equal codes are still all joined, halving the run", "[bu
 TEST_CASE("each batch of a run gets a subtree of its own before their roots are joined", "[build][lbvh]") {
     const std::array entries{
         frontier::Entry{.morton = morton::Code{0}, .header = {}, .ref = {.batch = 100, .node = 0}},
-        frontier::Entry{.morton = top_bit, .header = {}, .ref = {.batch = 100, .node = 1}},
-        frontier::Entry{.morton = top_bit | morton::Code{1}, .header = {}, .ref = {.batch = 100, .node = 2}},
+        frontier::Entry{.morton = TOP_BIT, .header = {}, .ref = {.batch = 100, .node = 1}},
+        frontier::Entry{.morton = TOP_BIT | morton::Code{1}, .header = {}, .ref = {.batch = 100, .node = 2}},
     };
 
     const TempDirectory directory("lbvh");
@@ -239,7 +239,7 @@ TEST_CASE("a batch limit below one node writes every inner node into a batch of 
 }
 
 TEST_CASE("the build writes its root into the last batch", "[build][lbvh]") {
-    const size_t max_batch_bytes = GENERATE(default_max_batch_bytes, size_t{1});
+    const size_t max_batch_bytes = GENERATE(DEFAULT_MAX_BATCH_BYTES, size_t{1});
 
     const TempDirectory directory("lbvh");
     frontier::Storage run = REQUIRE_VALUE(frontier::Storage::create(directory.path() / "run"));

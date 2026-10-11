@@ -41,7 +41,7 @@ public:
 
     // How many slots go to its left child.
     uint8_t left_slots() const {
-        return this->value & (keep_bit - 1);
+        return this->value & (KEEP_BIT - 1);
     }
 
     // How many of `slots` go to its right child.
@@ -51,18 +51,18 @@ public:
 
     // Whether it becomes a node of the widened tree rather than dissolving into its parent.
     bool is_kept() const {
-        return (this->value & keep_bit) != 0;
+        return (this->value & KEEP_BIT) != 0;
     }
 
     // A node that is kept, giving `left_slots` of its arity to its left child.
     static Split keep(const uint8_t left_slots) {
-        ASSERT(left_slots < keep_bit, "the left slot count does not fit a split");
-        return Split{static_cast<uint8_t>(left_slots | keep_bit)};
+        ASSERT(left_slots < KEEP_BIT, "the left slot count does not fit a split");
+        return Split{static_cast<uint8_t>(left_slots | KEEP_BIT)};
     }
 
     // A node that dissolves, giving `left_slots` of the offer it was made to its left child.
     static Split dissolve(const uint8_t left_slots) {
-        ASSERT(left_slots < keep_bit, "the left slot count does not fit a split");
+        ASSERT(left_slots < KEEP_BIT, "the left slot count does not fit a split");
         return Split{left_slots};
     }
 
@@ -74,7 +74,7 @@ private:
 
     // The left slot count, with the top bit set when the node is kept.
     uint8_t value;
-    static constexpr uint8_t keep_bit = 1 << 7;
+    static constexpr uint8_t KEEP_BIT = 1 << 7;
 };
 
 // The splits of a range of inner nodes, in post-order.
@@ -250,7 +250,7 @@ inline alp::Result<void, io::Error> tabulate_subtree(
 // Fills `splits` with what every node of the tree at `root` does at each number of slots it might be offered.
 [[nodiscard]]
 inline alp::Result<void, io::Error> tabulate_splits(bvh::NodeCache &input, const bvh::Reference &root, SplitStorage &splits, const Options &options) {
-    ASSERT(options.arity >= 2 && options.arity <= max_arity);
+    ASSERT(options.arity >= 2 && options.arity <= MAX_ARITY);
 
     return alp::run_with_context(
         alp::make_context("tabulating splits for a tree at batch {} node {}", root.batch, root.node),

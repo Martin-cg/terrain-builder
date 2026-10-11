@@ -28,7 +28,7 @@
 
 namespace {
 
-const bvh::Bounds scene_bounds{glm::dvec3{0.0}, glm::dvec3{256.0}};
+const bvh::Bounds SCENE_BOUNDS{glm::dvec3{0.0}, glm::dvec3{256.0}};
 
 // Stores a leaf for each of `boxes` in `nodes` and returns the frontier over them as a single sorted run under `directory`.
 frontier::Storage write_frontier(const std::filesystem::path &directory, bvh::Storage &nodes, const std::span<const bvh::Bounds> boxes) {
@@ -39,7 +39,7 @@ frontier::Storage write_frontier(const std::filesystem::path &directory, bvh::St
         header.bounds = box;
         const auto reference_result = writer.write_leaf(header, dag::Id{octree::Id::root(), cluster});
         REQUIRE(reference_result.has_value());
-        batch.entries.push_back(frontier::Entry{.morton = morton::encode(scene_bounds, header), .header = header, .ref = *reference_result});
+        batch.entries.push_back(frontier::Entry{.morton = morton::encode(SCENE_BOUNDS, header), .header = header, .ref = *reference_result});
     }
     REQUIRE(writer.flush().has_value());
     REQUIRE(nodes.save_index().has_value());
@@ -55,7 +55,7 @@ frontier::Storage write_frontier(const std::filesystem::path &directory, bvh::St
 gated_ploc::Options make_options(const size_t worker_count, const size_t chunk_size) {
     return gated_ploc::Options{
         .search_radius = 2,
-        .scene_bounds = scene_bounds,
+        .scene_bounds = SCENE_BOUNDS,
         .admission = gated_ploc::AdmissionOptions{.region_size = 8, .tolerance = 1e9},
         .chunk_size = chunk_size,
         .chunk_count = 3,

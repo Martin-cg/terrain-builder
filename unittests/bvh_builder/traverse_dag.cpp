@@ -19,8 +19,8 @@
 
 namespace {
 
-constexpr double infinity = std::numeric_limits<double>::infinity();
-constexpr size_t ample_resident_bytes = 1024 * 1024;
+constexpr double INFINITE_ERROR = std::numeric_limits<double>::infinity();
+constexpr size_t AMPLE_RESIDENT_BYTES = 1024 * 1024;
 
 // Metadata giving each cluster a group of its own with the matching one of `errors`.
 dag::NodeMetadata make_metadata(const std::vector<double> &errors) {
@@ -49,7 +49,7 @@ void write_dag(const std::filesystem::path &path, std::vector<std::pair<octree::
     REQUIRE(dag.save_index().has_value());
 }
 
-std::unordered_map<dag::Id, Visited> traverse(const std::filesystem::path &dag_path, const size_t max_resident_bytes = ample_resident_bytes) {
+std::unordered_map<dag::Id, Visited> traverse(const std::filesystem::path &dag_path, const size_t max_resident_bytes = AMPLE_RESIDENT_BYTES) {
     const auto dag = REQUIRE_VALUE(octree::open_folder_indexed<dag::NodeMetadata>(dag_path));
     const octree::OddLevelShifted shifted_space = octree::OddLevelShifted::earth();
 
@@ -99,7 +99,7 @@ TEST_CASE("a cluster takes the error of the group that owns it", "[traverse_dag]
     const auto visited = traverse(directory.path());
 
     REQUIRE(visited.size() == 3);
-    CHECK(visited.at(dag::Id{root, 0}).parent_error == infinity);
+    CHECK(visited.at(dag::Id{root, 0}).parent_error == INFINITE_ERROR);
     CHECK(visited.at(dag::Id{child, 0}).parent_error == 5.0);
     CHECK(visited.at(dag::Id{child, 1}).parent_error == 5.0);
     CHECK(visited.at(dag::Id{child, 0}).group.error == 1.0);
@@ -130,8 +130,8 @@ TEST_CASE("a cluster is owned by a node that is not its octree ancestor", "[trav
 
     REQUIRE(visited.size() == 3);
     CHECK(visited.at(dag::Id{y, 0}).parent_error == 7.0);
-    CHECK(visited.at(dag::Id{z, 0}).parent_error == infinity);
-    CHECK(visited.at(dag::Id{a, 0}).parent_error == infinity);
+    CHECK(visited.at(dag::Id{z, 0}).parent_error == INFINITE_ERROR);
+    CHECK(visited.at(dag::Id{a, 0}).parent_error == INFINITE_ERROR);
 }
 
 TEST_CASE("clusters owned by different groups keep each group's error", "[traverse_dag]") {
@@ -170,8 +170,8 @@ TEST_CASE("a cluster no group lists is a root, even below the coarsest level", "
     const auto visited = traverse(directory.path());
 
     REQUIRE(visited.size() == 3);
-    CHECK(visited.at(dag::Id{unlisted, 0}).parent_error == infinity);
-    CHECK(visited.at(dag::Id{unlisted, 1}).parent_error == infinity);
+    CHECK(visited.at(dag::Id{unlisted, 0}).parent_error == INFINITE_ERROR);
+    CHECK(visited.at(dag::Id{unlisted, 1}).parent_error == INFINITE_ERROR);
 }
 
 TEST_CASE("each cluster takes the error of its own parent group across three levels", "[traverse_dag]") {
@@ -194,7 +194,7 @@ TEST_CASE("each cluster takes the error of its own parent group across three lev
     const auto visited = traverse(directory.path());
 
     REQUIRE(visited.size() == 3);
-    CHECK(visited.at(dag::Id{root, 0}).parent_error == infinity);
+    CHECK(visited.at(dag::Id{root, 0}).parent_error == INFINITE_ERROR);
     CHECK(visited.at(dag::Id{child, 0}).parent_error == 9.0);
     CHECK(visited.at(dag::Id{grandchild, 0}).parent_error == 4.0);
 }
@@ -246,7 +246,7 @@ TEST_CASE("a visitor returning false stops the walk", "[traverse_dag]") {
         visits++;
         return false;
     };
-    const auto walked = dag::traverse_nodes(dag, octree::OddLevelShifted::earth(), ample_resident_bytes, stop_after_first);
+    const auto walked = dag::traverse_nodes(dag, octree::OddLevelShifted::earth(), AMPLE_RESIDENT_BYTES, stop_after_first);
     REQUIRE(walked.has_value());
 
     CHECK(!walked.value());

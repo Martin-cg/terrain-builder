@@ -37,7 +37,7 @@ public:
 
 private:
     size_t cell_of(const Code &morton) const {
-        return static_cast<size_t>(morton >> (code_bits - this->_prefix_bits));
+        return static_cast<size_t>(morton >> (CODE_BITS - this->_prefix_bits));
     }
 
     std::vector<T> _cells;

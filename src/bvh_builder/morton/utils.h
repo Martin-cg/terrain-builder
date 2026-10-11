@@ -19,12 +19,12 @@ template <typename Code>
 uint32_t count_common_prefix_bits(const Code &a, const Code &b) {
     const Code difference = a ^ b;
     if (difference == Code{0}) {
-        return code_bits;
+        return CODE_BITS;
     }
 
     // Only the matching branch may be instantiated; the other does not compile for this type.
     if constexpr (is_wide_integer_v<Code>) {
-        return code_bits - 1 - math::wide_integer::msb(difference);
+        return CODE_BITS - 1 - math::wide_integer::msb(difference);
     } else {
         return std::countl_zero(difference);
     }

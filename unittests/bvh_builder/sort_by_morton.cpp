@@ -13,7 +13,7 @@
 
 namespace {
 
-constexpr size_t entry_bytes = sizeof(frontier::Entry);
+constexpr size_t ENTRY_BYTES = sizeof(frontier::Entry);
 
 }
 
@@ -30,8 +30,8 @@ TEST_CASE("sort_by_morton writes the entries of all batches in morton order", "[
     const frontier::Storage input = make_storage(directory.path() / "input", {{a, b, c}, {}, {d, e}, {f, g}});
 
     // The budget is far smaller than the input in one case and far larger in the other.
-    const size_t max_batch_bytes = 2 * entry_bytes;
-    const size_t max_resident_bytes = GENERATE(2 * entry_bytes, 1000 * entry_bytes);
+    const size_t max_batch_bytes = 2 * ENTRY_BYTES;
+    const size_t max_resident_bytes = GENERATE(2 * ENTRY_BYTES, 1000 * ENTRY_BYTES);
 
     frontier::Storage output = REQUIRE_VALUE(frontier::Storage::create(directory.path() / "output"));
 

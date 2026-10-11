@@ -104,7 +104,7 @@ inline alp::Result<void, io::Error> write_subtree(
 inline alp::Result<bvh::Reference, io::Error> write_wide_nodes(
     const SplitStorage &splits, bvh::NodeCache &input, const bvh::Reference &root,
     bvh::Storage &output, const Options &options) {
-    ASSERT(options.arity >= 2 && options.arity <= max_arity, "the arity does not fit a slot count");
+    ASSERT(options.arity >= 2 && options.arity <= MAX_ARITY, "the arity does not fit a slot count");
 
     return alp::run_with_context(
         alp::make_context("writing wide nodes to {}", output.directory()),

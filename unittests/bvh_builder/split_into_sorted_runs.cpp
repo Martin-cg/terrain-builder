@@ -16,7 +16,7 @@
 
 namespace {
 
-constexpr size_t entry_bytes = sizeof(frontier::Entry);
+constexpr size_t ENTRY_BYTES = sizeof(frontier::Entry);
 
 }
 
@@ -34,8 +34,8 @@ TEST_CASE("split_into_sorted_runs sorts each run and cuts runs at the size limit
     const frontier::Storage input = make_storage(directory.path() / "input", {{a, b, c, d}, {}, {e}, {f, g}});
 
     // A run ends once it holds the limit: two entries stay just below the first limit and three meet the second exactly, so both give runs of three.
-    const size_t max_run_bytes = GENERATE(2 * entry_bytes + 1, 3 * entry_bytes);
-    const size_t max_batch_bytes = 2 * entry_bytes;
+    const size_t max_run_bytes = GENERATE(2 * ENTRY_BYTES + 1, 3 * ENTRY_BYTES);
+    const size_t max_batch_bytes = 2 * ENTRY_BYTES;
 
     const std::vector<frontier::Storage> runs = REQUIRE_VALUE(sort::split_into_sorted_runs(input, directory.path() / "runs", max_run_bytes, max_batch_bytes));
 
@@ -60,7 +60,7 @@ TEST_CASE("split_into_sorted_runs makes no runs from a storage without entries",
         std::vector<std::vector<frontier::Entry>>{{}, {}});
     const frontier::Storage input = make_storage(directory.path() / "input", batches);
 
-    const std::vector<frontier::Storage> runs = REQUIRE_VALUE(sort::split_into_sorted_runs(input, directory.path() / "runs", 3 * entry_bytes, 2 * entry_bytes));
+    const std::vector<frontier::Storage> runs = REQUIRE_VALUE(sort::split_into_sorted_runs(input, directory.path() / "runs", 3 * ENTRY_BYTES, 2 * ENTRY_BYTES));
 
     CHECK(runs.empty());
 }
@@ -75,6 +75,6 @@ TEST_CASE("split_into_sorted_runs reports an input batch it cannot read", "[sort
 
     std::filesystem::remove_all(directory.path() / "input");
 
-    const alp::Error<io::Error, io::DirectoryNotEmpty> error = REQUIRE_ERROR(sort::split_into_sorted_runs(input, directory.path() / "runs", 3 * entry_bytes, 2 * entry_bytes));
+    const alp::Error<io::Error, io::DirectoryNotEmpty> error = REQUIRE_ERROR(sort::split_into_sorted_runs(input, directory.path() / "runs", 3 * ENTRY_BYTES, 2 * ENTRY_BYTES));
     CHECK(error.holds_and<io::FileError>([](const io::FileError &e) { return e.is_not_found(); }));
 }
