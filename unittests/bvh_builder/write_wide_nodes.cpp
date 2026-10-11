@@ -9,8 +9,6 @@
 
 #include <glm/glm.hpp>
 
-#include "enumerate.h"
-
 #include "bvh/BatchWriter.h"
 #include "bvh/NodeCache.h"
 #include "bvh/Storage.h"
@@ -20,29 +18,6 @@
 #include "widen/write_wide_nodes.h"
 
 namespace {
-
-const bvh::NodeHeader root_header{.min_child_error = 1.0, .max_parent_error = 2.0, .bounds = {glm::dvec3{0.0}, glm::dvec3{4.0}}};
-
-// Writes the tree R(A(0, 1), B(2, 3)) into `nodes`, with leaf i naming cluster i, and returns its root.
-bvh::Reference write_balanced_tree(bvh::Storage &nodes) {
-    bvh::BatchWriter writer(nodes);
-    std::array<bvh::Reference, 4> leaves;
-    for (auto &[cluster, leaf] : enumerate<uint32_t>(leaves)) {
-        const auto leaf_result = writer.write_leaf(bvh::NodeHeader{}, dag::Id{octree::Id::root(), cluster});
-        REQUIRE(leaf_result.has_value());
-        leaf = *leaf_result;
-    }
-    const auto a_result = writer.write_inner(bvh::NodeHeader{}, std::array{leaves[0], leaves[1]});
-    REQUIRE(a_result.has_value());
-    const auto b_result = writer.write_inner(bvh::NodeHeader{}, std::array{leaves[2], leaves[3]});
-    REQUIRE(b_result.has_value());
-    const auto root_result = writer.write_inner(root_header, std::array{*a_result, *b_result});
-    REQUIRE(root_result.has_value());
-
-    REQUIRE(writer.flush().has_value());
-    REQUIRE(nodes.save_index().has_value());
-    return *root_result;
-}
 
 // Stores the split rows of R, A and B in the order the tabulation leaves them: B, A, then R.
 void write_splits(
@@ -61,7 +36,16 @@ void write_splits(
 TEST_CASE("a kept root collects every leaf its dissolved children held", "[widen][write_wide_nodes]") {
     const TempDirectory directory("write_wide_nodes");
     bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "input"));
-    const bvh::Reference root = write_balanced_tree(nodes);
+    bvh::BatchWriter writer(nodes);
+    const bvh::Reference leaf_0 = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 0}));
+    const bvh::Reference leaf_1 = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 1}));
+    const bvh::Reference leaf_2 = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 2}));
+    const bvh::Reference leaf_3 = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 3}));
+    const bvh::Reference a = REQUIRE_VALUE(writer.write_inner({}, std::array{leaf_0, leaf_1}));
+    const bvh::Reference b = REQUIRE_VALUE(writer.write_inner({}, std::array{leaf_2, leaf_3}));
+    const bvh::Reference root = REQUIRE_VALUE(writer.write_inner({}, std::array{a, b}));
+    REQUIRE(writer.flush().has_value());
+    REQUIRE(nodes.save_index().has_value());
 
     // The root keeps itself and offers A and B two slots each, at which both dissolve.
     widen::SplitStorage splits = REQUIRE_VALUE(widen::SplitStorage::create(directory.path() / "splits"));
@@ -92,9 +76,20 @@ TEST_CASE("a kept root collects every leaf its dissolved children held", "[widen
 }
 
 TEST_CASE("a kept node keeps the header it had", "[widen][write_wide_nodes]") {
+    const bvh::NodeHeader root_header{.min_child_error = 1.0, .max_parent_error = 2.0, .bounds = {glm::dvec3{0.0}, glm::dvec3{4.0}}};
+
     const TempDirectory directory("write_wide_nodes");
     bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "input"));
-    const bvh::Reference root = write_balanced_tree(nodes);
+    bvh::BatchWriter writer(nodes);
+    const bvh::Reference leaf_0 = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 0}));
+    const bvh::Reference leaf_1 = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 1}));
+    const bvh::Reference leaf_2 = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 2}));
+    const bvh::Reference leaf_3 = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 3}));
+    const bvh::Reference a = REQUIRE_VALUE(writer.write_inner({}, std::array{leaf_0, leaf_1}));
+    const bvh::Reference b = REQUIRE_VALUE(writer.write_inner({}, std::array{leaf_2, leaf_3}));
+    const bvh::Reference root = REQUIRE_VALUE(writer.write_inner(root_header, std::array{a, b}));
+    REQUIRE(writer.flush().has_value());
+    REQUIRE(nodes.save_index().has_value());
 
     widen::SplitStorage splits = REQUIRE_VALUE(widen::SplitStorage::create(directory.path() / "splits"));
     const std::array root_row{widen::Split::keep(2), widen::Split::dissolve(1), widen::Split::dissolve(1)};
@@ -115,7 +110,16 @@ TEST_CASE("a kept node keeps the header it had", "[widen][write_wide_nodes]") {
 TEST_CASE("children that keep their slot stay nodes of their own", "[widen][write_wide_nodes]") {
     const TempDirectory directory("write_wide_nodes");
     bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "input"));
-    const bvh::Reference root = write_balanced_tree(nodes);
+    bvh::BatchWriter writer(nodes);
+    const bvh::Reference leaf_0 = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 0}));
+    const bvh::Reference leaf_1 = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 1}));
+    const bvh::Reference leaf_2 = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 2}));
+    const bvh::Reference leaf_3 = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 3}));
+    const bvh::Reference a = REQUIRE_VALUE(writer.write_inner({}, std::array{leaf_0, leaf_1}));
+    const bvh::Reference b = REQUIRE_VALUE(writer.write_inner({}, std::array{leaf_2, leaf_3}));
+    const bvh::Reference root = REQUIRE_VALUE(writer.write_inner({}, std::array{a, b}));
+    REQUIRE(writer.flush().has_value());
+    REQUIRE(nodes.save_index().has_value());
 
     // At arity two nothing can be widened, so every inner node keeps its slot and its row is one entry long.
     widen::SplitStorage splits = REQUIRE_VALUE(widen::SplitStorage::create(directory.path() / "splits"));

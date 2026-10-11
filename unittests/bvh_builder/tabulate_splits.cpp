@@ -3,11 +3,16 @@
 #include "../temp_directory.h"
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <span>
 #include <vector>
 
 #include <glm/glm.hpp>
+
+#include "io/Error.h"
+#include "range_utils.h"
 
 #include "bvh/BatchWriter.h"
 #include "bvh/NodeCache.h"
@@ -18,48 +23,22 @@
 
 namespace {
 
-// Writes the tree R(A(0, 1), B(2, 3)) over a row of four unit boxes into `nodes` and returns its root.
-bvh::Reference write_balanced_tree(bvh::Storage &nodes) {
-    bvh::BatchWriter writer(nodes);
-    const auto write_leaf = [&](const uint32_t cluster, const bvh::Bounds &bounds) {
-        const auto result = writer.write_leaf(bvh::NodeHeader{.min_child_error = 0.0, .max_parent_error = 0.0, .bounds = bounds}, dag::Id{octree::Id::root(), cluster});
-        REQUIRE(result.has_value());
-        return *result;
-    };
-    const auto write_inner = [&](const bvh::Bounds &bounds, const std::array<bvh::Reference, 2> &children) {
-        const auto result = writer.write_inner(bvh::NodeHeader{.min_child_error = 0.0, .max_parent_error = 0.0, .bounds = bounds}, children);
-        REQUIRE(result.has_value());
-        return *result;
-    };
-
-    const bvh::Reference leaf_0 = write_leaf(0, {glm::dvec3{0.0, 0.0, 0.0}, glm::dvec3{1.0, 1.0, 1.0}});
-    const bvh::Reference leaf_1 = write_leaf(1, {glm::dvec3{1.0, 0.0, 0.0}, glm::dvec3{2.0, 1.0, 1.0}});
-    const bvh::Reference leaf_2 = write_leaf(2, {glm::dvec3{2.0, 0.0, 0.0}, glm::dvec3{3.0, 1.0, 1.0}});
-    const bvh::Reference leaf_3 = write_leaf(3, {glm::dvec3{3.0, 0.0, 0.0}, glm::dvec3{4.0, 1.0, 1.0}});
-    const bvh::Reference a = write_inner({glm::dvec3{0.0, 0.0, 0.0}, glm::dvec3{2.0, 1.0, 1.0}}, {leaf_0, leaf_1});
-    const bvh::Reference b = write_inner({glm::dvec3{2.0, 0.0, 0.0}, glm::dvec3{4.0, 1.0, 1.0}}, {leaf_2, leaf_3});
-    const bvh::Reference root = write_inner({glm::dvec3{0.0, 0.0, 0.0}, glm::dvec3{4.0, 1.0, 1.0}}, {a, b});
-
-    REQUIRE(writer.flush().has_value());
-    REQUIRE(nodes.save_index().has_value());
-    return root;
+// A header without error over the box from `min` to `max`.
+bvh::NodeHeader make_header(const glm::dvec3 &min, const glm::dvec3 &max) {
+    return bvh::NodeHeader{.min_child_error = 0.0, .max_parent_error = 0.0, .bounds = {min, max}};
 }
 
-// Tabulates the balanced tree at `arity` and returns its rows in the order they were written.
-std::vector<std::vector<widen::Split>> tabulate(const TempDirectory &directory, const uint32_t arity) {
-    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "nodes"));
-    const bvh::Reference root = write_balanced_tree(nodes);
-
-    widen::SplitStorage splits = REQUIRE_VALUE(widen::SplitStorage::create(directory.path() / "splits"));
+// Tabulates the tree at `root` at `arity` into a storage in `directory` and returns its rows in the order they were written.
+std::vector<std::vector<widen::Split>> tabulate_rows(const bvh::Storage &nodes, const bvh::Reference &root, const uint32_t arity, const std::filesystem::path &directory) {
+    widen::SplitStorage splits = REQUIRE_VALUE(widen::SplitStorage::create(directory));
     bvh::NodeCache cache(nodes, 1);
-    REQUIRE(widen::tabulate_splits(cache, root, splits, widen::Options{.arity = arity}).has_value());
-    REQUIRE(splits.save_index().has_value());
+    REQUIRE_VALUE(widen::tabulate_splits(cache, root, splits, widen::Options{.arity = arity}));
+    REQUIRE_VALUE(splits.save_index());
 
     std::vector<std::vector<widen::Split>> rows;
-    for (uint32_t index = 0; index < splits.size(); index++) {
-        const auto batch = splits.read(index);
-        REQUIRE(batch.has_value());
-        for (const std::span<const widen::Split> row : batch->splits) {
+    for (const uint32_t index : range(splits.size())) {
+        const widen::SplitBatch batch = REQUIRE_VALUE(splits.read(index));
+        for (const std::span<const widen::Split> row : batch.splits) {
             rows.emplace_back(row.begin(), row.end());
         }
     }
@@ -68,46 +47,135 @@ std::vector<std::vector<widen::Split>> tabulate(const TempDirectory &directory, 
 
 }
 
-TEST_CASE("every inner node gets one row, the root's last", "[widen][tabulate_splits]") {
+TEST_CASE("tabulate_splits makes a node offered one slot keep itself", "[widen][tabulate_splits]") {
+    /*
+         R
+        / \
+       0   1
+    */
     const TempDirectory directory("tabulate_splits");
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "nodes"));
+    bvh::BatchWriter writer(nodes);
+    const bvh::Reference leaf_0 = REQUIRE_VALUE(writer.write_leaf(make_header({0, 0, 0}, {1, 1, 1}), dag::Id{octree::Id::root(), 0}));
+    const bvh::Reference leaf_1 = REQUIRE_VALUE(writer.write_leaf(make_header({1, 0, 0}, {2, 1, 1}), dag::Id{octree::Id::root(), 1}));
+    const bvh::Reference root = REQUIRE_VALUE(writer.write_inner(make_header({0, 0, 0}, {2, 1, 1}), std::array{leaf_0, leaf_1}));
+    REQUIRE_VALUE(writer.flush());
+    REQUIRE_VALUE(nodes.save_index());
 
-    const std::vector<std::vector<widen::Split>> rows = tabulate(directory, 4);
-
-    // A and B have one row each, and only the root is offered more than one slot.
-    REQUIRE(rows.size() == 3);
-    CHECK(rows[0].size() == 1);
-    CHECK(rows[1].size() == 1);
-    CHECK(rows[2].size() > 1);
+    // Two leaves can use only one slot, which the root has to fill itself.
+    const std::vector<std::vector<widen::Split>> rows = tabulate_rows(nodes, root, 2, directory.path() / "splits");
+    CHECK(rows == std::vector<std::vector<widen::Split>>{{widen::Split::keep(1)}});
 }
 
-TEST_CASE("a node over two leaves keeps itself and gives each leaf a slot", "[widen][tabulate_splits]") {
+TEST_CASE("tabulate_splits writes one row per inner node, right subtree first, as long as the slots its subtree can use", "[widen][tabulate_splits]") {
+    /*
+            R
+          /   \
+         A     C
+        / \   / \
+       0   1 2   D
+                / \
+               3   4
+    */
     const TempDirectory directory("tabulate_splits");
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "nodes"));
+    bvh::BatchWriter writer(nodes);
+    const bvh::Reference leaf_0 = REQUIRE_VALUE(writer.write_leaf(make_header({0, 0, 0}, {1, 1, 1}), dag::Id{octree::Id::root(), 0}));
+    const bvh::Reference leaf_1 = REQUIRE_VALUE(writer.write_leaf(make_header({1, 0, 0}, {2, 1, 1}), dag::Id{octree::Id::root(), 1}));
+    const bvh::Reference leaf_2 = REQUIRE_VALUE(writer.write_leaf(make_header({2, 0, 0}, {3, 1, 1}), dag::Id{octree::Id::root(), 2}));
+    const bvh::Reference leaf_3 = REQUIRE_VALUE(writer.write_leaf(make_header({3, 0, 0}, {4, 1, 1}), dag::Id{octree::Id::root(), 3}));
+    const bvh::Reference leaf_4 = REQUIRE_VALUE(writer.write_leaf(make_header({4, 0, 0}, {5, 1, 1}), dag::Id{octree::Id::root(), 4}));
+    const bvh::Reference a = REQUIRE_VALUE(writer.write_inner(make_header({0, 0, 0}, {2, 1, 1}), std::array{leaf_0, leaf_1}));
+    const bvh::Reference d = REQUIRE_VALUE(writer.write_inner(make_header({3, 0, 0}, {5, 1, 1}), std::array{leaf_3, leaf_4}));
+    const bvh::Reference c = REQUIRE_VALUE(writer.write_inner(make_header({2, 0, 0}, {5, 1, 1}), std::array{leaf_2, d}));
+    const bvh::Reference root = REQUIRE_VALUE(writer.write_inner(make_header({0, 0, 0}, {5, 1, 1}), std::array{a, c}));
+    REQUIRE_VALUE(writer.flush());
+    REQUIRE_VALUE(nodes.save_index());
 
-    const std::vector<std::vector<widen::Split>> rows = tabulate(directory, 4);
+    const auto count_entries = [](const std::vector<std::vector<widen::Split>> &rows) {
+        return transform_vector(rows, [](const std::vector<widen::Split> &row) { return row.size(); });
+    };
 
-    // Leaves cost nothing however many slots they get, so the first split that seats both wins.
-    REQUIRE(rows.size() == 3);
-    CHECK(rows[0] == std::vector{widen::Split::keep(1)});
-    CHECK(rows[1] == std::vector{widen::Split::keep(1)});
+    // A subtree over m leaves can use m - 1 slots, and no node is offered more than arity - 1, giving D, C, A, R.
+    CHECK(count_entries(tabulate_rows(nodes, root, 8, directory.path() / "arity_8")) == std::vector<size_t>{1, 2, 1, 4});
+    CHECK(count_entries(tabulate_rows(nodes, root, 3, directory.path() / "arity_3")) == std::vector<size_t>{1, 2, 1, 2});
 }
 
-TEST_CASE("a node offered a single slot has to keep itself", "[widen][tabulate_splits]") {
+TEST_CASE("tabulate_splits gives a kept node's slots to the child that saves the most", "[widen][tabulate_splits]") {
+    /*
+            R
+          /   \
+         A     C
+        / \   / \
+       0   1 2   D
+                / \
+               3   4
+    */
+    // A's leaves are 2-unit cubes and the others 1-unit cubes, so D costs 10, C 14 and A 40.
     const TempDirectory directory("tabulate_splits");
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "nodes"));
+    bvh::BatchWriter writer(nodes);
+    const bvh::Reference leaf_0 = REQUIRE_VALUE(writer.write_leaf(make_header({0, 0, 0}, {2, 2, 2}), dag::Id{octree::Id::root(), 0}));
+    const bvh::Reference leaf_1 = REQUIRE_VALUE(writer.write_leaf(make_header({2, 0, 0}, {4, 2, 2}), dag::Id{octree::Id::root(), 1}));
+    const bvh::Reference leaf_2 = REQUIRE_VALUE(writer.write_leaf(make_header({4, 0, 0}, {5, 1, 1}), dag::Id{octree::Id::root(), 2}));
+    const bvh::Reference leaf_3 = REQUIRE_VALUE(writer.write_leaf(make_header({5, 0, 0}, {6, 1, 1}), dag::Id{octree::Id::root(), 3}));
+    const bvh::Reference leaf_4 = REQUIRE_VALUE(writer.write_leaf(make_header({6, 0, 0}, {7, 1, 1}), dag::Id{octree::Id::root(), 4}));
+    const bvh::Reference a = REQUIRE_VALUE(writer.write_inner(make_header({0, 0, 0}, {4, 2, 2}), std::array{leaf_0, leaf_1}));
+    const bvh::Reference d = REQUIRE_VALUE(writer.write_inner(make_header({5, 0, 0}, {7, 1, 1}), std::array{leaf_3, leaf_4}));
+    const bvh::Reference c = REQUIRE_VALUE(writer.write_inner(make_header({4, 0, 0}, {7, 1, 1}), std::array{leaf_2, d}));
+    const bvh::Reference root = REQUIRE_VALUE(writer.write_inner(make_header({0, 0, 0}, {7, 2, 2}), std::array{a, c}));
+    REQUIRE_VALUE(writer.flush());
+    REQUIRE_VALUE(nodes.save_index());
 
-    for (const std::vector<widen::Split> &row : tabulate(directory, 4)) {
-        REQUIRE(!row.empty());
-        CHECK(row.front().is_kept());
-    }
+    // The kept root's four slots can go 1 + 3 (A kept, C dissolved: 40), 2 + 2 (only D kept: 10) or 3 + 1 (only C kept: 14).
+    const std::vector<std::vector<widen::Split>> rows = tabulate_rows(nodes, root, 4, directory.path() / "splits");
+    REQUIRE(!rows.empty());
+    CHECK(rows.back().front() == widen::Split::keep(2));
 }
 
-TEST_CASE("the root dissolves once its children can use the slots more cheaply than it can", "[widen][tabulate_splits]") {
+TEST_CASE("tabulate_splits makes a dissolving node keep its cheaper child", "[widen][tabulate_splits]") {
+    /*
+            R
+          /   \
+         A     B
+        / \   / \
+       0   1 2   3
+    */
+    // A's leaves are 1-unit cubes and B's 2-unit cubes, so A costs 10, B 40 and R 56.
     const TempDirectory directory("tabulate_splits");
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "nodes"));
+    bvh::BatchWriter writer(nodes);
+    const bvh::Reference leaf_0 = REQUIRE_VALUE(writer.write_leaf(make_header({0, 0, 0}, {1, 1, 1}), dag::Id{octree::Id::root(), 0}));
+    const bvh::Reference leaf_1 = REQUIRE_VALUE(writer.write_leaf(make_header({1, 0, 0}, {2, 1, 1}), dag::Id{octree::Id::root(), 1}));
+    const bvh::Reference leaf_2 = REQUIRE_VALUE(writer.write_leaf(make_header({2, 0, 0}, {4, 2, 2}), dag::Id{octree::Id::root(), 2}));
+    const bvh::Reference leaf_3 = REQUIRE_VALUE(writer.write_leaf(make_header({4, 0, 0}, {6, 2, 2}), dag::Id{octree::Id::root(), 3}));
+    const bvh::Reference a = REQUIRE_VALUE(writer.write_inner(make_header({0, 0, 0}, {2, 1, 1}), std::array{leaf_0, leaf_1}));
+    const bvh::Reference b = REQUIRE_VALUE(writer.write_inner(make_header({2, 0, 0}, {6, 2, 2}), std::array{leaf_2, leaf_3}));
+    const bvh::Reference root = REQUIRE_VALUE(writer.write_inner(make_header({0, 0, 0}, {6, 2, 2}), std::array{a, b}));
+    REQUIRE_VALUE(writer.flush());
+    REQUIRE_VALUE(nodes.save_index());
 
-    const std::vector<std::vector<widen::Split>> rows = tabulate(directory, 4);
+    // Offered three slots, the root can stay kept (56), or dissolve and keep A (10) or B (40).
+    const std::vector<std::vector<widen::Split>> rows = tabulate_rows(nodes, root, 4, directory.path() / "splits");
+    REQUIRE(!rows.empty());
+    REQUIRE(rows.back().size() == 3);
+    CHECK(rows.back()[2] == widen::Split::dissolve(1));
+}
 
-    // At three slots A keeps one and B's leaves take the other two, which costs A alone and so less than the whole root.
-    REQUIRE(rows.size() == 3);
-    const std::vector<widen::Split> &root_row = rows[2];
-    REQUIRE(root_row.size() == 3);
-    CHECK(root_row[2] == widen::Split::dissolve(1));
+TEST_CASE("tabulate_splits fails when a batch cannot be read", "[widen][tabulate_splits]") {
+    const TempDirectory directory("tabulate_splits");
+    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "nodes"));
+
+    // Reserved but never written.
+    const bvh::Batch missing = nodes.create_batch();
+
+    bvh::BatchWriter writer(nodes);
+    const bvh::Reference root = REQUIRE_VALUE(writer.write_inner({}, std::array{bvh::Reference{.batch = missing.index(), .node = 0}, bvh::Reference{.batch = missing.index(), .node = 1}}));
+    REQUIRE_VALUE(writer.flush());
+    REQUIRE_VALUE(nodes.save_index());
+
+    widen::SplitStorage splits = REQUIRE_VALUE(widen::SplitStorage::create(directory.path() / "splits"));
+    bvh::NodeCache cache(nodes, 1);
+    const io::Error error = REQUIRE_ERROR(widen::tabulate_splits(cache, root, splits, widen::Options{.arity = 4}));
+    CHECK(error.holds_and<io::FileError>(&io::FileError::is_not_found));
 }
