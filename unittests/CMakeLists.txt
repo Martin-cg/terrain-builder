@@ -34,6 +34,7 @@ add_executable(unittests_terrainlib
     terrainlib/fixed_vector.cpp
     terrainlib/gdal_error.cpp
     terrainlib/gdal_geo_transform.cpp
+    terrainlib/geometry_bounds.cpp
     terrainlib/geometry_compare.cpp
     terrainlib/geometry_frames.cpp
     terrainlib/grid.cpp
