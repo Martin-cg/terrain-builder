@@ -86,7 +86,9 @@ alp::Result<void> build_bvh(const cli::Args &args) {
         .max_batch_bytes = args.max_batch_bytes,
         .max_resident_bytes = args.max_resident_bytes,
     };
-    ALP_TRY(sort::sort_by_morton(run, sorted, scratch.path() / "sort-runs", sort_options));
+    ALP_TRY(io::ScratchDirectory sort_runs, io::create_scratch_directory(scratch.path() / "sort-runs"));
+    ALP_TRY(sort::sort_by_morton(run, sorted, sort_runs.path(), sort_options));
+    ALP_TRY(std::move(sort_runs).remove());
     LOG_INFO("Sorted the frontier into {} batches", sorted.size());
 
     ALP_TRY(const bvh::Reference root, build_tree(args, std::move(sorted), nodes));

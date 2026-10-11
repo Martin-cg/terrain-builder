@@ -20,6 +20,7 @@
 #include "containers/ChunkedRingWriter.h"
 #include "geometry/bounds.h"
 #include "io/Error.h"
+#include "io/ScratchDirectory.h"
 #include "log.h"
 #include "numeric/int_math.h"
 #include "range_utils.h"
@@ -385,10 +386,10 @@ public:
         return frontier::Storage::create(this->get_round_path(round) / "sorted");
     }
 
-    // The directory the sort of a round keeps its runs in.
+    // The directory the sort of a round keeps its runs in, removed with the object returned.
     [[nodiscard]]
-    std::filesystem::path get_sort_runs_path(const uint32_t round) const {
-        return this->get_round_path(round) / "sort-runs";
+    alp::Result<io::ScratchDirectory, io::FileError, io::DirectoryNotEmpty> create_sort_runs_scratch(const uint32_t round) const {
+        return io::create_scratch_directory(this->get_round_path(round) / "sort-runs");
     }
 
 private:
@@ -403,7 +404,7 @@ private:
 } // namespace detail
 
 // Builds the tree by PLOC, pairing nearest neighbours on the frontier round by round until one node is left.
-// The frontier must be non-empty and in morton order.
+// The frontier must be non-empty and in morton order, and is removed once it has been read.
 [[nodiscard]]
 inline alp::Result<bvh::Reference, io::Error, io::DirectoryNotEmpty> build(
     frontier::Storage input, bvh::Storage &output,
@@ -433,12 +434,16 @@ inline alp::Result<bvh::Reference, io::Error, io::DirectoryNotEmpty> build(
 
         ALP_TRY_CONTEXT(merged.save_index(), context);
         LOG_DEBUG("ploc round {} left {} entries on the frontier", round, remaining);
+        ALP_TRY_CONTEXT(std::move(current).remove(), context);
 
         ALP_TRY_CONTEXT(frontier::Storage sorted, layout.create_sort_scratch(round), context);
-        ALP_TRY_CONTEXT(sort::sort_by_morton(merged, sorted, layout.get_sort_runs_path(round), sort_options), context);
+        ALP_TRY_CONTEXT(const io::ScratchDirectory sort_runs, layout.create_sort_runs_scratch(round), context);
+        ALP_TRY_CONTEXT(sort::sort_by_morton(merged, sorted, sort_runs.path(), sort_options), context);
+        ALP_TRY_CONTEXT(std::move(merged).remove(), context);
 
         if (remaining == 1) {
             ALP_TRY_CONTEXT(const frontier::Batch batch, sorted.read(0), context);
+            ALP_TRY_CONTEXT(std::move(sorted).remove(), context);
             ALP_TRY_CONTEXT(output.save_index(), context);
             return batch.entries.front().ref;
         }
