@@ -13,7 +13,7 @@
 #include "../temp_directory.h"
 #include "io/bytes.h"
 #include "texture/io.h"
-#include "tile_provider.h"
+#include "TileProvider.h"
 
 TEST_CASE("A static provider gets the image of a tile it has", "[tile_provider]") {
     const radix::tile::Id tile(1, {0, 1}, radix::tile::Scheme::SlippyMap);

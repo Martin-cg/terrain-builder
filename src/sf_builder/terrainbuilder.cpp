@@ -46,7 +46,7 @@
 #include "mesh_builder.h"
 #include "terrainbuilder.h"
 #include "texture_assembler.h"
-#include "tile_provider.h"
+#include "TileProvider.h"
 #include "mesh/validate.h"
 #include "parallel.h"
 

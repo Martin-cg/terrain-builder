@@ -25,7 +25,7 @@
 #include "srs/transform_bounds.h"
 #include "terrainbuilder.h"
 #include "octree/Space.h"
-#include "tile_provider.h"
+#include "TileProvider.h"
 
 #include "ctb/GlobalGeodetic.hpp"
 #include "ctb/GlobalMercator.hpp"

@@ -13,7 +13,7 @@
 #include "mesh/io/error.h"
 #include "srs.h"
 #include "srs/error.h"
-#include "tile_provider.h"
+#include "TileProvider.h"
 
 namespace terrainbuilder {
 

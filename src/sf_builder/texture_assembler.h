@@ -23,7 +23,7 @@
 #include "srs/transform_bounds.h"
 
 #include "error/try.h"
-#include "tile_provider.h"
+#include "TileProvider.h"
 #include "log.h"
 
 namespace terrainbuilder {

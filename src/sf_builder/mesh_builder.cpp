@@ -16,7 +16,7 @@
 #include "mesh/cleanup.h"
 #include "mesh_builder.h"
 #include "raster.h"
-#include "raw_dataset_reader.h"
+#include "RawDatasetReader.h"
 #include "srs/transform.h"
 #include "srs/transform_bounds.h"
 #include "mesh/clip.h"
