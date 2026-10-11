@@ -30,7 +30,11 @@ TEST_CASE("try_get_last_error returns the error GDAL recorded, if it recorded on
     SECTION("an error was recorded") {
         CPLError(CE_Failure, CPLE_OpenFailed, "boom");
 
-        CHECK(gdal::CplError::try_get_last_error() == gdal::CplError(CPLE_OpenFailed, "boom"));
+        const std::optional<gdal::CplError> error_opt = gdal::CplError::try_get_last_error();
+
+        REQUIRE(error_opt.has_value());
+        CHECK(error_opt->code() == CPLE_OpenFailed);
+        CHECK(error_opt->message() == "boom");
     }
 
     SECTION("nothing was recorded") {

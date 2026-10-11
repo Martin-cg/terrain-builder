@@ -33,7 +33,10 @@ public:
         return try_get_last_error().value_or(CplError(CPLE_AppDefined, "GDAL recorded no error"));
     }
 
-    bool operator==(const CplError &) const = default;
+    // Whether both errors have the same category.
+    bool operator==(const CplError &other) const {
+        return this->_code == other._code;
+    }
 
     // The category GDAL assigned.
     CPLErrorNum code() const {
