@@ -10,11 +10,11 @@
 namespace gated_ploc {
 
 struct AdmissionOptions {
-    // Entries one limit is taken over.
+    // How many entries share one admission limit.
     size_t region_size = 1 << 16;
     // The order statistic a region measures its small nodes by.
     double quantile = 0.33;
-    // How much larger than that a node may be and still merge.
+    // How many times the extent at `quantile` a node may measure and still merge.
     double tolerance = 3.0;
 };
 

@@ -32,7 +32,8 @@ public:
           _search(options.search_radius, options.error_weight),
           _scene_bounds(options.scene_bounds) {}
 
-    // Merges one chunk, writes what it owns, and returns how many pairs it merged. `chunk` needs a halo of twice the search radius.
+    // Merges the pairs `chunk` owns, passes on its other entries, and returns how many pairs it merged.
+    // `chunk` must carry a halo of twice the search radius.
     [[nodiscard]]
     alp::Result<uint64_t, io::Error> merge_chunk(const PaddedSpan<const frontier::Entry> chunk) {
         const std::span<const frontier::Entry> window = chunk.span();

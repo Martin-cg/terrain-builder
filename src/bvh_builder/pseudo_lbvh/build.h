@@ -47,8 +47,8 @@ inline morton::Code extract_prefix(const morton::Code &code, const uint32_t bits
     return code & mask;
 }
 
-// Finds where the run divides at the highest bit its codes disagree on, or in half when they
-// all agree. Never leaves either side empty.
+// Finds where the run divides at the highest bit its codes disagree on, or in half when they all agree.
+// Never leaves either side empty.
 [[nodiscard]]
 inline size_t find_split(const std::span<const frontier::Entry> entries) {
     DEBUG_ASSERT(entries.size() >= 2);
@@ -64,7 +64,7 @@ inline size_t find_split(const std::span<const frontier::Entry> entries) {
     return static_cast<size_t>(std::distance(entries.begin(), first_right));
 }
 
-// Writes the subtree over `entries` and returns its root, at the first code of the run.
+// Writes the subtree over `entries` and returns its root, which carries the code of the first entry.
 // `entries` must be non-empty and in morton order.
 [[nodiscard]]
 inline alp::Result<frontier::Entry, io::Error> build_subtree(
@@ -83,7 +83,7 @@ inline alp::Result<frontier::Entry, io::Error> build_subtree(
 
 } // namespace detail
 
-// Writes the tree over the run through `sink` and returns its root.
+// Writes a subtree over each batch of the run and one over their roots through `sink`, and returns the root.
 // The run must be non-empty and in morton order.
 [[nodiscard]]
 inline alp::Result<frontier::Entry, io::Error> build(
@@ -102,7 +102,8 @@ inline alp::Result<frontier::Entry, io::Error> build(
     return detail::build_subtree(batch_roots, sink);
 }
 
-// Writes the tree over the run into `output`, saves its index, and returns the root reference.
+// Writes a subtree over each batch of the run and one over their roots into `output`, and returns the root reference.
+// Saves the index of `output`.
 // The run must be non-empty and in morton order.
 [[nodiscard]]
 inline alp::Result<bvh::Reference, io::Error> build(

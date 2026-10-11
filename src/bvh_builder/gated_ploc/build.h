@@ -27,8 +27,9 @@
 
 namespace gated_ploc {
 
-// Builds the tree by gated PLOC, pairing nearest neighbours on the frontier round by round until one node is left.
-// The frontier must be non-empty and in morton order, and is removed once it has been read.
+// Writes the gated PLOC tree over the run into `output` and returns its root reference.
+// Saves the index of `output`.
+// The run must be non-empty and in morton order. It is removed once it has been read.
 [[nodiscard]]
 inline alp::Result<bvh::Reference, io::Error, io::DirectoryNotEmpty> build(
     frontier::Storage input, bvh::Storage &output,

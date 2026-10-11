@@ -21,19 +21,19 @@ class RoundLayout {
 public:
     explicit RoundLayout(std::filesystem::path root) : _root(std::move(root)) {}
 
-    // The run a round writes, in whatever order its chunks produced it.
+    // Creates the storage a round writes its run to, in whatever order its chunks produce it.
     [[nodiscard]]
     alp::Result<frontier::Storage, io::FileError, io::DirectoryNotEmpty> create_merge_scratch(const uint32_t round) const {
         return frontier::Storage::create(this->get_round_path(round) / "merged");
     }
 
-    // The same run in morton order, which is what the next round reads.
+    // Creates the storage for a round's run in morton order, which the next round reads.
     [[nodiscard]]
     alp::Result<frontier::Storage, io::FileError, io::DirectoryNotEmpty> create_sort_scratch(const uint32_t round) const {
         return frontier::Storage::create(this->get_round_path(round) / "sorted");
     }
 
-    // The directory the sort of a round keeps its runs in, removed with the object returned.
+    // Creates the directory the sort of a round keeps its runs in. It is removed with the object returned.
     [[nodiscard]]
     alp::Result<io::ScratchDirectory, io::FileError, io::DirectoryNotEmpty> create_sort_runs_scratch(const uint32_t round) const {
         return io::create_scratch_directory(this->get_round_path(round) / "sort-runs");

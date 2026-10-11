@@ -22,7 +22,7 @@ uint32_t count_common_prefix_bits(const Code &a, const Code &b) {
         return CODE_BITS;
     }
 
-    // Only the matching branch may be instantiated; the other does not compile for this type.
+    // The branch not taken does not compile for this type, so it must not be instantiated.
     if constexpr (is_wide_integer_v<Code>) {
         return CODE_BITS - 1 - math::wide_integer::msb(difference);
     } else {

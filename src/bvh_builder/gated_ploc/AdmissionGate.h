@@ -21,16 +21,18 @@ namespace gated_ploc {
 
 namespace detail {
 
-// The extent up to which a region admits: enough for its two smallest nodes to find each other, and as much more around them as the tolerance allows.
+// Computes the extent up to which a region with these `metrics` admits, reordering them. `metrics` must not be empty.
 [[nodiscard]]
 inline double compute_admission_limit(std::vector<double> &metrics, const AdmissionOptions &options) {
     DEBUG_ASSERT(!metrics.empty());
 
+    // Enough for the two smallest nodes to find each other.
     const auto count = static_cast<std::ptrdiff_t>(metrics.size());
     const std::ptrdiff_t second = std::min<std::ptrdiff_t>(1, count - 1);
     std::ranges::nth_element(metrics, metrics.begin() + second);
     const double smallest_pair = metrics[second];
 
+    // As much more around them as the tolerance allows.
     const auto index = static_cast<std::ptrdiff_t>(options.quantile * (count - 1));
     std::ranges::nth_element(metrics, metrics.begin() + index);
     return std::max(smallest_pair, metrics[index] * options.tolerance);

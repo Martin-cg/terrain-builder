@@ -45,7 +45,8 @@ struct Cancelled {
 // What a worker hands back: its count, its own failure, or the round ending around it.
 using WorkerResult = alp::Result<uint64_t, io::Error, Cancelled>;
 
-// Reads the run, gives the ring what this round admits and keeps the rest out of it, and returns how many entries it read.
+// Feeds the ring the entries of the run this round admits and writes the rest to `merged`.
+// Returns how many entries it read.
 [[nodiscard]]
 inline WorkerResult run_producer(
     const frontier::Storage &input, frontier::Storage &merged, EntryRing &ring, const Options &options) {
@@ -81,7 +82,7 @@ inline WorkerResult run_producer(
     return entries;
 }
 
-// Pairs chunks as they arrive, and returns how many pairs it merged.
+// Merges the chunks of the ring as they arrive and returns how many pairs it merged.
 [[nodiscard]]
 inline WorkerResult run_consumer(
     EntryRing &ring, frontier::Storage &merged, bvh::Storage &output, const Options &options) {
