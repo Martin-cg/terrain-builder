@@ -1,5 +1,6 @@
 #pragma once
 
+#include "geometry/bounds.h"
 #include "mask.h"
 #include "merge/NodeData.h"
 #include "merge/Result.h"

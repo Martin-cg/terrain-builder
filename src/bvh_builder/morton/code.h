@@ -2,7 +2,7 @@
 
 #include <glm/glm.hpp>
 
-#include "geometry/geometry.h"
+#include "geometry/bounds.h"
 #include "numeric/number_types.h"
 #include "octree/Id.h"
 

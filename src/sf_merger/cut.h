@@ -5,6 +5,7 @@
 #include "mesh/SimpleMesh.h"
 #include "error/log.h"
 #include "error/unwrap.h"
+#include "geometry/bounds.h"
 #include "log.h"
 #include "mask.h"
 #include "octree/Id.h"

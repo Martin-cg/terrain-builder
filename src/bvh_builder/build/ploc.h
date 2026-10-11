@@ -18,7 +18,7 @@
 
 #include "containers/ChunkedRingBuffer.h"
 #include "containers/ChunkedRingWriter.h"
-#include "geometry/geometry.h"
+#include "geometry/bounds.h"
 #include "io/Error.h"
 #include "log.h"
 #include "numeric/int_math.h"

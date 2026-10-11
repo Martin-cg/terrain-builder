@@ -2,7 +2,7 @@
 
 #include <radix/geometry.h>
 
-#include "geometry/geometry.h"
+#include "geometry/bounds.h"
 #include "octree/Id.h"
 #include "octree/IdRect.h"
 #include "octree/OddLevelShifted.h"

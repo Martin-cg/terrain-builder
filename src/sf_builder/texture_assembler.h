@@ -16,7 +16,7 @@
 
 #include "ctb/GlobalMercator.hpp"
 #include "ctb/Grid.hpp"
-#include "geometry/geometry.h"
+#include "geometry/bounds.h"
 #include "numeric/glm_math.h"
 #include "numeric/int_math.h"
 #include "optional_utils.h"

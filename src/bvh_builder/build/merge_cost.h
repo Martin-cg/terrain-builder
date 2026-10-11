@@ -5,7 +5,7 @@
 #include <glm/glm.hpp>
 #include <radix/geometry.h>
 
-#include "geometry/geometry.h"
+#include "geometry/bounds.h"
 
 #include "bvh/layout.h"
 

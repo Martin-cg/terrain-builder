@@ -11,7 +11,7 @@
 
 #include <libassert/assert.hpp>
 
-#include "geometry/geometry.h"
+#include "geometry/bounds.h"
 
 #include "bvh/layout.h"
 

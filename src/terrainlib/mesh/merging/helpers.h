@@ -2,7 +2,7 @@
 
 #include <span>
 #include <functional>
-#include "geometry/geometry.h"
+#include "geometry/bounds.h"
 #include "mesh/SimpleMesh.h"
 #include "spatial_lookup/Grid.h"
 #include "mesh/merging/EpsilonVertexDeduplicate.h"
