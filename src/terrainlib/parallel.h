@@ -12,6 +12,7 @@
 #include <tbb/parallel_for_each.h>
 #include <tbb/task_group.h>
 
+#include "error/FallibleFn.h"
 #include "error/log.h"
 #include "variant_utils.h"
 
@@ -116,7 +117,7 @@ void for_each(Range &&range, Body body, const Execution execution = Execution::P
 
 // Runs `body` on every item of `range`, and on every item a body adds through its feeder.
 // Stops at the first failure, which it returns, and skips the items that have not started by then.
-template <std::ranges::forward_range Range, std::invocable<const std::ranges::range_value_t<Range> &, Feeder<std::ranges::range_value_t<Range>> &> Body>
+template <std::ranges::forward_range Range, alp::FallibleFn<void, const std::ranges::range_value_t<Range> &, Feeder<std::ranges::range_value_t<Range>> &> Body>
 [[nodiscard]]
 auto try_for_each(Range &&range, Body body, const Execution execution = Execution::Parallel) {
     switch (execution) {
@@ -130,7 +131,7 @@ auto try_for_each(Range &&range, Body body, const Execution execution = Executio
 
 // Runs `body` on every item of `range`.
 // Stops at the first failure, which it returns, and skips the items that have not started by then.
-template <std::ranges::forward_range Range, std::invocable<const std::ranges::range_value_t<Range> &> Body>
+template <std::ranges::forward_range Range, alp::FallibleFn<void, const std::ranges::range_value_t<Range> &> Body>
 [[nodiscard]]
 auto try_for_each(Range &&range, Body body, const Execution execution = Execution::Parallel) {
     using Item = std::ranges::range_value_t<Range>;
