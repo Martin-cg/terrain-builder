@@ -154,7 +154,7 @@ if(TARGET bvhbuilderlib)
         bvh_builder/frustum.cpp
         bvh_builder/json_glm.cpp
         bvh_builder/json_serialize.cpp
-        bvh_builder/lbvh.cpp
+        bvh_builder/pseudo_lbvh_build.cpp
         bvh_builder/merging_receiver.cpp
         bvh_builder/merge_cost.cpp
         bvh_builder/merge_runs.cpp

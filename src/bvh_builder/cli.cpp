@@ -16,6 +16,7 @@ using namespace cli;
 namespace {
 
 const std::unordered_map<std::string, Mode> MODE_NAMES{
+    {"pseudo-lbvh", Mode::PseudoLbvh},
     {"lbvh", Mode::Lbvh},
     {"gated-ploc", Mode::GatedPloc},
     {"hploc", Mode::Hploc},

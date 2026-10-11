@@ -28,7 +28,7 @@
 #include "morton/code.h"
 #include "morton/utils.h"
 
-namespace lbvh {
+namespace pseudo_lbvh {
 
 struct Options {
     size_t max_batch_bytes = DEFAULT_MAX_BATCH_BYTES;
@@ -83,7 +83,7 @@ inline alp::Result<frontier::Entry, io::Error> build_subtree(
 
 } // namespace detail
 
-// Writes the tree over the run through `sink` and returns its root. The caller owns the writer.
+// Writes the tree over the run through `sink` and returns its root.
 // The run must be non-empty and in morton order.
 [[nodiscard]]
 inline alp::Result<frontier::Entry, io::Error> build(
@@ -119,4 +119,4 @@ inline alp::Result<bvh::Reference, io::Error> build(
         });
 }
 
-} // namespace lbvh
+} // namespace pseudo_lbvh

@@ -10,6 +10,7 @@ namespace cli {
 
 // Which algorithm builds the tree over the frontier.
 enum class Mode : uint8_t {
+    PseudoLbvh,
     Lbvh,
     GatedPloc,
     Hploc,

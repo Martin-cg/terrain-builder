@@ -10,6 +10,7 @@
 #include "frontier/build.h"
 #include "cli.h"
 #include "lbvh/build.h"
+#include "pseudo_lbvh/build.h"
 #include "gated_ploc/build.h"
 #include "hploc/build.h"
 #include "bvh/flatten_dag.h"
@@ -38,6 +39,10 @@ namespace {
 alp::Result<bvh::Reference, io::Error, io::DirectoryNotEmpty> build_tree(
     const cli::Args &args, frontier::Storage sorted, bvh::Storage &nodes) {
     switch (args.mode) {
+    case cli::Mode::PseudoLbvh:
+        return pseudo_lbvh::build(sorted, nodes, pseudo_lbvh::Options{
+            .max_batch_bytes = args.max_batch_bytes,
+        });
     case cli::Mode::Lbvh:
         return lbvh::build(sorted, nodes, lbvh::Options{
             .max_batch_bytes = args.max_batch_bytes,
