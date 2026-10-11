@@ -152,6 +152,8 @@ if(TARGET bvhbuilderlib)
         bvh_builder/find_root.cpp
         bvh_builder/flat_traverse.cpp
         bvh_builder/frustum.cpp
+        bvh_builder/json_glm.cpp
+        bvh_builder/json_serialize.cpp
         bvh_builder/lbvh.cpp
         bvh_builder/merging_receiver.cpp
         bvh_builder/merge_runs.cpp

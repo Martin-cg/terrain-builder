@@ -105,6 +105,12 @@ if(ALP_BUILD_DAG_BUILDER OR ALP_BUILD_DAG_CONVERT_DEBUG OR ALP_BUILD_BVH_BUILDER
     target_compile_definitions(metis INTERFACE IDXTYPEWIDTH=32 REALTYPEWIDTH=32)
 endif()
 
+if(ALP_BUILD_BVH_BUILDER)
+    alp_add_git_repository(glaze URL https://github.com/stephenberry/glaze.git COMMITISH v9.0.0 DO_NOT_ADD_SUBPROJECT)
+    add_library(glaze INTERFACE)
+    target_include_directories(glaze SYSTEM INTERFACE ${glaze_SOURCE_DIR}/include)
+endif()
+
 if(ALP_BUILD_SF_BROWSER)
     set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
     set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)

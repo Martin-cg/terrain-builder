@@ -1,6 +1,6 @@
 add_library(bvhbuilderlib INTERFACE)
 target_include_directories(bvhbuilderlib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(bvhbuilderlib INTERFACE dagbuilderlib)
+target_link_libraries(bvhbuilderlib INTERFACE dagbuilderlib glaze)
 
 add_executable(bvh-builder
     cli.cpp
