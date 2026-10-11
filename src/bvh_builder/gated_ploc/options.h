@@ -2,6 +2,7 @@
 
 #include <cstddef>
 
+#include "build/merge_cost.h"
 #include "bvh/earth.h"
 #include "bvh/layout.h"
 #include "storage/batch_limits.h"
@@ -19,7 +20,7 @@ struct AdmissionOptions {
 
 struct Options {
     size_t search_radius = 16;
-    double error_weight = 1.0;
+    double error_weight = build::DEFAULT_ERROR_WEIGHT;
     bvh::Bounds scene_bounds = bvh::earth_bounds();
     AdmissionOptions admission = {};
 
