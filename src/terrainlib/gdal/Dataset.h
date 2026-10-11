@@ -36,7 +36,9 @@
 
 class GDALDataset;
 
-struct GDALDatasetDeleter {
+namespace gdal {
+
+struct DatasetDeleter {
     void operator()(GDALDataset *dataset) const noexcept;
 };
 
@@ -45,16 +47,16 @@ public:
     Dataset(std::filesystem::path path);
     Dataset(GDALDataset* dataset); // takes over ownership
     [[nodiscard]]
-    static alp::Result<Dataset, gdal::CplError> open_raster(std::filesystem::path path);
+    static alp::Result<Dataset, CplError> open_raster(std::filesystem::path path);
     [[nodiscard]]
-    static alp::Result<Dataset, gdal::CplError> open_vector(std::filesystem::path path);
+    static alp::Result<Dataset, CplError> open_vector(std::filesystem::path path);
     [[nodiscard]]
-    static alp::Result<std::shared_ptr<Dataset>, gdal::CplError> open_shared_raster(std::filesystem::path path);
+    static alp::Result<std::shared_ptr<Dataset>, CplError> open_shared_raster(std::filesystem::path path);
     Dataset clone();
 
     [[nodiscard]] std::string name() const;
 
-    [[nodiscard]] alp::Result<gdal::PixelTransform, gdal::PixelTransformError> pixel_transform() const;
+    [[nodiscard]] alp::Result<PixelTransform, PixelTransformError> pixel_transform() const;
 
     [[nodiscard]] radix::tile::SrsBounds bounds() const;
     [[nodiscard]] radix::tile::SrsAndHeightBounds bounds3d(bool approx_ok = false) const;
@@ -75,6 +77,8 @@ public:
 
 private:
     Dataset(const std::filesystem::path path, GDALDataset *dataset);
-    UniquePointer<GDALDataset, GDALDatasetDeleter> m_gdal_dataset;
+    UniquePointer<GDALDataset, DatasetDeleter> m_gdal_dataset;
     std::optional<std::filesystem::path> m_path;
 };
+
+} // namespace gdal

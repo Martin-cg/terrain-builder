@@ -7,7 +7,7 @@
 #include "../catch2_helpers.h"
 #include "../result_helpers.h"
 #include "gdal/PixelTransform.h"
-#include "init.h"
+#include "gdal/init.h"
 
 namespace {
 
@@ -19,7 +19,7 @@ struct DatasetCloser {
 
 // An in-memory raster of 4 by 4 pixels without a pixel transform.
 std::unique_ptr<GDALDataset, DatasetCloser> make_dataset() {
-    initialize_gdal_once();
+    gdal::initialize_once();
     GDALDriver *driver = GetGDALDriverManager()->GetDriverByName("MEM");
     REQUIRE(driver != nullptr);
     return std::unique_ptr<GDALDataset, DatasetCloser>(driver->Create("", 4, 4, 1, GDT_Float32, nullptr));

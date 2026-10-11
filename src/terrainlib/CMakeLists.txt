@@ -6,6 +6,8 @@ add_library(terrainlib
     ctb/TileCoordinate.hpp
     ctb/types.hpp
 
+    gdal/Dataset.cpp
+    gdal/init.cpp
     gdal/PixelTransform.cpp
 
     io/bytes.cpp
@@ -49,8 +51,6 @@ add_library(terrainlib
     uv/unwrap.cpp
     uv/atlas.cpp
 
-    Dataset.cpp
-    init.cpp
     log.cpp
     ProgressIndicator.cpp
 )

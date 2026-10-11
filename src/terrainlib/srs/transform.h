@@ -21,7 +21,7 @@
 #include "error/try.h"
 #include "error/utils.h"
 #include "gdal/CplError.h"
-#include "init.h"
+#include "gdal/init.h"
 #include "srs.h"
 #include "srs/error.h"
 
@@ -170,7 +170,7 @@ struct TransformCacheEntry {
 // Fails if GDAL has no transform between them.
 [[nodiscard]]
 inline alp::Result<Transform, MissingTransform> create_transform(const System &source_srs, const System &target_srs) {
-    initialize_gdal_once();
+    gdal::initialize_once();
     auto [created, gdal_error] = gdal::capture_error([&] {
         return OGRCreateCoordinateTransformation(&source_srs, &target_srs);
     });

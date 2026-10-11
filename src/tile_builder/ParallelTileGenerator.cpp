@@ -24,7 +24,7 @@
 
 #include <fmt/core.h>
 
-#include "Dataset.h"
+#include "gdal/Dataset.h"
 #include "error/unwrap.h"
 #include "ctb/GlobalGeodetic.hpp"
 #include "ctb/GlobalMercator.hpp"
@@ -47,7 +47,7 @@ ParallelTileGenerator ParallelTileGenerator::make(const std::string& input_data_
     const std::string& output_data_path,
     unsigned grid_resolution)
 {
-    const auto dataset = std::make_shared<Dataset>(std::filesystem::path(input_data_path));
+    const auto dataset = std::make_shared<gdal::Dataset>(std::filesystem::path(input_data_path));
     ctb::Grid grid = ctb::GlobalGeodetic(grid_resolution);
     if (srs == ctb::Grid::Srs::SphericalMercator)
         grid = ctb::GlobalMercator(grid_resolution);
@@ -92,7 +92,7 @@ void ParallelTileGenerator::process(const std::pair<ctb::i_zoom, ctb::i_zoom>& z
         // and it takes only 0.5% of the time (half a percent).
         // most of the cpu time is used in 'readWithOverviews' (specificly 'RasterIO', and
         // 'VRTWarpedRasterBand::IReadBlock') and a bit in 'write' (specifically 'FreeImage_Save').
-        const auto dataset = alp::unwrap(Dataset::open_shared_raster(m_input_data_path));
+        const auto dataset = alp::unwrap(gdal::Dataset::open_shared_raster(m_input_data_path));
         DatasetReader reader(dataset, m_grid.getSRS(), 1, m_warn_on_missing_overviews);
         const auto heights = reader.readWithOverviews(tile.srsBounds, tile.tileSize, tile.tileSize);
         write(tile, heights);

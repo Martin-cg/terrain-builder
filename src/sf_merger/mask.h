@@ -8,7 +8,7 @@
 #include <gdal_priv.h>
 #include <glm/gtx/norm.hpp>
 
-#include "Dataset.h"
+#include "gdal/Dataset.h"
 #include "error/Error.h"
 #include "error/Result.h"
 #include "error/try.h"
@@ -231,7 +231,7 @@ glm::dvec2 calculate_radius_range(const std::span<const SimpleMesh3d> meshes) {
 namespace detail {
 
 [[nodiscard]]
-inline alp::Result<ReferencedPolygonMask, ContentError> load_referenced_from_dataset(Dataset& mask_dataset) {
+inline alp::Result<ReferencedPolygonMask, ContentError> load_referenced_from_dataset(gdal::Dataset& mask_dataset) {
     GDALDataset *dataset = mask_dataset.as_gdal();
 
     MultipolygonWithHoles2 polygons;
@@ -261,7 +261,7 @@ inline alp::Result<ReferencedPolygonMask, ContentError> load_referenced_from_dat
 } // namespace detail
 
 [[nodiscard]]
-inline alp::Result<ReferencedPolygonMask, ContentError> load_referenced_from_dataset(Dataset& mask_dataset) {
+inline alp::Result<ReferencedPolygonMask, ContentError> load_referenced_from_dataset(gdal::Dataset& mask_dataset) {
     ALP_TRY_CONTEXT(
         ReferencedPolygonMask referenced_mask,
         detail::load_referenced_from_dataset(mask_dataset),
@@ -429,7 +429,7 @@ inline MeshMask extrude(
 [[nodiscard]]
 inline alp::Result<ReferencedPolygonMask, LoadError> load_referenced_from_path(const std::filesystem::path &path) {
     const auto context = alp::make_context("loading a mask from {}", path);
-    ALP_TRY_CONTEXT(Dataset dataset, Dataset::open_vector(path), context);
+    ALP_TRY_CONTEXT(gdal::Dataset dataset, gdal::Dataset::open_vector(path), context);
     ALP_TRY_CONTEXT(ReferencedPolygonMask referenced_mask, detail::load_referenced_from_dataset(dataset), context);
     return referenced_mask;
 }

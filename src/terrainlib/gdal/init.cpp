@@ -4,8 +4,10 @@
 #include <gdal.h>
 
 #include "build_config.h"
-#include "init.h"
+#include "gdal/init.h"
 #include "log.h"
+
+namespace gdal {
 
 std::once_flag g_gdal_initialized_once_flag;
 
@@ -35,7 +37,7 @@ inline void GdalErrorHandler(CPLErr eErrClass, int err_no, const char *msg) {
     Log::get_logger().get()->log(level, "GDAL({}): {}", err_no, msg);
 }
 
-void initialize_gdal_once() {
+void initialize_once() {
     std::call_once(g_gdal_initialized_once_flag, []() {
         CPLSetErrorHandler(GdalErrorHandler);
 
@@ -48,3 +50,5 @@ void initialize_gdal_once() {
         GDALAllRegister();
     });
 }
+
+} // namespace gdal

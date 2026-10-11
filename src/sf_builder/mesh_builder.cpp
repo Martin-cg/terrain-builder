@@ -8,7 +8,7 @@
 #include <glm/gtx/norm.hpp>
 #include <libassert/assert.hpp>
 
-#include "Dataset.h"
+#include "gdal/Dataset.h"
 #include "error/try.h"
 #include "error/utils.h"
 #include "log.h"
@@ -117,7 +117,7 @@ alp::Result<std::vector<glm::dvec2>, srs::TransformError> generate_uv_space(cons
 }
 
 alp::Result<SimpleMesh, BuildMeshError> build_reference_mesh_patch(
-    Dataset &dataset,
+    gdal::Dataset &dataset,
     const srs::System &mesh_srs,
     const srs::System &clip_srs, const radix::geometry::Aabb3d &clip_bounds,
     const srs::System &texture_srs, radix::tile::SrsBounds &texture_bounds) {

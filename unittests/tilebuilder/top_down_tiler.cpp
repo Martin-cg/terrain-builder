@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "Dataset.h"
+#include "gdal/Dataset.h"
 #include "ParallelTiler.h"
 #include "TopDownTiler.h"
 #include "../result_helpers.h"
@@ -68,7 +68,7 @@ TEMPLATE_TEST_CASE("BottomUpTiler, using tms scheme", "", std::true_type, std::f
     SECTION("mercator / level 0 austria")
     {
         const auto grid = ctb::GlobalMercator();
-        auto dataset = REQUIRE_VALUE(Dataset::open_shared_raster(ALP_TEST_DATA_DIR "/austria/at_mgi.tif"));
+        auto dataset = REQUIRE_VALUE(gdal::Dataset::open_shared_raster(ALP_TEST_DATA_DIR "/austria/at_mgi.tif"));
         const auto bounds = dataset->bounds(grid.getSRS());
         const auto tiler = TopDownTiler(grid, bounds, radix::tile::Border::No, scheme);
 
@@ -92,7 +92,7 @@ TEMPLATE_TEST_CASE("BottomUpTiler, using tms scheme", "", std::true_type, std::f
     SECTION("geodetic / level 0 austria")
     {
         const auto grid = ctb::GlobalGeodetic();
-        auto dataset = REQUIRE_VALUE(Dataset::open_shared_raster(ALP_TEST_DATA_DIR "/austria/at_mgi.tif"));
+        auto dataset = REQUIRE_VALUE(gdal::Dataset::open_shared_raster(ALP_TEST_DATA_DIR "/austria/at_mgi.tif"));
         const auto bounds = dataset->bounds(grid.getSRS());
         const auto tiler = TopDownTiler(grid, bounds, radix::tile::Border::No, scheme);
 

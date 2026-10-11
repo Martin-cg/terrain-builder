@@ -19,7 +19,6 @@ add_executable(unittests_terrainlib
     terrainlib/chunked_ring_buffer.cpp
     terrainlib/convert.cpp
     terrainlib/cow.cpp
-    terrainlib/dataset.cpp
     terrainlib/enumerate.cpp
     terrainlib/error.cpp
     terrainlib/error_error_code.cpp
@@ -31,6 +30,7 @@ add_executable(unittests_terrainlib
     terrainlib/error_utils.cpp
     terrainlib/file_error.cpp
     terrainlib/fixed_vector.cpp
+    terrainlib/gdal_dataset.cpp
     terrainlib/gdal_error.cpp
     terrainlib/gdal_pixel_transform.cpp
     terrainlib/geometry_frames.cpp

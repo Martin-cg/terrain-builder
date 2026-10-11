@@ -21,7 +21,7 @@
 #include <tbb/concurrent_vector.h>
 #include <tbb/enumerable_thread_specific.h>
 
-#include "Dataset.h"
+#include "gdal/Dataset.h"
 #include "ctb/GlobalMercator.hpp"
 #include "ctb/Grid.hpp"
 #include "srs.h"
@@ -63,7 +63,7 @@ std::string format_secs_since(const std::chrono::high_resolution_clock::time_poi
 }
 
 alp::Result<std::optional<SimpleMesh>, BuildPatchError> build_patch(
-    Dataset &dataset,
+    gdal::Dataset &dataset,
     const srs::System &target_bounds_srs,
     const radix::geometry::Aabb3d &target_bounds,
     const srs::System &texture_srs,
@@ -117,7 +117,7 @@ alp::Result<std::optional<SimpleMesh>, BuildPatchError> build_patch(
 }
 
 alp::Result<void, BuildPatchError, mesh::io::Error> build_and_save_patch(
-    Dataset &dataset,
+    gdal::Dataset &dataset,
     const srs::System &target_bounds_srs,
     const radix::geometry::Aabb3d &target_bounds,
     const srs::System &texture_srs,
@@ -162,7 +162,7 @@ using BuildError = alp::Error<BuildPatchError, octree::Storage::save_error>;
 
 // Builds the mesh for `node` and saves it to `storage`, or saves nothing if the dataset holds no terrain there.
 alp::BasicResult<void, BuildError> build_and_save_node(
-    Dataset &dataset,
+    gdal::Dataset &dataset,
     const octree::Space &space,
     const octree::Id &node,
     const srs::System &ecef_srs,
@@ -192,7 +192,7 @@ alp::BasicResult<void, BuildError> build_and_save_node(
 }
 
 alp::Result<void> build_all_patches(
-    Dataset &dataset,
+    gdal::Dataset &dataset,
     const octree::Id::Level target_level,
     const srs::System &texture_srs,
     const TileProvider *tile_provider,
@@ -257,7 +257,7 @@ alp::Result<void> build_all_patches(
     std::jthread progress_thread = progress.start_monitoring();
 
     // Clone dataset for each thread
-    tbb::enumerable_thread_specific<Dataset> local_dataset([&]() {
+    tbb::enumerable_thread_specific<gdal::Dataset> local_dataset([&]() {
         return dataset.clone();
     });
 

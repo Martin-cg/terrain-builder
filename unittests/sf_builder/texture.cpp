@@ -26,7 +26,7 @@
 #include "../catch2_helpers.h"
 #include "../result_helpers.h"
 #include "../temp_directory.h"
-#include "Dataset.h"
+#include "gdal/Dataset.h"
 #include "ctb/GlobalMercator.hpp"
 #include "ctb/Grid.hpp"
 #include "error/utils.h"

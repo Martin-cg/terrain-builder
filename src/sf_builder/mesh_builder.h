@@ -5,7 +5,7 @@
 
 #include <fmt/format.h>
 
-#include "Dataset.h"
+#include "gdal/Dataset.h"
 #include "srs.h"
 #include "srs/error.h"
 
@@ -49,7 +49,7 @@ using BuildMeshError = alp::Error<NoTerrain, gdal::CplError, gdal::PixelTransfor
 /// Builds a mesh from the given height dataset.
 [[nodiscard]]
 alp::Result<SimpleMesh, BuildMeshError> build_reference_mesh_patch(
-    Dataset &dataset,
+    gdal::Dataset &dataset,
     const srs::System &mesh_srs,
     const srs::System &clip_srs, const radix::geometry::Aabb3d &clip_bounds,
     const srs::System &texture_srs, radix::tile::SrsBounds &texture_bounds);

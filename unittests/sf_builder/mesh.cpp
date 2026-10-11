@@ -32,7 +32,7 @@
 
 #include "../catch2_helpers.h"
 #include "../result_helpers.h"
-#include "Dataset.h"
+#include "gdal/Dataset.h"
 #include "error/format.h"
 #include "mesh/merge.h"
 #include "mesh/SimpleMesh.h"
@@ -161,7 +161,7 @@ TEST_CASE("can build reference mesh patches for various datasets", "[terrainbuil
 
     for (const auto &data : test_data) {
         DYNAMIC_SECTION(data.path_suffix) {
-            Dataset dataset(std::filesystem::path(ALP_TEST_DATA_DIR).concat(data.path_suffix));
+            gdal::Dataset dataset(std::filesystem::path(ALP_TEST_DATA_DIR).concat(data.path_suffix));
             const auto source_srs = dataset.srs();
             const auto &mesh_srs = data.mesh_srs;
             const auto &target_srs = data.target_srs;
@@ -258,7 +258,7 @@ TEST_CASE("neighbouring patches fit together", "[terrainbuilder]") {
 
     const std::string dataset_suffix = "/austria/pizbuin_1m_mgi.tif";
     const std::filesystem::path dataset_path = std::filesystem::path(ALP_TEST_DATA_DIR).concat(dataset_suffix);
-    Dataset dataset(dataset_path);
+    gdal::Dataset dataset(dataset_path);
 
     std::vector<SimpleMesh> node_meshes;
     for (const octree::Id &node : nodes) {
@@ -285,7 +285,7 @@ TEST_CASE("neighbouring patches fit together", "[terrainbuilder]") {
 }
 
 TEST_CASE("Building a mesh for a region beside the dataset fails, holding both regions", "[mesh_builder]") {
-    Dataset dataset(std::filesystem::path(ALP_TEST_DATA_DIR) / "austria/at_mgi.tif");
+    gdal::Dataset dataset(std::filesystem::path(ALP_TEST_DATA_DIR) / "austria/at_mgi.tif");
     const srs::System srs = dataset.srs();
     const radix::tile::SrsBounds available = dataset.bounds();
     const double infinity = std::numeric_limits<double>::infinity();
@@ -303,7 +303,7 @@ TEST_CASE("Building a mesh for a region beside the dataset fails, holding both r
 }
 
 TEST_CASE("Building a mesh for heights the terrain does not reach fails as an empty region", "[mesh_builder]") {
-    Dataset dataset(std::filesystem::path(ALP_TEST_DATA_DIR) / "austria/at_mgi.tif");
+    gdal::Dataset dataset(std::filesystem::path(ALP_TEST_DATA_DIR) / "austria/at_mgi.tif");
     const srs::System srs = dataset.srs();
     const radix::tile::SrsBounds available = dataset.bounds();
     const glm::dvec2 centre = (available.min + available.max) * 0.5;

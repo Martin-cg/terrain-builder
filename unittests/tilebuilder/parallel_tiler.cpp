@@ -17,7 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "Dataset.h"
+#include "gdal/Dataset.h"
 #include "ParallelTiler.h"
 #include "../catch2_helpers.h"
 #include "../result_helpers.h"
@@ -63,7 +63,7 @@ TEMPLATE_TEST_CASE("ParallelTiler, using tms scheme", "", std::true_type, std::f
     SECTION("mercator tms / level 1 and 2")
     {
         const auto grid = ctb::GlobalMercator();
-        auto dataset = REQUIRE_VALUE(Dataset::open_shared_raster(ALP_TEST_DATA_DIR "/austria/at_mgi.tif"));
+        auto dataset = REQUIRE_VALUE(gdal::Dataset::open_shared_raster(ALP_TEST_DATA_DIR "/austria/at_mgi.tif"));
         const auto tiler = ParallelTiler(grid, dataset->bounds(grid.getSRS()), radix::tile::Border::No, TestType::value ? radix::tile::Scheme::Tms : radix::tile::Scheme::SlippyMap);
 
         CHECK(tiler.northEastTile(1).coords == glm::uvec2(1, TestType::value ? 1 : 0));
@@ -144,7 +144,7 @@ TEMPLATE_TEST_CASE("ParallelTiler, using tms scheme", "", std::true_type, std::f
     SECTION("geodetic tms / level 1 and 2")
     {
         const auto grid = ctb::GlobalGeodetic(64);
-        auto dataset = REQUIRE_VALUE(Dataset::open_shared_raster(ALP_TEST_DATA_DIR "/austria/at_mgi.tif"));
+        auto dataset = REQUIRE_VALUE(gdal::Dataset::open_shared_raster(ALP_TEST_DATA_DIR "/austria/at_mgi.tif"));
         const auto tiler = ParallelTiler(grid, dataset->bounds(grid.getSRS()), radix::tile::Border::Yes, TestType::value ? radix::tile::Scheme::Tms : radix::tile::Scheme::SlippyMap);
 
         CHECK(tiler.northEastTile(1).coords == glm::uvec2(2, TestType::value ? 1 : 0));
@@ -190,7 +190,7 @@ TEMPLATE_TEST_CASE("ParallelTiler, using tms scheme", "", std::true_type, std::f
     SECTION("mercator tms / level 1 and 2 (test with cape horn, on southern and western hemisphere)")
     {
         const auto grid = ctb::GlobalMercator();
-        auto dataset = REQUIRE_VALUE(Dataset::open_shared_raster(ALP_TEST_DATA_DIR "/capehorn/small.tif"));
+        auto dataset = REQUIRE_VALUE(gdal::Dataset::open_shared_raster(ALP_TEST_DATA_DIR "/capehorn/small.tif"));
         const auto tiler = ParallelTiler(grid, dataset->bounds(grid.getSRS()), radix::tile::Border::No, TestType::value ? radix::tile::Scheme::Tms : radix::tile::Scheme::SlippyMap);
 
         CHECK(tiler.northEastTile(1).coords == glm::uvec2(0, TestType::value ? 0 : 1));
@@ -234,7 +234,7 @@ TEMPLATE_TEST_CASE("ParallelTiler, using tms scheme", "", std::true_type, std::f
     SECTION("geodetic tms / level 1 and 2 (test with cape horn, on southern and western hemisphere)")
     {
         const auto grid = ctb::GlobalGeodetic(64);
-        auto dataset = REQUIRE_VALUE(Dataset::open_shared_raster(ALP_TEST_DATA_DIR "/capehorn/small.tif"));
+        auto dataset = REQUIRE_VALUE(gdal::Dataset::open_shared_raster(ALP_TEST_DATA_DIR "/capehorn/small.tif"));
         const auto tiler = ParallelTiler(grid, dataset->bounds(grid.getSRS()), radix::tile::Border::Yes, TestType::value ? radix::tile::Scheme::Tms : radix::tile::Scheme::SlippyMap);
 
         CHECK(tiler.northEastTile(1).coords == glm::uvec2(1, TestType::value ? 0 : 1));
@@ -280,7 +280,7 @@ TEMPLATE_TEST_CASE("ParallelTiler, using tms scheme", "", std::true_type, std::f
 
 TEST_CASE("ParallelTiler returns tiles for several zoom levels")
 {
-    const auto dataset = Dataset(ALP_TEST_DATA_DIR "/austria/at_mgi.tif");
+    const auto dataset = gdal::Dataset(ALP_TEST_DATA_DIR "/austria/at_mgi.tif");
     const auto grid = ctb::GlobalMercator(256);
     const auto tiler = ParallelTiler(grid, dataset.bounds(grid.getSRS()), radix::tile::Border::Yes, radix::tile::Scheme::Tms);
 

@@ -16,7 +16,7 @@
  *******************************************************************************/
 
 #include "DatasetReader.h"
-#include "Dataset.h"
+#include "gdal/Dataset.h"
 
 #include <cmath>
 #include <fmt/core.h>
@@ -27,7 +27,7 @@
 #include <ogr_spatialref.h>
 #include <utility>
 
-#include "Dataset.h"
+#include "gdal/Dataset.h"
 #include "Exception.h"
 #include "Image.h"
 #include "ctb/types.hpp"
@@ -51,7 +51,7 @@ std::array<double, 6> computeGeoTransform(const radix::tile::SrsBounds& bounds, 
 
 using GdalImageTransformArgsPtr = std::unique_ptr<void, decltype(&GDALDestroyGenImgProjTransformer)>;
 GdalImageTransformArgsPtr make_image_transform_args(const DatasetReader& reader,
-    Dataset* dataset,
+    gdal::Dataset* dataset,
     const radix::tile::SrsBounds& bounds, unsigned width, unsigned height)
 {
     CPLStringList transformOptions;
@@ -73,7 +73,7 @@ GdalImageTransformArgsPtr make_image_transform_args(const DatasetReader& reader,
 using GdalWarpOptionsPtr = std::unique_ptr<GDALWarpOptions, decltype(&GDALDestroyWarpOptions)>;
 using WarpOptionData = std::pair<GdalWarpOptionsPtr, GdalImageTransformArgsPtr>;
 
-WarpOptionData makeWarpOptions(const DatasetReader& reader, Dataset* dataset, const radix::tile::SrsBounds& bounds, unsigned width, unsigned height)
+WarpOptionData makeWarpOptions(const DatasetReader& reader, gdal::Dataset* dataset, const radix::tile::SrsBounds& bounds, unsigned width, unsigned height)
 {
     auto options = GdalWarpOptionsPtr(GDALCreateWarpOptions(), &GDALDestroyWarpOptions);
     options->hSrcDS = dataset->as_gdal();
@@ -115,7 +115,7 @@ WarpOptionData makeWarpOptions(const DatasetReader& reader, Dataset* dataset, co
 }
 
 #ifdef ALP_ENABLE_OVERVIEW_READING
-std::shared_ptr<Dataset> getOverviewDataset(const std::shared_ptr<Dataset>& dataset, void* hTransformerArg, bool warn_on_missing_overviews)
+std::shared_ptr<gdal::Dataset> getOverviewDataset(const std::shared_ptr<gdal::Dataset>& dataset, void* hTransformerArg, bool warn_on_missing_overviews)
 {
     GDALDataset* poSrcDS = dataset->as_gdal();
     int nOvLevel = -2;
@@ -165,7 +165,7 @@ std::shared_ptr<Dataset> getOverviewDataset(const std::shared_ptr<Dataset>& data
     iOvr += nOvLevel + 2;
     if (iOvr >= 0) {
         TNTN_LOG_DEBUG("WARPING: Selecting overview level {} for output dataset {}x{}\n", iOvr, nPixels, nLines);
-        return std::make_shared<Dataset>(static_cast<GDALDataset*>(GDALCreateOverviewDataset(poSrcDS, iOvr, FALSE)));
+        return std::make_shared<gdal::Dataset>(static_cast<GDALDataset*>(GDALCreateOverviewDataset(poSrcDS, iOvr, FALSE)));
     }
     return dataset;
 }
@@ -173,7 +173,7 @@ std::shared_ptr<Dataset> getOverviewDataset(const std::shared_ptr<Dataset>& data
 
 }
 
-DatasetReader::DatasetReader(const std::shared_ptr<Dataset>& dataset, const srs::System& targetSRS, unsigned band, bool warn_on_missing_overviews)
+DatasetReader::DatasetReader(const std::shared_ptr<gdal::Dataset>& dataset, const srs::System& targetSRS, unsigned band, bool warn_on_missing_overviews)
     : m_dataset(dataset)
     , m_dataset_srs_wkt(toWkt(dataset->srs()))
     , m_target_srs_wkt(toWkt(targetSRS))
@@ -202,14 +202,14 @@ HeightData DatasetReader::readWithOverviews(const radix::tile::SrsBounds& bounds
 #endif
 }
 
-HeightData DatasetReader::readFrom(const std::shared_ptr<Dataset>& source_dataset, const radix::tile::SrsBounds& bounds, unsigned width, unsigned height) const
+HeightData DatasetReader::readFrom(const std::shared_ptr<gdal::Dataset>& source_dataset, const radix::tile::SrsBounds& bounds, unsigned width, unsigned height) const
 {
     // if we have performance problems with the warping, it'd still be possible to approximate the warping operation with a linear transform (mostly when zoomed in / on higher zoom levels).
     // CTB does this in GDALTiler.cpp around line 375 ("// Decide if we are doing an approximate or exact transformation").
 
     auto warp_options = makeWarpOptions(*this, source_dataset.get(), bounds, width, height);
     auto adfGeoTransform = computeGeoTransform(bounds, width, height);
-    auto warped_dataset = Dataset(static_cast<GDALDataset*>(GDALCreateWarpedVRT(source_dataset->as_gdal(), int(width), int(height), adfGeoTransform.data(), warp_options.first.get())));
+    auto warped_dataset = gdal::Dataset(static_cast<GDALDataset*>(GDALCreateWarpedVRT(source_dataset->as_gdal(), int(width), int(height), adfGeoTransform.data(), warp_options.first.get())));
 
     auto* heights_band = warped_dataset.as_gdal()->GetRasterBand(1); // non-owning pointer
     auto heights_data = HeightData(width, height);

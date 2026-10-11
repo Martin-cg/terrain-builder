@@ -26,7 +26,7 @@ namespace terrainbuilder {
 class RawDatasetReader {
 public:
     [[nodiscard]]
-    static alp::Result<RawDatasetReader, gdal::PixelTransformError> for_dataset(Dataset &dataset) {
+    static alp::Result<RawDatasetReader, gdal::PixelTransformError> for_dataset(gdal::Dataset &dataset) {
         ALP_TRY(const gdal::PixelTransform pixel_transform, dataset.pixel_transform());
         return RawDatasetReader(dataset.as_gdal(), pixel_transform);
     }

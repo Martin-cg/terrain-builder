@@ -15,7 +15,7 @@
 #include <radix/geometry.h>
 #include <tbb/global_control.h>
 
-#include "Dataset.h"
+#include "gdal/Dataset.h"
 #include "cli.h"
 #include "error/log.h"
 #include "error/try.h"
@@ -127,7 +127,7 @@ radix::geometry::Aabb3d parse_target_bounds(
     UNREACHABLE();
 }
 
-alp::Result<void, srs::TransformError> log_dataset_overview(const Dataset &dataset) {
+alp::Result<void, srs::TransformError> log_dataset_overview(const gdal::Dataset &dataset) {
     const std::string name = dataset.name();
 
     const uint32_t widthPx = dataset.widthInPixels();
@@ -186,7 +186,7 @@ std::unique_ptr<TileProvider> make_tile_provider(const cli::BaseArgs &args) {
 
 alp::Result<void> run(
     const cli::SingleArgs &args,
-    Dataset &dataset,
+    gdal::Dataset &dataset,
     const srs::System &mesh_srs,
     const srs::System &texture_srs,
     const TileProvider *tile_provider) {
@@ -211,7 +211,7 @@ alp::Result<void> run(
 
 alp::Result<void> run(
     const cli::BatchArgs &args,
-    Dataset &dataset,
+    gdal::Dataset &dataset,
     const srs::System &mesh_srs,
     const srs::System &texture_srs,
     const TileProvider *tile_provider) {
@@ -239,7 +239,7 @@ alp::Result<void> run(
 alp::Result<void> run(const cli::Args &args) {
     const cli::BaseArgs &base_args = std::visit([](const auto &args) -> const cli::BaseArgs & { return args; }, args);
 
-    ALP_TRY(Dataset dataset, Dataset::open_raster(base_args.dataset_path));
+    ALP_TRY(gdal::Dataset dataset, gdal::Dataset::open_raster(base_args.dataset_path));
     ALP_TRY(dataset.pixel_transform());
     ALP_TRY(log_dataset_overview(dataset));
     ALP_TRY(const auto parsed_mesh_srs, srs::from_user_input(base_args.mesh_srs_input));

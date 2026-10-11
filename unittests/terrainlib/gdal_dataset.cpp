@@ -29,13 +29,13 @@
 #include <optional>
 #include <string>
 
-#include "Dataset.h"
+#include "gdal/Dataset.h"
 #include "error/format.h"
 #include "gdal/CplError.h"
 #include "ctb/GlobalGeodetic.hpp"
 #include "ctb/GlobalMercator.hpp"
 #include "ctb/types.hpp"
-#include "init.h"
+#include "gdal/init.h"
 #include "srs/transform_bounds.h"
 
 using namespace radix;
@@ -54,9 +54,9 @@ void checkBounds(const radix::tile::SrsBounds &a, const radix::tile::SrsBounds &
     CHECK(widthErrorIn < 0.001);
 }
 
-TEST_CASE("datasets are as expected") {
-    auto d_mgi = Dataset(ALP_TEST_DATA_DIR "/austria/at_mgi.tif");
-    auto d_wgs84 = Dataset(ALP_TEST_DATA_DIR "/austria/at_wgs84.tif");
+TEST_CASE("datasets are as expected", "[gdal][Dataset]") {
+    auto d_mgi = gdal::Dataset(ALP_TEST_DATA_DIR "/austria/at_mgi.tif");
+    auto d_wgs84 = gdal::Dataset(ALP_TEST_DATA_DIR "/austria/at_wgs84.tif");
 
     srs::System webmercator;
     webmercator.importFromEPSG(3857);
@@ -121,8 +121,8 @@ TEST_CASE("datasets are as expected") {
     }
 }
 
-TEST_CASE("vector datasets use the layer spatial reference") {
-    initialize_gdal_once();
+TEST_CASE("vector datasets use the layer spatial reference", "[gdal][Dataset]") {
+    gdal::initialize_once();
     GDALDriver *driver = GetGDALDriverManager()->GetDriverByName("Memory");
     REQUIRE(driver != nullptr);
 
@@ -134,14 +134,14 @@ TEST_CASE("vector datasets use the layer spatial reference") {
     expected_srs.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
     REQUIRE(raw_dataset->CreateLayer("mask", &expected_srs, wkbPolygon, nullptr) != nullptr);
 
-    Dataset dataset(raw_dataset);
+    gdal::Dataset dataset(raw_dataset);
     const srs::System actual_srs = dataset.srs();
     CHECK(actual_srs.IsSame(&expected_srs));
 }
 
-TEST_CASE("bbox width pixels") {
-    auto d_mgi = Dataset(ALP_TEST_DATA_DIR "/austria/at_mgi.tif");
-    auto d_wgs84 = Dataset(ALP_TEST_DATA_DIR "/austria/at_wgs84.tif");
+TEST_CASE("bbox width pixels", "[gdal][Dataset]") {
+    auto d_mgi = gdal::Dataset(ALP_TEST_DATA_DIR "/austria/at_mgi.tif");
+    auto d_wgs84 = gdal::Dataset(ALP_TEST_DATA_DIR "/austria/at_wgs84.tif");
 
     srs::System webmercator;
     webmercator.importFromEPSG(3857);
@@ -173,24 +173,24 @@ TEST_CASE("bbox width pixels") {
     CHECK(d_wgs84.heightInPixels(webmercator_adjusted_bounds, webmercator) == Approx(350.0 * 0.5));
 }
 
-TEST_CASE("Opening a missing dataset fails, keeping the message GDAL reported", "[dataset]") {
+TEST_CASE("Opening a missing dataset fails, keeping the message GDAL reported", "[gdal][Dataset]") {
     const std::filesystem::path path = ALP_TEST_DATA_DIR "/missing.tif";
     std::optional<gdal::CplError> error;
 
     SECTION("raster") {
-        const auto result = Dataset::open_raster(path);
+        const auto result = gdal::Dataset::open_raster(path);
         REQUIRE(!result.has_value());
         error = result.error().code();
     }
 
     SECTION("vector") {
-        const auto result = Dataset::open_vector(path);
+        const auto result = gdal::Dataset::open_vector(path);
         REQUIRE(!result.has_value());
         error = result.error().code();
     }
 
     SECTION("shared raster") {
-        const auto result = Dataset::open_shared_raster(path);
+        const auto result = gdal::Dataset::open_shared_raster(path);
         REQUIRE(!result.has_value());
         error = result.error().code();
     }

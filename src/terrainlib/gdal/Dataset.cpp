@@ -17,7 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "Dataset.h"
+#include "gdal/Dataset.h"
 
 #include <algorithm>
 #include <cassert>
@@ -36,18 +36,20 @@
 #include "error/try.h"
 #include "error/unwrap.h"
 #include "error/utils.h"
-#include "init.h"
+#include "gdal/init.h"
 #include "log.h"
 #include "srs/transform.h"
 #include "srs/transform_bounds.h"
 
-void GDALDatasetDeleter::operator()(GDALDataset *dataset) const noexcept {
+namespace gdal {
+
+void DatasetDeleter::operator()(GDALDataset *dataset) const noexcept {
     GDALClose(dataset);
 }
 
 [[nodiscard]]
-static alp::Result<GDALDataset *, gdal::CplError> open_gdal_dataset(const std::filesystem::path &path, unsigned int flags) {
-    initialize_gdal_once();
+static alp::Result<GDALDataset *, CplError> open_gdal_dataset(const std::filesystem::path &path, unsigned int flags) {
+    initialize_once();
     const std::string path_str = path.string();
     static std::mutex gdal_open_mutex;
     const std::lock_guard lock(gdal_open_mutex);
@@ -55,26 +57,26 @@ static alp::Result<GDALDataset *, gdal::CplError> open_gdal_dataset(const std::f
     CPLErrorReset();
     GDALDataset *dataset = static_cast<GDALDataset *>(GDALOpenEx(path_str.c_str(), flags | GDAL_OF_VERBOSE_ERROR, nullptr, nullptr, nullptr));
     if (dataset == nullptr) {
-        return alp::make_unexpected(gdal::CplError::get_last_error(), fmt::format("opening a dataset at {}", path_str));
+        return alp::make_unexpected(CplError::get_last_error(), fmt::format("opening a dataset at {}", path_str));
     }
     return dataset;
 }
 
-alp::Result<Dataset, gdal::CplError> Dataset::open_raster(std::filesystem::path path) {
+alp::Result<Dataset, CplError> Dataset::open_raster(std::filesystem::path path) {
     ALP_TRY(GDALDataset *dataset, open_gdal_dataset(path, GDAL_OF_RASTER));
     return Dataset(path, dataset);
 }
-alp::Result<Dataset, gdal::CplError> Dataset::open_vector(std::filesystem::path path) {
+alp::Result<Dataset, CplError> Dataset::open_vector(std::filesystem::path path) {
     ALP_TRY(GDALDataset *dataset, open_gdal_dataset(path, GDAL_OF_VECTOR));
     return Dataset(path, dataset);
 }
-alp::Result<std::shared_ptr<Dataset>, gdal::CplError> Dataset::open_shared_raster(std::filesystem::path path) {
+alp::Result<std::shared_ptr<Dataset>, CplError> Dataset::open_shared_raster(std::filesystem::path path) {
     ALP_TRY(GDALDataset *dataset, open_gdal_dataset(path, GDAL_OF_RASTER));
     return std::make_shared<Dataset>(Dataset(path, dataset));
 }
 
 Dataset::Dataset(std::filesystem::path path) {
-    const alp::Result<GDALDataset *, gdal::CplError> result = open_gdal_dataset(path, 0);
+    const alp::Result<GDALDataset *, CplError> result = open_gdal_dataset(path, 0);
     if (result.has_value()) {
         m_path = path;
         m_gdal_dataset.reset(result.value());
@@ -104,10 +106,10 @@ Dataset Dataset::clone() {
     return Dataset(this->m_path.value());
 }
 
-alp::Result<gdal::PixelTransform, gdal::PixelTransformError> Dataset::pixel_transform() const {
+alp::Result<PixelTransform, PixelTransformError> Dataset::pixel_transform() const {
     ALP_TRY_CONTEXT(
-        gdal::PixelTransform transform,
-        gdal::PixelTransform::from_dataset(*this->m_gdal_dataset),
+        PixelTransform transform,
+        PixelTransform::from_dataset(*this->m_gdal_dataset),
         fmt::format("reading the pixel transform of {}", this->name()));
     return transform;
 }
@@ -129,7 +131,7 @@ std::string Dataset::name() const {
 }
 
 radix::tile::SrsBounds Dataset::bounds() const {
-    const gdal::PixelTransform transform = alp::unwrap(this->pixel_transform());
+    const PixelTransform transform = alp::unwrap(this->pixel_transform());
 
     // https://gdal.org/user/raster_data_model.html
     // gdal has a row/column raster format, where row 0 is the top most row.
@@ -237,3 +239,5 @@ double Dataset::pixelHeightIn(const srs::System &target_srs) const {
 glm::dvec2 Dataset::pixelSizeIn(const srs::System &target_srs) const {
     return glm::dvec2(this->pixelWidthIn(target_srs), this->pixelHeightIn(target_srs));
 }
+
+} // namespace gdal
