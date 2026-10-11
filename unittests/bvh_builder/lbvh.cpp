@@ -13,7 +13,7 @@
 
 #include "range_utils.h"
 
-#include "build/lbvh.h"
+#include "lbvh/build.h"
 #include "bvh/BatchWriter.h"
 #include "bvh/Storage.h"
 #include "frontier/Storage.h"

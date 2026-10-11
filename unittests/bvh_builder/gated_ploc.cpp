@@ -17,7 +17,7 @@
 #include "error/Result.h"
 #include "range_utils.h"
 
-#include "build/gated_ploc.h"
+#include "gated_ploc/build.h"
 #include "bvh/BatchWriter.h"
 #include "bvh/NodeCache.h"
 #include "bvh/Storage.h"

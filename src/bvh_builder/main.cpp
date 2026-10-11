@@ -9,8 +9,8 @@
 
 #include "frontier/build.h"
 #include "cli.h"
-#include "build/lbvh.h"
-#include "build/gated_ploc.h"
+#include "lbvh/build.h"
+#include "gated_ploc/build.h"
 #include "bvh/flatten_dag.h"
 #include "error/Result.h"
 #include "error/format.h"
