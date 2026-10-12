@@ -32,14 +32,14 @@ namespace dag {
 
 struct FlatNode {
     Id id;
-    const Group &group;
+    const GroupMetadata &group;
     double parent_error;
 };
 
 namespace detail {
 // A cluster carries the group it belongs to in the node storing it.
 inline FlatNode make_flat_node(const Id &id, const NodeMetadata &metadata, const double parent_error) {
-    const uint32_t group_index = metadata.group_assignment[id.cluster_index];
+    const uint32_t group_index = metadata.clusters[id.cluster_index].group_index;
     return FlatNode{
         .id = id,
         .group = metadata.groups[group_index],
@@ -87,7 +87,7 @@ private:
     // Gathers the parent errors every group of `metadata` gives its child clusters.
     static ParentErrors collect_parent_errors(const NodeMetadata &metadata) {
         ParentErrors parent_errors;
-        for (const Group &group : metadata.groups) {
+        for (const GroupMetadata &group : metadata.groups) {
             DEBUG_ASSERT(std::isfinite(group.error));
             for (const Id &child : group.children) {
                 parent_errors[child.source_batch].push_back(ParentError{.cluster_index = child.cluster_index, .error = group.error});
@@ -169,10 +169,10 @@ alp::Result<bool, io::Error> traverse_nodes(
         }
 
         ALP_TRY(const auto &node, dag.load(node_id));
-        const auto cluster_count = static_cast<uint32_t>(node.group_assignment.size());
+        const auto cluster_count = static_cast<uint32_t>(node.clusters.size());
         ALP_TRY(const std::vector<double> parent_error_by_cluster, lookup.find_parent_errors(node_id, cluster_count));
 
-        for (const Group &group : node.groups) {
+        for (const GroupMetadata &group : node.groups) {
             child_count += group.children.size();
         }
         for (const double parent_error : parent_error_by_cluster) {

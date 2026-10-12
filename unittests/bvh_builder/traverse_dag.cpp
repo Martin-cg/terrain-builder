@@ -26,15 +26,15 @@ constexpr size_t AMPLE_RESIDENT_BYTES = 1024 * 1024;
 dag::NodeMetadata make_metadata(const std::vector<double> &errors) {
     dag::NodeMetadata metadata;
     for (uint32_t i = 0; i < errors.size(); i++) {
-        metadata.group_assignment.push_back(i);
-        metadata.groups.push_back(dag::Group{.children = {}, .error = errors[i], .bounds = {}});
+        metadata.clusters.push_back(dag::ClusterMetadata{.group_index = i, .bounds = {}});
+        metadata.groups.push_back(dag::GroupMetadata{.children = {}, .error = errors[i], .bounds = {}});
     }
     return metadata;
 }
 
 // What the walk handed over, kept past the visit.
 struct Visited {
-    dag::Group group;
+    dag::GroupMetadata group;
     double parent_error;
 
     bool operator==(const Visited &) const = default;
@@ -67,12 +67,12 @@ std::unordered_map<dag::Id, Visited> traverse(const std::filesystem::path &dag_p
 
 TEST_CASE("every cluster is visited with the group it is assigned to", "[traverse_dag]") {
     const octree::Id root = octree::Id::root();
-    const std::vector<dag::Group> groups{
-        dag::Group{.children = {}, .error = 1.0, .bounds = {glm::dvec3{0.0}, glm::dvec3{1.0}}},
-        dag::Group{.children = {}, .error = 2.0, .bounds = {glm::dvec3{2.0}, glm::dvec3{3.0}}},
+    const std::vector<dag::GroupMetadata> groups{
+        dag::GroupMetadata{.children = {}, .error = 1.0, .bounds = {glm::dvec3{0.0}, glm::dvec3{1.0}}},
+        dag::GroupMetadata{.children = {}, .error = 2.0, .bounds = {glm::dvec3{2.0}, glm::dvec3{3.0}}},
     };
     dag::NodeMetadata metadata;
-    metadata.group_assignment = {1, 0, 1};
+    metadata.clusters = {{.group_index = 1, .bounds = {}}, {.group_index = 0, .bounds = {}}, {.group_index = 1, .bounds = {}}};
     metadata.groups = groups;
 
     const TempDirectory directory("traverse_dag");
