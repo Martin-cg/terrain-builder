@@ -136,10 +136,10 @@ template <typename T = DefaultT, CodecFor<T> Codec = DefaultCodecFor<T>>
 class Storage_ {
 public:
     using value_type = T;
-    using codec_type = Codec;
-    using load_error = alp::Error<io::FileError, typename Codec::load_error>;
-    using save_error = typename Codec::save_error;
-    using copy_error = typename RawStorage_<T, Codec>::copy_error;
+    using CodecType = Codec;
+    using LoadError = alp::Error<io::FileError, typename Codec::LoadError>;
+    using SaveError = typename Codec::SaveError;
+    using CopyError = typename RawStorage_<T, Codec>::CopyError;
 
     explicit Storage_(RawStorage_<T, Codec> inner)
         : _inner(std::move(inner)) {}
@@ -161,7 +161,7 @@ public:
     }
 
     [[nodiscard]]
-    alp::Result<value_type, load_error> load(const Id &id) const {
+    alp::Result<value_type, LoadError> load(const Id &id) const {
         if (const auto value_opt = this->_cache.get(id)) {
             return value_opt.value();
         }
@@ -178,7 +178,7 @@ public:
     }
 
     [[nodiscard]]
-    alp::Result<void, save_error> save(const Id &id, const value_type &value) {
+    alp::Result<void, SaveError> save(const Id &id, const value_type &value) {
         ASSERT(!this->check_overwrite(id), "tried to overwrite value when not allowed");
 
         const auto result = this->_inner.save(id, value);
@@ -190,7 +190,7 @@ public:
     }
 
     [[nodiscard]]
-    alp::Result<void, copy_error> copy_from(const Id &id, const Storage_<T, Codec> &source) {
+    alp::Result<void, CopyError> copy_from(const Id &id, const Storage_<T, Codec> &source) {
         if (!source._index.contains(id, true)) {
             return detail::make_index_miss(id, source._inner.layout());
         }
@@ -205,7 +205,7 @@ public:
     }
 
     [[nodiscard]]
-    alp::Result<void, copy_error> copy_to(const Id &id, Storage_<T, Codec> &target) const {
+    alp::Result<void, CopyError> copy_to(const Id &id, Storage_<T, Codec> &target) const {
         return target.copy_from(id, *this);
     }
 

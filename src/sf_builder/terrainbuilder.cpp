@@ -159,7 +159,7 @@ alp::Result<void, BuildPatchError, mesh::io::Error> build_and_save_patch(
 
 namespace {
 // An error from building and saving a node.
-using BuildError = alp::Error<BuildPatchError, octree::Storage::save_error>;
+using BuildError = alp::Error<BuildPatchError, octree::Storage::SaveError>;
 
 // Builds the mesh for `node` and saves it to `storage`, or saves nothing if the dataset holds no terrain there.
 alp::BasicResult<void, BuildError> build_and_save_node(

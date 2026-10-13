@@ -42,7 +42,7 @@ struct FixedString {
 template <std::uint32_t Number, typename VersionedPayloadType>
 struct Version {
     static constexpr std::uint32_t number = Number;
-    using payload_type = VersionedPayloadType;
+    using Payload = VersionedPayloadType;
 };
 
 namespace detail {
@@ -79,8 +79,8 @@ concept ConvertsFromPrevious = requires(From previous) {
 template <typename VersionTuple, std::size_t... Indices>
 consteval bool conversions_are_valid(std::index_sequence<Indices...>) {
     return (ConvertsFromPrevious<
-                typename std::tuple_element_t<Indices, VersionTuple>::payload_type,
-                typename std::tuple_element_t<Indices + 1, VersionTuple>::payload_type>
+                typename std::tuple_element_t<Indices, VersionTuple>::Payload,
+                typename std::tuple_element_t<Indices + 1, VersionTuple>::Payload>
             && ...);
 }
 
@@ -92,17 +92,17 @@ struct PayloadSchema {
     static_assert(detail::versions_are_strictly_increasing<Versions...>(),
                   "payload versions must be strictly increasing");
 
-    using version_tuple = std::tuple<Versions...>;
+    using VersionTuple = std::tuple<Versions...>;
     static constexpr std::size_t version_count = sizeof...(Versions);
 
     template <std::size_t Index>
-    using version_at = std::tuple_element_t<Index, version_tuple>;
+    using VersionAt = std::tuple_element_t<Index, VersionTuple>;
 
-    using latest_version_descriptor = version_at<version_count - 1>;
-    using latest_type = typename latest_version_descriptor::payload_type;
+    using LatestVersion = VersionAt<version_count - 1>;
+    using Latest = typename LatestVersion::Payload;
 
     static constexpr std::string_view class_name{ClassName.value, sizeof(ClassName.value) - 1};
-    static constexpr std::uint32_t latest_version = latest_version_descriptor::number;
+    static constexpr std::uint32_t latest_version = LatestVersion::number;
 
     template <std::uint32_t Number>
     static constexpr bool supports_version =
@@ -113,22 +113,22 @@ struct PayloadSchema {
     }
 
     template <std::uint32_t Number>
-    using payload_type = typename detail::FindVersion<Number, Versions...>::type::payload_type;
+    using Payload = typename detail::FindVersion<Number, Versions...>::type::Payload;
 
     static_assert(version_count == 1
-                      || detail::conversions_are_valid<version_tuple>(
+                      || detail::conversions_are_valid<VersionTuple>(
                           std::make_index_sequence<version_count - 1>{}),
                   "each payload version must provide from_previous for the preceding version");
 };
 
 template <typename Schema, std::uint32_t VersionNumber>
 std::expected<Bytes, Error> serialize(
-    const typename Schema::template payload_type<VersionNumber> &payload,
+    const typename Schema::template Payload<VersionNumber> &payload,
     CompressionAlgorithm compression_algorithm = CompressionAlgorithm::ZstdBestCompressionWithChecksum,
     ChecksumAlgorithm checksum_algorithm = ChecksumAlgorithm::HandledByCompressionLib);
 
 template <typename Schema>
-std::expected<typename Schema::latest_type, Error> deserialize(
+std::expected<typename Schema::Latest, Error> deserialize(
     std::span<const std::byte> bytes,
     std::size_t max_decompressed_size = default_max_decompressed_size);
 

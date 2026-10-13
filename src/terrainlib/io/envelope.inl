@@ -33,22 +33,22 @@ std::expected<Value, Error> deserialize_from_bytes(const std::span<const std::by
 }
 
 template <typename Schema, std::size_t Index, typename Current>
-typename Schema::latest_type convert_to_latest(Current current) {
+typename Schema::Latest convert_to_latest(Current current) {
     if constexpr (Index + 1 == Schema::version_count) {
         return current;
     } else {
-        using Next = typename Schema::template version_at<Index + 1>::payload_type;
+        using Next = typename Schema::template VersionAt<Index + 1>::Payload;
         return convert_to_latest<Schema, Index + 1>(Next::from_previous(std::move(current)));
     }
 }
 
 template <typename Schema, std::size_t Index = 0>
-std::expected<typename Schema::latest_type, Error> deserialize_version(
+std::expected<typename Schema::Latest, Error> deserialize_version(
     const std::uint32_t class_version,
     const std::span<const std::byte> payload_bytes) {
-    using CurrentVersion = typename Schema::template version_at<Index>;
+    using CurrentVersion = typename Schema::template VersionAt<Index>;
     if (class_version == CurrentVersion::number) {
-        auto payload = deserialize_from_bytes<typename CurrentVersion::payload_type>(payload_bytes);
+        auto payload = deserialize_from_bytes<typename CurrentVersion::Payload>(payload_bytes);
         if (!payload) {
             return std::unexpected(payload.error());
         }
@@ -66,7 +66,7 @@ std::expected<typename Schema::latest_type, Error> deserialize_version(
 
 template <typename Schema, std::uint32_t VersionNumber>
 std::expected<Bytes, Error> serialize(
-    const typename Schema::template payload_type<VersionNumber> &payload,
+    const typename Schema::template Payload<VersionNumber> &payload,
     const CompressionAlgorithm compression_algorithm,
     const ChecksumAlgorithm checksum_algorithm) {
     static_assert(Schema::template supports_version<VersionNumber>,
@@ -96,7 +96,7 @@ std::expected<Bytes, Error> serialize(
 }
 
 template <typename Schema>
-std::expected<typename Schema::latest_type, Error> deserialize(
+std::expected<typename Schema::Latest, Error> deserialize(
     const std::span<const std::byte> bytes,
     const std::size_t max_decompressed_size) {
     auto envelope = detail::deserialize_from_bytes<Envelope>(bytes);

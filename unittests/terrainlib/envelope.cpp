@@ -75,8 +75,8 @@ static_assert(std::is_aggregate_v<v2::Payload>);
 static_assert(std::is_aggregate_v<v3::Payload>);
 static_assert(Schema::class_name == "test.Payload");
 static_assert(Schema::latest_version == 3);
-static_assert(std::same_as<Schema::latest_type, v3::Payload>);
-static_assert(std::same_as<Schema::payload_type<1>, v1::Payload>);
+static_assert(std::same_as<Schema::Latest, v3::Payload>);
+static_assert(std::same_as<Schema::Payload<1>, v1::Payload>);
 
 template <typename Value>
 io::envelope::Bytes encode_value(const Value &value) {

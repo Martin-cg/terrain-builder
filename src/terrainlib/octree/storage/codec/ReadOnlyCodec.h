@@ -13,7 +13,7 @@ namespace octree {
 template <typename Codec>
 struct ReadOnlyCodec : Codec {
     [[nodiscard]]
-    static alp::Result<void, typename Codec::save_error> save_to_path(
+    static alp::Result<void, typename Codec::SaveError> save_to_path(
         const typename Codec::value_type &, const std::filesystem::path &) noexcept {
         PANIC("Attempted to write through a read-only codec");
     }

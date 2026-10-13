@@ -12,16 +12,16 @@ namespace octree {
 
 struct MeshCodec {
     using value_type = mesh::Simple;
-    using load_error = mesh::io::Error;
-    using save_error = mesh::io::Error;
+    using LoadError = mesh::io::Error;
+    using SaveError = mesh::io::Error;
 
     [[nodiscard]]
-    static alp::Result<value_type, load_error> load_from_path(const std::filesystem::path& path) {
+    static alp::Result<value_type, LoadError> load_from_path(const std::filesystem::path& path) {
         return mesh::io::load_from_path(path);
     }
 
     [[nodiscard]]
-    static alp::Result<void, save_error> save_to_path(const value_type& value, const std::filesystem::path& path) {
+    static alp::Result<void, SaveError> save_to_path(const value_type& value, const std::filesystem::path& path) {
         return mesh::io::save_to_path(value, path);
     }
 
