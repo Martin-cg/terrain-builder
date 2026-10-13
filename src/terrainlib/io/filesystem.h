@@ -112,6 +112,29 @@ inline alp::Result<void, FileError> create_parent_directories(const std::filesys
     return filesystem::create_directories(parent_path);
 }
 
+// Removes the file or empty directory at `path`; true if there was one to remove.
+[[nodiscard]]
+inline alp::Result<bool, FileError> remove(const std::filesystem::path &path) {
+    // The return value only says whether there was something to remove, so a failure shows in the code alone.
+    std::error_code code;
+    const bool removed = std::filesystem::remove(path, code);
+    if (code) {
+        return alp::make_unexpected(FileError(code, path), alp::make_context("removing {}", path));
+    }
+    return removed;
+}
+
+// Creates a hard link at `target` to the file at `source`.
+[[nodiscard]]
+inline alp::Result<void, FileError> create_hard_link(const std::filesystem::path &source, const std::filesystem::path &target) {
+    std::error_code code;
+    std::filesystem::create_hard_link(source, target, code);
+    if (code) {
+        return alp::make_unexpected(FileError(code, target), alp::make_context("linking {} to {}", target, source));
+    }
+    return {};
+}
+
 // The canonical form of `path`, or `path` as given if it cannot be made canonical.
 [[nodiscard]]
 inline std::filesystem::path canonicalize(const std::filesystem::path &path) {

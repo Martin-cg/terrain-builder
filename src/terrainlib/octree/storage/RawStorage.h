@@ -1,6 +1,5 @@
 #pragma once
 
-#include <expected>
 #include <filesystem>
 #include <string>
 #include <system_error>
@@ -73,23 +72,9 @@ public:
             return {};
         }
 
-        // The return value only says whether there was a file to remove, so a failure shows in the code alone.
-        std::error_code code;
-        std::filesystem::remove(target_path, code);
-        if (code) {
-            return std::unexpected(
-                alp::make_error(io::FileError(code, target_path), fmt::format("removing a node file at {}", target_path))
-                    .context(context));
-        }
-
+        ALP_TRY_CONTEXT(io::filesystem::remove(target_path), context);
         ALP_TRY_CONTEXT(io::filesystem::create_parent_directories(target_path), context);
-
-        std::filesystem::create_hard_link(source_path, target_path, code);
-        if (code) {
-            return std::unexpected(
-                alp::make_error(io::FileError(code, target_path), fmt::format("linking a node file from {} to {}", source_path, target_path))
-                    .context(context));
-        }
+        ALP_TRY_CONTEXT(io::filesystem::create_hard_link(source_path, target_path), context);
 
         return {};
     }

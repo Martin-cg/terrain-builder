@@ -120,3 +120,54 @@ TEST_CASE("Visiting files below a missing path fails, naming the path", "[io][fi
 
     CHECK(error.holds(io::make_file_not_found(missing)));
 }
+
+TEST_CASE("remove deletes the file at a path and reports that there was one", "[io][filesystem]") {
+    const TempDirectory directory("io_filesystem_remove");
+    const std::filesystem::path file = directory.path() / "file";
+    write_file(file);
+
+    CHECK(REQUIRE_VALUE(io::filesystem::remove(file)));
+    CHECK(!std::filesystem::exists(file));
+}
+
+TEST_CASE("remove reports that there was nothing to remove at a missing path", "[io][filesystem]") {
+    const TempDirectory directory("io_filesystem_remove_missing");
+    const std::filesystem::path missing = directory.path() / "missing";
+
+    CHECK(!REQUIRE_VALUE(io::filesystem::remove(missing)));
+}
+
+TEST_CASE("remove fails on a non-empty directory", "[io][filesystem]") {
+    const TempDirectory directory("io_filesystem_remove_non_empty");
+    const std::filesystem::path non_empty = directory.path() / "non_empty";
+    write_file(non_empty / "file");
+
+    REQUIRE_ERROR(io::filesystem::remove(non_empty));
+}
+
+TEST_CASE("create_hard_link makes the target another name for the source's file", "[io][filesystem]") {
+    const TempDirectory directory("io_filesystem_hard_link");
+    const std::filesystem::path source = directory.path() / "source";
+    const std::filesystem::path target = directory.path() / "target";
+    write_file(source);
+
+    REQUIRE_VALUE(io::filesystem::create_hard_link(source, target));
+
+    CHECK(std::filesystem::equivalent(source, target));
+}
+
+TEST_CASE("create_hard_link fails for a missing source", "[io][filesystem]") {
+    const TempDirectory directory("io_filesystem_hard_link_missing_source");
+
+    REQUIRE_ERROR(io::filesystem::create_hard_link(directory.path() / "missing", directory.path() / "target"));
+}
+
+TEST_CASE("create_hard_link fails onto an existing target", "[io][filesystem]") {
+    const TempDirectory directory("io_filesystem_hard_link_existing_target");
+    const std::filesystem::path source = directory.path() / "source";
+    const std::filesystem::path target = directory.path() / "target";
+    write_file(source);
+    write_file(target);
+
+    REQUIRE_ERROR(io::filesystem::create_hard_link(source, target));
+}
