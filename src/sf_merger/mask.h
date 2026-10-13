@@ -123,7 +123,7 @@ using LoadError = alp::Error<gdal::CplError, MaskError>;
 namespace {
 constexpr double simplification_tolerance_metres = 0.1;
 
-std::optional<double> simplification_tolerance(const OGRSpatialReference &srs) {
+std::optional<double> simplification_tolerance(const srs::System &srs) {
     if (srs.IsProjected()) {
         const double metres_per_unit = srs.GetLinearUnits();
         if (metres_per_unit > 0) {

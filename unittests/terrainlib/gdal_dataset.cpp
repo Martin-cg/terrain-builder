@@ -58,13 +58,8 @@ TEST_CASE("datasets are as expected", "[gdal][Dataset]") {
     auto d_mgi = gdal::Dataset(ALP_TEST_DATA_DIR "/austria/at_mgi.tif");
     auto d_wgs84 = gdal::Dataset(ALP_TEST_DATA_DIR "/austria/at_wgs84.tif");
 
-    srs::System webmercator;
-    webmercator.importFromEPSG(3857);
-    webmercator.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
-
-    srs::System wgs84;
-    wgs84.importFromEPSG(4326);
-    wgs84.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+    const srs::System webmercator = srs::webmercator();
+    const srs::System wgs84 = srs::wgs84();
 
     SECTION("file name") {
         CHECK(d_mgi.name() == "at_mgi");
@@ -129,9 +124,7 @@ TEST_CASE("vector datasets use the layer spatial reference", "[gdal][Dataset]") 
     GDALDataset *raw_dataset = driver->Create("", 0, 0, 0, GDT_Unknown, nullptr);
     REQUIRE(raw_dataset != nullptr);
 
-    srs::System expected_srs;
-    REQUIRE(expected_srs.importFromEPSG(31287) == OGRERR_NONE);
-    expected_srs.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+    const srs::System expected_srs = REQUIRE_VALUE(srs::from_epsg(31287));
     REQUIRE(raw_dataset->CreateLayer("mask", &expected_srs, wkbPolygon, nullptr) != nullptr);
 
     gdal::Dataset dataset(raw_dataset);
@@ -143,9 +136,7 @@ TEST_CASE("bbox width pixels", "[gdal][Dataset]") {
     auto d_mgi = gdal::Dataset(ALP_TEST_DATA_DIR "/austria/at_mgi.tif");
     auto d_wgs84 = gdal::Dataset(ALP_TEST_DATA_DIR "/austria/at_wgs84.tif");
 
-    srs::System webmercator;
-    webmercator.importFromEPSG(3857);
-    webmercator.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+    const srs::System webmercator = srs::webmercator();
 
     CHECK(d_mgi.widthInPixels(d_mgi.bounds(), d_mgi.srs()) == Approx(620.0));
     CHECK(d_mgi.heightInPixels(d_mgi.bounds(), d_mgi.srs()) == Approx(350.0));

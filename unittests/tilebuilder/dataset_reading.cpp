@@ -41,7 +41,7 @@ void require_projection_available(const gdal::Dataset& dataset, const srs::Syste
     const auto source_bounds = dataset.bounds();
 
     const srs::Transform transform = REQUIRE_VALUE(srs::get_transform(dataset_srs, target_srs));
-    const glm::dvec2 center = (source_bounds.min + source_bounds.max) / 2.0;
+    const glm::dvec2 center = source_bounds.centre();
     REQUIRE_VALUE(transform.apply(center));
 }
 }
@@ -73,13 +73,11 @@ TEST_CASE("reading")
         "/austria/pizbuin_1m_epsg4326.tif",
     };
 
-    srs::System geodetic_srs;
-    geodetic_srs.importFromEPSG(4326);
-    geodetic_srs.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+    const srs::System geodetic_srs = srs::wgs84();
 
     SECTION("check for min and max heights")
     {
-        const std::array test_srses = { 4326, 3857 };
+        const std::array<uint32_t, 2> test_srses = { 4326, 3857 };
         const std::array test_locations = {
         // CRS bounds, [lower limit, at least one value smaller, at least one value larger, upper limit]
 #if defined(ALP_UNITTESTS_EXTENDED) && ALP_UNITTESTS_EXTENDED
@@ -107,9 +105,7 @@ TEST_CASE("reading")
             for (std::string dataset_name : test_datasets) {
                 const auto dataset = REQUIRE_VALUE(gdal::Dataset::open_shared_raster(ALP_TEST_DATA_DIR + std::string(dataset_name)));
                 for (const auto& test_srs : test_srses) {
-                    srs::System srs;
-                    srs.importFromEPSG(test_srs);
-                    srs.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+                    const srs::System srs = REQUIRE_VALUE(srs::from_epsg(test_srs));
 
                     const auto srs_bounds = REQUIRE_VALUE(srs::non_exact_bounds_transform(geodetic_bounds, geodetic_srs, srs));
 
@@ -224,7 +220,7 @@ TEST_CASE("reading")
 
         const auto pixel_width = low_res_ds->pixelWidthIn(srs);
         const auto pixel_height = low_res_ds->pixelHeightIn(srs);
-        auto srs_bounds = REQUIRE_VALUE(srs::non_exact_bounds_transform(low_res_ds->bounds(), low_res_ds->srs(), srs));
+        auto srs_bounds = low_res_ds->bounds();
         srs_bounds.min = { srs_bounds.min.x + border * pixel_width, srs_bounds.min.y + border * pixel_height };
         srs_bounds.max = { srs_bounds.max.x - border * pixel_width, srs_bounds.max.y - border * pixel_height };
 
