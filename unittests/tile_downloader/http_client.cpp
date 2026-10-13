@@ -39,8 +39,7 @@ public:
 
 }
 
-TEST_CASE("http client propagates response writer exceptions")
-{
+TEST_CASE("http client propagates response writer exceptions") {
     const TemporaryFile source;
     HttpClient client([](std::vector<char> &, const char *, size_t) {
         throw CallbackError();
@@ -49,8 +48,7 @@ TEST_CASE("http client propagates response writer exceptions")
     CHECK_THROWS_AS(client.get(source.url()), CallbackError);
 }
 
-TEST_CASE("http client propagates progress callback exceptions")
-{
+TEST_CASE("http client propagates progress callback exceptions") {
     const TemporaryFile source;
     HttpClient client;
 

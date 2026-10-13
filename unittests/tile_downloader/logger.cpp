@@ -7,8 +7,7 @@
 
 using namespace std::literals;
 
-TEST_CASE("tile logger session stops monitoring during exceptional unwinding")
-{
+TEST_CASE("tile logger session stops monitoring during exceptional unwinding") {
     TileLogger logger(0);
 
     const auto before_throw = std::chrono::steady_clock::now();
@@ -23,8 +22,7 @@ TEST_CASE("tile logger session stops monitoring during exceptional unwinding")
     CHECK(unwind_duration < 250ms);
 }
 
-TEST_CASE("tile logger session can finish normally")
-{
+TEST_CASE("tile logger session can finish normally") {
     TileLogger logger(0);
     auto session = logger.start();
 

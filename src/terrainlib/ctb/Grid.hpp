@@ -73,8 +73,7 @@ public:
     }
 
     /// Override the equality operator
-    bool operator==(const Grid& other) const
-    {
+    bool operator==(const Grid& other) const {
         return mGridSize == other.mGridSize
             && mExtent == other.mExtent
             && mSRS.IsSame(&(other.mSRS))
@@ -85,8 +84,7 @@ public:
     }
 
     /// Get the resolution for a particular zoom level
-    [[nodiscard]] inline double resolution(i_zoom zoom) const
-    {
+    [[nodiscard]] inline double resolution(i_zoom zoom) const {
         return mInitialResolution / pow(mZoomFactor, zoom);
     }
 
@@ -96,16 +94,14 @@ public:
      * If the resolution does not exactly match a zoom level then the zoom level
      * is 'rounded up' to the next level.
      */
-    [[nodiscard]] inline i_zoom zoomForResolution(double resolution) const
-    {
+    [[nodiscard]] inline i_zoom zoomForResolution(double resolution) const {
         // if mZoomFactor == 2 the following is the same as using:
         // log2(mInitialResolution) - log2(resolution)
         return i_zoom(ceil((std::log(mInitialResolution) / std::log(mZoomFactor)) - (std::log(resolution) / std::log(mZoomFactor))));
     }
 
     /// Get the tile covering a pixel location
-    [[nodiscard]] inline TilePoint pixelsToTile(const PixelPoint& pixel) const
-    {
+    [[nodiscard]] inline TilePoint pixelsToTile(const PixelPoint& pixel) const {
         const auto tx = i_tile(pixel.x / mGridSize);
         const auto ty = i_tile(pixel.y / mGridSize);
 
@@ -113,8 +109,7 @@ public:
     }
 
     /// Convert pixel coordinates at a given zoom level to CRS coordinates
-    [[nodiscard]] inline CRSPoint pixelsToCrs(const PixelPoint& pixel, i_zoom zoom) const
-    {
+    [[nodiscard]] inline CRSPoint pixelsToCrs(const PixelPoint& pixel, i_zoom zoom) const {
         double res = resolution(zoom);
 
         return {
@@ -124,8 +119,7 @@ public:
     }
 
     /// Get the pixel location represented by a CRS point and zoom level
-    [[nodiscard]] inline PixelPoint crsToPixels(const CRSPoint& coord, i_zoom zoom) const
-    {
+    [[nodiscard]] inline PixelPoint crsToPixels(const CRSPoint& coord, i_zoom zoom) const {
         const auto res = resolution(zoom);
         const auto px = (mXOriginShift + coord.x) / res;
         const auto py = (mYOriginShift + coord.y) / res;
@@ -295,14 +289,12 @@ public:
     }
 
     /// Get the tile size associated with this grid
-    [[nodiscard]] inline i_tile tileSize() const
-    {
+    [[nodiscard]] inline i_tile tileSize() const {
         return mGridSize;
     }
 
     /// Get the tile size associated with this grid
-    [[nodiscard]] inline const OGRSpatialReference& getSRS() const
-    {
+    [[nodiscard]] inline const OGRSpatialReference& getSRS() const {
         return mSRS;
     }
 
@@ -311,8 +303,7 @@ public:
         return mExtent;
     }
 
-    [[nodiscard]] inline int getEpsgCode() const
-    {
+    [[nodiscard]] inline int getEpsgCode() const {
         return mEpsgCode;
     }
 

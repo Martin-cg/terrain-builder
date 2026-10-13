@@ -61,8 +61,7 @@ public:
     std::unordered_map<radix::tile::Id, cv::Mat, radix::tile::Id::Hasher> tiles;
 
     StaticTileProvider(const std::unordered_map<radix::tile::Id, cv::Mat, radix::tile::Id::Hasher>& tiles)
-        : tiles(tiles)
-    {
+        : tiles(tiles) {
     }
 
     virtual alp::Result<cv::Mat, TileError> get_tile(const radix::tile::Id tile_id) const override {

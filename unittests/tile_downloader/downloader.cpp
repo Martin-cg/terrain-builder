@@ -52,8 +52,7 @@ const TileUrlBuilder missing_file_url({
 
 }
 
-TEST_CASE("tile downloader promotes parents after completed children")
-{
+TEST_CASE("tile downloader promotes parents after completed children") {
     const TemporaryPyramid pyramid("atb-downloader-complete-pyramid");
     const radix::tile::Id root{0, {0, 0}};
     const auto children = root.children();
@@ -80,8 +79,7 @@ TEST_CASE("tile downloader promotes parents after completed children")
     CHECK_FALSE(std::filesystem::exists(pyramid.tile_path(children.front())));
 }
 
-TEST_CASE("tile downloader leaves ancestors pending after a child failure")
-{
+TEST_CASE("tile downloader leaves ancestors pending after a child failure") {
     const TemporaryPyramid pyramid("atb-downloader-failed-pyramid");
     const radix::tile::Id root{0, {0, 0}};
     const auto children = root.children();

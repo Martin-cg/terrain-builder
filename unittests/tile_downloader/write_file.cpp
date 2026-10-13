@@ -46,8 +46,7 @@ private:
 
 }
 
-TEST_CASE("checked file writer persists the complete response")
-{
+TEST_CASE("checked file writer persists the complete response") {
     const TemporaryOutput output("atb-write-file-success.bin");
     const std::vector<char> expected{'t', 'i', 'l', 'e'};
 
@@ -67,8 +66,7 @@ TEST_CASE("checked file writer persists the complete response")
     CHECK_FALSE(std::filesystem::exists(output.pending_path()));
 }
 
-TEST_CASE("checked file writer preserves the final path when promotion fails")
-{
+TEST_CASE("checked file writer preserves the final path when promotion fails") {
     const TemporaryOutput output("atb-write-file-promotion-failure");
     REQUIRE(std::filesystem::create_directory(output.path()));
     write_file_children_pending(output.path(), std::vector<char>{'t', 'i', 'l', 'e'});
@@ -82,8 +80,7 @@ TEST_CASE("checked file writer preserves the final path when promotion fails")
 }
 
 #if defined(__linux__)
-TEST_CASE("checked file writer reports persistence failures")
-{
+TEST_CASE("checked file writer reports persistence failures") {
     const std::vector<char> data(64 * 1024, 'x');
 
     CHECK_THROWS_AS(write_file_children_pending("/dev/full", data), std::runtime_error);

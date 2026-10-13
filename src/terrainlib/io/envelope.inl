@@ -8,8 +8,7 @@ namespace io::envelope {
 namespace detail {
 
 template <typename Value>
-std::expected<Bytes, Error> serialize_to_bytes(const Value &value)
-{
+std::expected<Bytes, Error> serialize_to_bytes(const Value &value) {
     Bytes bytes;
     zpp::bits::out output(bytes, zpp::bits::alloc_limit<default_max_decompressed_size>());
     const zpp::bits::errc result = output(value);
@@ -20,8 +19,7 @@ std::expected<Bytes, Error> serialize_to_bytes(const Value &value)
 }
 
 template <typename Value>
-std::expected<Value, Error> deserialize_from_bytes(const std::span<const std::byte> bytes)
-{
+std::expected<Value, Error> deserialize_from_bytes(const std::span<const std::byte> bytes) {
     Value value{};
     zpp::bits::in input(bytes, zpp::bits::alloc_limit<default_max_decompressed_size>());
     const zpp::bits::errc result = input(value);
@@ -35,8 +33,7 @@ std::expected<Value, Error> deserialize_from_bytes(const std::span<const std::by
 }
 
 template <typename Schema, std::size_t Index, typename Current>
-typename Schema::latest_type convert_to_latest(Current current)
-{
+typename Schema::latest_type convert_to_latest(Current current) {
     if constexpr (Index + 1 == Schema::version_count) {
         return current;
     } else {
@@ -48,8 +45,7 @@ typename Schema::latest_type convert_to_latest(Current current)
 template <typename Schema, std::size_t Index = 0>
 std::expected<typename Schema::latest_type, Error> deserialize_version(
     const std::uint32_t class_version,
-    const std::span<const std::byte> payload_bytes)
-{
+    const std::span<const std::byte> payload_bytes) {
     using CurrentVersion = typename Schema::template version_at<Index>;
     if (class_version == CurrentVersion::number) {
         auto payload = deserialize_from_bytes<typename CurrentVersion::payload_type>(payload_bytes);
@@ -72,8 +68,7 @@ template <typename Schema, std::uint32_t VersionNumber>
 std::expected<Bytes, Error> serialize(
     const typename Schema::template payload_type<VersionNumber> &payload,
     const CompressionAlgorithm compression_algorithm,
-    const ChecksumAlgorithm checksum_algorithm)
-{
+    const ChecksumAlgorithm checksum_algorithm) {
     static_assert(Schema::template supports_version<VersionNumber>,
                   "the requested payload version is not part of the schema");
 
@@ -103,8 +98,7 @@ std::expected<Bytes, Error> serialize(
 template <typename Schema>
 std::expected<typename Schema::latest_type, Error> deserialize(
     const std::span<const std::byte> bytes,
-    const std::size_t max_decompressed_size)
-{
+    const std::size_t max_decompressed_size) {
     auto envelope = detail::deserialize_from_bytes<Envelope>(bytes);
     if (!envelope) {
         return std::unexpected(envelope.error());

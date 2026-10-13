@@ -462,8 +462,7 @@ LevelWorkplan build_level_workplan(
 std::vector<std::vector<octree::Id>> gather_relevant_input_leaves(
     const octree::IndexMap &index,
     const octree::Space &space,
-    const radix::geometry::Aabb3d &root_bounds)
-{
+    const radix::geometry::Aabb3d &root_bounds) {
     const auto start = space.find_smallest_node_encompassing_bounds(root_bounds)
         .value_or(octree::Id::root());
     std::vector<std::vector<octree::Id>> result(octree::Id::max_level() + 1);

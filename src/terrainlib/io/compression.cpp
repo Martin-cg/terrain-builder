@@ -15,8 +15,7 @@ namespace {
 
 using CompressionContext = std::unique_ptr<ZSTD_CCtx, decltype(&ZSTD_freeCCtx)>;
 
-std::string crc32c_checksum(const Bytes &data)
-{
+std::string crc32c_checksum(const Bytes &data) {
     static constexpr auto table = [] {
         constexpr std::uint32_t polynomial = 0x82f63b78u;
 
@@ -49,8 +48,7 @@ std::string crc32c_checksum(const Bytes &data)
 
 std::expected<void, Error> validate_algorithms(
     const CompressionAlgorithm compression_algorithm,
-    const ChecksumAlgorithm checksum_algorithm)
-{
+    const ChecksumAlgorithm checksum_algorithm) {
     switch (checksum_algorithm) {
     case ChecksumAlgorithm::None:
     case ChecksumAlgorithm::HandledByCompressionLib:
@@ -87,8 +85,7 @@ std::expected<void, Error> validate_algorithms(
 std::expected<CompressedData, Error> compress_with_checksum(
     const Bytes &uncompressed_data,
     const CompressionAlgorithm compression_algorithm,
-    const ChecksumAlgorithm checksum_algorithm)
-{
+    const ChecksumAlgorithm checksum_algorithm) {
     if (const auto validation = validate_algorithms(compression_algorithm, checksum_algorithm); !validation) {
         return std::unexpected(validation.error());
     }
@@ -135,8 +132,7 @@ std::expected<Bytes, Error> checked_decompress(
     const CompressionAlgorithm compression_algorithm,
     const ChecksumAlgorithm checksum_algorithm,
     const std::string_view checksum,
-    const std::size_t max_decompressed_size)
-{
+    const std::size_t max_decompressed_size) {
     if (const auto validation = validate_algorithms(compression_algorithm, checksum_algorithm); !validation) {
         return std::unexpected(validation.error());
     }

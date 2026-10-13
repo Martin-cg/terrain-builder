@@ -32,8 +32,7 @@ template <std::size_t Size>
 struct FixedString {
     char value[Size];
 
-    constexpr FixedString(const char (&text)[Size])
-    {
+    constexpr FixedString(const char (&text)[Size]) {
         std::copy_n(text, Size, value);
     }
 
@@ -62,8 +61,7 @@ struct FindVersion<Number> {
 };
 
 template <typename... Versions>
-consteval bool versions_are_strictly_increasing()
-{
+consteval bool versions_are_strictly_increasing() {
     constexpr std::uint32_t numbers[] = {Versions::number...};
     for (std::size_t index = 1; index < sizeof...(Versions); ++index) {
         if (numbers[index - 1] >= numbers[index]) {
@@ -79,8 +77,7 @@ concept ConvertsFromPrevious = requires(From previous) {
 };
 
 template <typename VersionTuple, std::size_t... Indices>
-consteval bool conversions_are_valid(std::index_sequence<Indices...>)
-{
+consteval bool conversions_are_valid(std::index_sequence<Indices...>) {
     return (ConvertsFromPrevious<
                 typename std::tuple_element_t<Indices, VersionTuple>::payload_type,
                 typename std::tuple_element_t<Indices + 1, VersionTuple>::payload_type>
@@ -111,8 +108,7 @@ struct PayloadSchema {
     static constexpr bool supports_version =
         !std::is_void_v<typename detail::FindVersion<Number, Versions...>::type>;
 
-    static constexpr bool supports_version_number(const std::uint32_t number)
-    {
+    static constexpr bool supports_version_number(const std::uint32_t number) {
         return ((number == Versions::number) || ...);
     }
 
