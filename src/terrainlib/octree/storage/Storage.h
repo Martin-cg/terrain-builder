@@ -1,6 +1,5 @@
 #pragma once
 
-#include <expected>
 #include <filesystem>
 #include <list>
 #include <memory>
@@ -35,7 +34,7 @@ namespace octree {
 
 namespace detail {
 // The error for node `id`, which the index does not contain, originating at the caller.
-inline std::unexpected<alp::Error<io::FileError>> make_index_miss(const Id &id, const disk::Layout &layout, const std::source_location location = std::source_location::current()) {
+inline alp::Unexpected<io::FileError> make_index_miss(const Id &id, const disk::Layout &layout, const std::source_location location = std::source_location::current()) {
     const io::FileError error = io::make_file_not_found(layout.get_node_path(id));
     return alp::make_unexpected(error, fmt::format("looking up node {} in the index", id), location);
 }
