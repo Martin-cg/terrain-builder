@@ -21,7 +21,6 @@ add_executable(unittests_terrainlib
     terrainlib/convert.cpp
     terrainlib/cow.cpp
     terrainlib/enumerate.cpp
-    terrainlib/envelope.cpp
     terrainlib/error.cpp
     terrainlib/error_error_code.cpp
     terrainlib/error_fallible_fn.cpp
@@ -47,6 +46,8 @@ add_executable(unittests_terrainlib
     terrainlib/index_map.cpp
     terrainlib/index_traverse.cpp
     terrainlib/io.cpp
+    terrainlib/io_compression.cpp
+    terrainlib/io_envelope.cpp
     terrainlib/io_filesystem.cpp
     terrainlib/mem.cpp
     terrainlib/mesh_boundary.cpp

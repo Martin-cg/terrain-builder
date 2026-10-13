@@ -4,10 +4,9 @@
 #include <cstdint>
 #include <string>
 #include <string_view>
-#include <system_error>
 #include <vector>
 
-#include <expected>
+#include "error/Result.h"
 
 namespace io::envelope {
 
@@ -26,12 +25,8 @@ enum class CompressionAlgorithm : std::uint8_t {
     ZstdBestCompressionWithChecksum,
 };
 
-enum class ErrorCode : std::uint8_t {
-    SerializationFailed,
-    DeserializationFailed,
-    InvalidMagic,
-    WrongClassName,
-    UnsupportedClassVersion,
+// A failure to compress or decompress data.
+enum class CompressionError : std::uint8_t {
     UnsupportedChecksumAlgorithm,
     UnsupportedCompressionAlgorithm,
     InvalidAlgorithmCombination,
@@ -41,24 +36,40 @@ enum class ErrorCode : std::uint8_t {
     SizeLimitExceeded,
 };
 
-struct Error {
-    ErrorCode code;
-    std::errc serialization_error{};
-
-    constexpr bool operator==(const Error &) const = default;
-};
+inline std::string_view format_as(const CompressionError error) {
+    switch (error) {
+    case CompressionError::UnsupportedChecksumAlgorithm:
+        return "the checksum algorithm is not supported";
+    case CompressionError::UnsupportedCompressionAlgorithm:
+        return "the compression algorithm is not supported";
+    case CompressionError::InvalidAlgorithmCombination:
+        return "the checksum algorithm does not fit the compression algorithm";
+    case CompressionError::ChecksumMismatch:
+        return "the checksum does not match the data";
+    case CompressionError::CompressionFailed:
+        return "compressing the data failed";
+    case CompressionError::DecompressionFailed:
+        return "decompressing the data failed";
+    case CompressionError::SizeLimitExceeded:
+        return "the data is larger than the size limit";
+    default:
+        return "an unknown compression failure";
+    }
+}
 
 struct CompressedData {
     Bytes compressed_data;
     std::string checksum;
 };
 
-std::expected<CompressedData, Error> compress_with_checksum(
+[[nodiscard]]
+alp::Result<CompressedData, CompressionError> compress_with_checksum(
     const Bytes &uncompressed_data,
     CompressionAlgorithm compression_algorithm,
     ChecksumAlgorithm checksum_algorithm);
 
-std::expected<Bytes, Error> checked_decompress(
+[[nodiscard]]
+alp::Result<Bytes, CompressionError> checked_decompress(
     const Bytes &compressed_data,
     CompressionAlgorithm compression_algorithm,
     ChecksumAlgorithm checksum_algorithm,

@@ -13,9 +13,41 @@
 #include <type_traits>
 #include <utility>
 
+#include "error/Result.h"
+#include "io/SerdeError.h"
+
 namespace io::envelope {
 
 inline constexpr std::uint64_t magic = 0xF5FBD3EF919428CAULL;
+
+// A failure to read an envelope, apart from decompressing or deserializing its parts.
+enum class EnvelopeError : std::uint8_t {
+    InvalidMagic,
+    WrongClassName,
+    UnsupportedClassVersion,
+    SizeLimitExceeded,
+    UncompressedSizeMismatch,
+    TrailingData,
+};
+
+inline std::string_view format_as(const EnvelopeError error) {
+    switch (error) {
+    case EnvelopeError::InvalidMagic:
+        return "the data does not start with the envelope magic number";
+    case EnvelopeError::WrongClassName:
+        return "the envelope holds a different class";
+    case EnvelopeError::UnsupportedClassVersion:
+        return "the envelope's class version is not supported";
+    case EnvelopeError::SizeLimitExceeded:
+        return "the declared uncompressed size is larger than the size limit";
+    case EnvelopeError::UncompressedSizeMismatch:
+        return "the uncompressed payload does not have the declared size";
+    case EnvelopeError::TrailingData:
+        return "the data continues after the value";
+    default:
+        return "an unknown envelope failure";
+    }
+}
 
 struct Envelope {
     std::uint64_t magic;
@@ -122,13 +154,15 @@ struct PayloadSchema {
 };
 
 template <typename Schema, std::uint32_t VersionNumber>
-std::expected<Bytes, Error> serialize(
+[[nodiscard]]
+alp::Result<Bytes, CompressionError, SerdeError> serialize(
     const typename Schema::template Payload<VersionNumber> &payload,
     CompressionAlgorithm compression_algorithm = CompressionAlgorithm::ZstdBestCompressionWithChecksum,
     ChecksumAlgorithm checksum_algorithm = ChecksumAlgorithm::HandledByCompressionLib);
 
 template <typename Schema>
-std::expected<typename Schema::Latest, Error> deserialize(
+[[nodiscard]]
+alp::Result<typename Schema::Latest, EnvelopeError, CompressionError, SerdeError> deserialize(
     std::span<const std::byte> bytes,
     std::size_t max_decompressed_size = default_max_decompressed_size);
 
