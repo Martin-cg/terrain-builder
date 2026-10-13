@@ -6,6 +6,7 @@
 
 #include "error/Result.h"
 #include "error/try.h"
+#include "io/Error.h"
 #include "io/FileError.h"
 #include "log.h"
 #include "octree/Id.h"
@@ -53,7 +54,7 @@ public:
         return Storage_<T, Codec>::update_index();
     }
     [[nodiscard]]
-    std::expected<void, io::Error> save_index() const {
+    io::Result<void> save_index() const {
         if (!this->is_index_dirty()) {
             return {};
         }

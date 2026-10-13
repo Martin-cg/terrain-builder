@@ -1,12 +1,12 @@
 #pragma once
 
-#include <expected>
 #include <filesystem>
 #include <optional>
 #include <string_view>
 #include <vector>
 
 #include "Codec.h"
+#include "error/Result.h"
 #include "io/serialize.h"
 #include "io/Error.h"
 
@@ -19,12 +19,12 @@ struct ZppBitsCodec {
     using save_error = io::Error;
 
     [[nodiscard]]
-    static std::expected<value_type, load_error> load_from_path(const std::filesystem::path& path) {
+    static alp::Result<value_type, load_error> load_from_path(const std::filesystem::path& path) {
         return io::read_from_path<value_type>(path);
     }
 
     [[nodiscard]]
-    static std::expected<void, save_error> save_to_path(const value_type& value, const std::filesystem::path& path) {
+    static alp::Result<void, save_error> save_to_path(const value_type& value, const std::filesystem::path& path) {
         return io::write_to_path(value, path);
     }
 

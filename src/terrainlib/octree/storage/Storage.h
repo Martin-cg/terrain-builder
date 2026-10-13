@@ -13,6 +13,7 @@
 #include <libassert/assert.hpp>
 
 #include "error/log.h"
+#include "error/Result.h"
 #include "error/try.h"
 #include "error/utils.h"
 #include "io/Error.h"
@@ -160,7 +161,7 @@ public:
     }
 
     [[nodiscard]]
-    std::expected<value_type, load_error> load(const Id &id) const {
+    alp::Result<value_type, load_error> load(const Id &id) const {
         if (const auto value_opt = this->_cache.get(id)) {
             return value_opt.value();
         }
@@ -177,7 +178,7 @@ public:
     }
 
     [[nodiscard]]
-    std::expected<void, save_error> save(const Id &id, const value_type &value) {
+    alp::Result<void, save_error> save(const Id &id, const value_type &value) {
         ASSERT(!this->check_overwrite(id), "tried to overwrite value when not allowed");
 
         const auto result = this->_inner.save(id, value);
@@ -189,7 +190,7 @@ public:
     }
 
     [[nodiscard]]
-    std::expected<void, copy_error> copy_from(const Id &id, const Storage_<T, Codec> &source) {
+    alp::Result<void, copy_error> copy_from(const Id &id, const Storage_<T, Codec> &source) {
         if (!source._index.contains(id, true)) {
             return detail::make_index_miss(id, source._inner.layout());
         }
@@ -204,7 +205,7 @@ public:
     }
 
     [[nodiscard]]
-    std::expected<void, copy_error> copy_to(const Id &id, Storage_<T, Codec> &target) const {
+    alp::Result<void, copy_error> copy_to(const Id &id, Storage_<T, Codec> &target) const {
         return target.copy_from(id, *this);
     }
 
@@ -264,7 +265,7 @@ public:
     }
 
     [[nodiscard]]
-    std::expected<void, io::Error> save_or_create_index() {
+    io::Result<void> save_or_create_index() {
         if (this->is_indexed() && !this->_index.dirty) {
             return {};
         }

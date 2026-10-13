@@ -1,9 +1,10 @@
 #pragma once
 
 #include <concepts>
-#include <expected>
 #include <filesystem>
 #include <ranges>
+
+#include "error/Result.h"
 
 template <typename Codec, typename T>
 concept CodecFor =
@@ -15,10 +16,10 @@ concept CodecFor =
         requires std::same_as<typename Codec::value_type, T>;
 
         { Codec::load_from_path(path) }
-            -> std::same_as<std::expected<T, typename Codec::load_error>>;
+            -> std::same_as<alp::Result<T, typename Codec::load_error>>;
 
         { Codec::save_to_path(value, path) }
-            -> std::same_as<std::expected<void, typename Codec::save_error>>;
+            -> std::same_as<alp::Result<void, typename Codec::save_error>>;
 
         { Codec::supported_extensions() } -> std::ranges::range;
 

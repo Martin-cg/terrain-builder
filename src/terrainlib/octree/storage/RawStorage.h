@@ -8,6 +8,7 @@
 #include <fmt/format.h>
 
 #include "error/Error.h"
+#include "error/Result.h"
 #include "error/try.h"
 #include "error/utils.h"
 #include "io/FileError.h"
@@ -37,26 +38,26 @@ public:
     RawStorage_ &operator=(RawStorage_ &&) = default;
 
     [[nodiscard]]
-    std::expected<T, load_error> load(const Id &id) const {
+    alp::Result<T, load_error> load(const Id &id) const {
         const auto path = this->path_for(id);
         ALP_TRY_CONTEXT(T node, Codec::load_from_path(path), fmt::format("loading node {}", id));
         return node;
     }
 
     [[nodiscard]]
-    std::expected<void, save_error> save(const Id &id, const T &node) const {
+    alp::Result<void, save_error> save(const Id &id, const T &node) const {
         const auto path = this->path_for(id);
         ALP_TRY_CONTEXT(Codec::save_to_path(node, path), fmt::format("saving node {}", id));
         return {};
     }
 
     [[nodiscard]]
-    std::expected<void, copy_error> copy_to(const Id &id, RawStorage_ &target) const {
+    alp::Result<void, copy_error> copy_to(const Id &id, RawStorage_ &target) const {
         return target.copy_from(id, *this);
     }
 
     [[nodiscard]]
-    std::expected<void, copy_error> copy_from(const Id &id, const RawStorage_ &source) {
+    alp::Result<void, copy_error> copy_from(const Id &id, const RawStorage_ &source) {
         const auto context = alp::make_context("copying node {}", id);
         const auto source_path = source.path_for(id);
         const auto target_path = this->path_for(id);
