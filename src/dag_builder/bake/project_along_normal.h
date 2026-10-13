@@ -12,6 +12,7 @@
 #include "bake/flatten.h"
 #include "correspondence.h"
 #include "log.h"
+#include "texture/Interpolation.h"
 
 namespace bake {
 
@@ -61,7 +62,7 @@ inline void render(
     const BakeGeometry &geometry,
     const Correspondence &correspondence,
     const texture::RenderTarget target,
-    const int interpolation,
+    const texture::Interpolation interpolation,
     const ProjectAlongNormal &mode) {
     const std::vector<ClippedTriangle> clipped_triangles = clip_all_triangles(geometry, correspondence);
 

@@ -1,12 +1,12 @@
 #pragma once
 
-#include <stdexcept>
-
 #include <glm/glm.hpp>
+#include <libassert/assert.hpp>
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
 
 #include "opencv_utils.h"
+#include "texture/Interpolation.h"
 
 namespace texture {
 
@@ -48,17 +48,15 @@ template <int channels, typename Value>
 cv::Vec<float, channels> sample_image(
     const cv::Mat &image,
     const glm::dvec2 &point,
-    const int interpolation) {
+    const Interpolation interpolation) {
     switch (interpolation) {
-    case cv::INTER_NEAREST:
+    case Interpolation::Nearest:
         return sample_nearest<channels, Value>(image, point);
 
-    case cv::INTER_LINEAR:
+    case Interpolation::Linear:
         return sample_linear<channels, Value>(image, point);
-
-    default:
-        throw std::invalid_argument("sample_image supports INTER_NEAREST and INTER_LINEAR");
     }
+    UNREACHABLE();
 }
 
 } // namespace texture

@@ -72,7 +72,7 @@ Tent make_tent(const double bulge) {
 // One source texel a target texel, so a colour names the texel the mode read, and nothing fills a
 // texel the bake itself did not write.
 const bake::Options options{
-    .clear_color = cv::Scalar(0, 0, 0), .gutter = 0, .interpolate_uncovered = false, .fill_uncovered = false, .interpolation = cv::INTER_NEAREST};
+    .clear_color = cv::Scalar(0, 0, 0), .gutter = 0, .interpolate_uncovered = false, .fill_uncovered = false, .interpolation = texture::Interpolation::Nearest};
 
 // The colour a texel keeps when no mode wrote it, which the ramp itself never carries.
 const cv::Vec3b uncovered(0, 0, 0);

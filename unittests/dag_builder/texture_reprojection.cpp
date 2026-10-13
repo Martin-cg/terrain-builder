@@ -32,7 +32,7 @@ TEST_CASE("reproject copies pixels under an identity mapping", "[atlas][texture_
 
     const cv::Mat output = reproject(
         std::span(&source, 1), triangles, glm::uvec2(2, 1), CV_8UC3, DEFAULT_CLEAR_COLOR,
-        ReprojectionOptions{1, cv::INTER_NEAREST});
+        ReprojectionOptions{1, texture::Interpolation::Nearest});
 
     CHECK(output.at<cv::Vec3b>(0, 0) == cv::Vec3b(10, 20, 30));
     CHECK(output.at<cv::Vec3b>(0, 1) == cv::Vec3b(40, 50, 60));
@@ -48,7 +48,7 @@ TEST_CASE("reproject linearly blends between neighboring source pixels", "[atlas
 
     const cv::Mat output = reproject(
         std::span(&source, 1), triangles, glm::uvec2(1, 1), CV_8UC3, DEFAULT_CLEAR_COLOR,
-        ReprojectionOptions{1, cv::INTER_LINEAR});
+        ReprojectionOptions{1, texture::Interpolation::Linear});
 
     // The single output sample lands halfway between the two source pixels.
     CHECK(output.at<cv::Vec3b>(0, 0) == cv::Vec3b(100, 100, 100));
@@ -64,7 +64,7 @@ TEST_CASE("reproject leaves the background where triangles are degenerate", "[at
 
     const cv::Mat output = reproject(
         std::span(&source, 1), triangles, glm::uvec2(1, 1), CV_8UC3, cv::Scalar::all(0),
-        ReprojectionOptions{1, cv::INTER_NEAREST});
+        ReprojectionOptions{1, texture::Interpolation::Nearest});
 
     CHECK(output.at<cv::Vec3b>(0, 0) == cv::Vec3b(0, 0, 0));
 }
@@ -81,7 +81,7 @@ TEST_CASE("reproject supersamples and averages partial pixel coverage", "[atlas]
 
     const cv::Mat output = reproject(
         std::span(&source, 1), triangles, glm::uvec2(1, 1), CV_8UC3, DEFAULT_CLEAR_COLOR,
-        ReprojectionOptions{2, cv::INTER_NEAREST});
+        ReprojectionOptions{2, texture::Interpolation::Nearest});
 
     // Only 1 of 4 samples is covered, output is average of covered samples
     CHECK(output.at<cv::Vec3b>(0, 0) == cv::Vec3b(100, 100, 100));
@@ -100,7 +100,7 @@ TEST_CASE("reproject handles non-uniform coverage with gradient source", "[atlas
 
     const cv::Mat output = reproject(
         std::span(&source, 1), triangles, glm::uvec2(1, 1), CV_8UC3, DEFAULT_CLEAR_COLOR,
-        ReprojectionOptions{2, cv::INTER_LINEAR});
+        ReprojectionOptions{2, texture::Interpolation::Linear});
 
     const auto pixel = output.at<cv::Vec3b>(0, 0);
     // With linear interpolation across gradient, should be intermediate value
@@ -119,7 +119,7 @@ TEST_CASE("reproject background stays zero when no samples covered", "[atlas][te
 
     const cv::Mat output = reproject(
         std::span(&source, 1), triangles, glm::uvec2(1, 1), CV_8UC3, cv::Scalar::all(0),
-        ReprojectionOptions{2, cv::INTER_NEAREST});
+        ReprojectionOptions{2, texture::Interpolation::Nearest});
 
     CHECK(output.at<cv::Vec3b>(0, 0) == cv::Vec3b(0, 0, 0));
 }
@@ -138,7 +138,7 @@ TEST_CASE("reproject quad seam has no holes with supersampling", "[atlas][textur
 
     const cv::Mat output = reproject(
         std::span(&source, 1), triangles, glm::uvec2(4, 4), CV_8UC3, DEFAULT_CLEAR_COLOR,
-        ReprojectionOptions{2, cv::INTER_NEAREST});
+        ReprojectionOptions{2, texture::Interpolation::Nearest});
 
     // Every output pixel must equal source color (no holes on seams)
     for (int y = 0; y < output.rows; y++) {
@@ -163,7 +163,7 @@ TEST_CASE("reproject renders identically regardless of winding order", "[atlas][
     triangles_cw[0].source_uvs = {glm::dvec2(0, 0), glm::dvec2(1, 1), glm::dvec2(1, 0)};
     triangles_cw[0].target_uvs = {glm::dvec2(0, 0), glm::dvec2(1, 1), glm::dvec2(1, 0)};
 
-    const ReprojectionOptions options{1, cv::INTER_NEAREST};
+    const ReprojectionOptions options{1, texture::Interpolation::Nearest};
     const cv::Mat output_ccw = reproject(
         std::span(&source, 1), triangles_ccw, glm::uvec2(2, 2), CV_8UC3, DEFAULT_CLEAR_COLOR, options);
     const cv::Mat output_cw = reproject(
@@ -196,7 +196,7 @@ TEST_CASE("reproject handles multiple source images with different colors", "[at
 
     const cv::Mat output = reproject(
         sources, triangles, glm::uvec2(2, 1), CV_8UC3, DEFAULT_CLEAR_COLOR,
-        ReprojectionOptions{1, cv::INTER_NEAREST});
+        ReprojectionOptions{1, texture::Interpolation::Nearest});
 
     CHECK(output.at<cv::Vec3b>(0, 0) == cv::Vec3b(255, 0, 0));    // red
     CHECK(output.at<cv::Vec3b>(0, 1) == cv::Vec3b(0, 255, 0));    // green
@@ -217,7 +217,7 @@ TEST_CASE("reproject clamps UVs and applies edge replication", "[atlas][texture_
 
     const cv::Mat output = reproject(
         std::span(&source, 1), triangles, glm::uvec2(1, 1), CV_8UC3, DEFAULT_CLEAR_COLOR,
-        ReprojectionOptions{1, cv::INTER_NEAREST});
+        ReprojectionOptions{1, texture::Interpolation::Nearest});
 
     // Every sample reads the bottom-right border texel (yellow).
     CHECK(output.at<cv::Vec3b>(0, 0) == cv::Vec3b(255, 255, 0));
@@ -236,7 +236,7 @@ TEST_CASE("reproject pins rounding behavior for linear interpolation blends", "[
 
     const cv::Mat output = reproject(
         std::span(&source, 1), triangles, glm::uvec2(1, 1), CV_8UC3, DEFAULT_CLEAR_COLOR,
-        ReprojectionOptions{1, cv::INTER_LINEAR});
+        ReprojectionOptions{1, texture::Interpolation::Linear});
 
     const auto pixel = output.at<cv::Vec3b>(0, 0);
     // Linear interpolation at center between 0 and 255 produces 127.5
@@ -269,7 +269,7 @@ TEST_CASE("reproject reports the texels its triangles wrote to", "[atlas][textur
 
     const RenderedTexture rendered = reproject(
         std::span(&source, 1), triangles, glm::uvec2(3, 3), CV_8UC3, cv::Scalar::all(0),
-        ReprojectionOptions{1, cv::INTER_NEAREST});
+        ReprojectionOptions{1, texture::Interpolation::Nearest});
 
     CHECK(rendered.image.at<cv::Vec3b>(1, 1) == cv::Vec3b(10, 20, 30));
     CHECK(rendered.image.at<cv::Vec3b>(0, 0) == cv::Vec3b(0, 0, 0));
@@ -284,7 +284,7 @@ TEST_CASE("reproject_into leaves the texels its triangles missed untouched", "[a
     cv::Mat image(3, 3, CV_8UC3, cv::Vec3b(7, 8, 9));
     texture::Mask coverage(glm::uvec2(3, 3));
     reproject_into(
-        std::span(&source, 1), triangles, ReprojectionOptions{1, cv::INTER_NEAREST},
+        std::span(&source, 1), triangles, ReprojectionOptions{1, texture::Interpolation::Nearest},
         texture::RenderTarget(image, coverage));
 
     CHECK(image.at<cv::Vec3b>(1, 1) == cv::Vec3b(10, 20, 30));
@@ -300,7 +300,7 @@ TEST_CASE("the gutter dilation extends what the reprojector covered", "[atlas][t
 
     RenderedTexture rendered = reproject(
         std::span(&source, 1), triangles, glm::uvec2(3, 3), CV_8UC3, cv::Scalar::all(0),
-        ReprojectionOptions{1, cv::INTER_NEAREST});
+        ReprojectionOptions{1, texture::Interpolation::Nearest});
 
     texture::dilate_colors_inplace(rendered.image, rendered.coverage, 1);
 

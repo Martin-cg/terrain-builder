@@ -16,6 +16,7 @@
 #include "geometry/geometry.h"
 #include "opencv_utils.h"
 #include "range_utils.h"
+#include "texture/Interpolation.h"
 #include "texture/RenderTarget.h"
 
 namespace bake::detail {
@@ -34,7 +35,7 @@ void render_point_texels(
     const BakeGeometry &geometry,
     const Correspondence &correspondence,
     const texture::RenderTarget target,
-    const int interpolation,
+    const texture::Interpolation interpolation,
     const Sampler &sampler) {
     // Searched once per texel, so they are gathered once per target triangle.
     std::vector<Candidate> candidates;
@@ -86,7 +87,7 @@ void render_points(
     const BakeGeometry &geometry,
     const Correspondence &correspondence,
     const texture::RenderTarget target,
-    const int interpolation,
+    const texture::Interpolation interpolation,
     const Sampler &sampler) {
     ASSERT(std::ranges::all_of(geometry.source.images, [&](const cv::Mat &m) { return m.type() == target.image.type(); }));
     DEBUG_ASSERT(correspondence.segment_count() == geometry.target.triangles.size());

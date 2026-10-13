@@ -12,6 +12,7 @@
 #include "correspondence.h"
 #include "geometry/geometry.h"
 #include "mesh/geometry.h"
+#include "texture/Interpolation.h"
 #include "texture/RenderTarget.h"
 
 namespace bake {
@@ -27,7 +28,7 @@ inline void render(
     const BakeGeometry &geometry,
     const Correspondence &correspondence,
     const texture::RenderTarget target,
-    const int interpolation,
+    const texture::Interpolation interpolation,
     const RayCast &mode) {
     // TODO: Only this bake's triangles contribute, so two bakes sharing a vertex cast it along different normals; prepare them once per target clustering instead.
     // Indexed by global vertex, so a triangle's corner normals are its corner indices.

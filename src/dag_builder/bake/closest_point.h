@@ -14,6 +14,7 @@
 #include "bake/render_points.h"
 #include "correspondence.h"
 #include "geometry/geometry.h"
+#include "texture/Interpolation.h"
 #include "texture/RenderTarget.h"
 
 namespace bake {
@@ -31,7 +32,7 @@ inline void render(
     const BakeGeometry &geometry,
     const Correspondence &correspondence,
     const texture::RenderTarget target,
-    const int interpolation,
+    const texture::Interpolation interpolation,
     const ClosestPoint &mode) {
     render_points(geometry, correspondence, target, interpolation, [&](const PointQuery &query) {
         return find_closest_point(query.candidates, query.point, mode.max_distance, mode.require_facing);

@@ -13,6 +13,7 @@
 #include "enumerate.h"
 #include "geometry/geometry.h"
 #include "rasterize.h"
+#include "texture/Interpolation.h"
 #include "texture/sample_image.h"
 
 namespace bake::detail {
@@ -156,7 +157,7 @@ cv::Vec<float, channels> sample_point(
     const TexturedGeometry &source,
     const uint32_t triangle,
     const glm::dvec3 &barycentric,
-    const int interpolation) {
+    const texture::Interpolation interpolation) {
     const cv::Mat &image = source.images[source.image_indices[triangle]];
     const glm::dvec2 uv = geometry::interpolate(source.geometry.uvs[triangle], barycentric);
 

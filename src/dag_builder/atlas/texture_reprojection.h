@@ -15,6 +15,7 @@
 #include "mesh/WindingOrder.h"
 #include "opencv_utils.h"
 #include "rasterize.h"
+#include "texture/Interpolation.h"
 #include "texture/Mask.h"
 #include "texture/RenderTarget.h"
 #include "texture/sample_image.h"
@@ -23,7 +24,7 @@
 
 struct ReprojectionOptions {
     uint32_t sample_scale = 2;
-    int interpolation = cv::INTER_LINEAR;
+    texture::Interpolation interpolation = texture::Interpolation::Linear;
 };
 
 struct MappedTriangle {

@@ -20,6 +20,7 @@
 #include "correspondence.h"
 #include "log.h"
 #include "range_utils.h"
+#include "texture/Interpolation.h"
 #include "texture/clear_color.h"
 #include "texture/dilate_colors.h"
 
@@ -32,7 +33,7 @@ struct Options {
     uint32_t gutter = 2;
     bool interpolate_uncovered = true;
     bool fill_uncovered = true;
-    int interpolation = cv::INTER_LINEAR;
+    texture::Interpolation interpolation = texture::Interpolation::Linear;
 };
 
 // How a bake reads each texel from the source.
