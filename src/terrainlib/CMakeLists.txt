@@ -11,6 +11,7 @@ add_library(terrainlib
     gdal/PixelTransform.cpp
 
     io/bytes.cpp
+    io/compression.cpp
 
     mesh/connectivity/adjacency.cpp
     mesh/connectivity/boundary.cpp
@@ -53,6 +54,7 @@ add_library(terrainlib
 
     log.cpp
     ProgressIndicator.cpp
+    tile_path.h
 )
 
 target_compile_features(terrainlib PUBLIC cxx_std_23)
@@ -74,6 +76,7 @@ target_link_libraries(terrainlib PUBLIC
     spdlog
     fmt
     zpp_bits
+    zstd::libzstd_static
     cgltf
     TBB::tbb
     opencv_core

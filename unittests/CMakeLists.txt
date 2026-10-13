@@ -21,6 +21,7 @@ add_executable(unittests_terrainlib
     terrainlib/convert.cpp
     terrainlib/cow.cpp
     terrainlib/enumerate.cpp
+    terrainlib/envelope.cpp
     terrainlib/error.cpp
     terrainlib/error_error_code.cpp
     terrainlib/error_fallible_fn.cpp
@@ -101,7 +102,7 @@ if(TARGET tilebuilderlib)
         tilebuilder/alpine_raster_format.cpp
         tilebuilder/dataset_reading.cpp
         tilebuilder/depth_first_tile_traverser.cpp
-        tilebuilder/image.cpp
+        tilebuilder/image_writer.cpp
         tilebuilder/parallel_tile_generator.cpp
         tilebuilder/parallel_tiler.cpp
         tilebuilder/tile_heights_generator.cpp
@@ -123,6 +124,21 @@ if(TARGET sfbuilderlib)
     atb_configure_test(unittests_sfbuilder)
 endif()
 
+if(TARGET tile-downloader)
+    find_package(CURL REQUIRED)
+    add_executable(unittests_tile_downloader
+        throwing_assertions.cpp
+        tile_downloader/downloader.cpp
+        tile_downloader/http_client.cpp
+        tile_downloader/logger.cpp
+        tile_downloader/url_builder.cpp
+        tile_downloader/write_file.cpp
+    )
+    target_include_directories(unittests_tile_downloader PRIVATE ${CMAKE_SOURCE_DIR}/src/tile_downloader)
+    target_link_libraries(unittests_tile_downloader PRIVATE terrainlib Catch2::Catch2WithMain CURL::libcurl)
+    atb_configure_test(unittests_tile_downloader)
+endif()
+
 if(TARGET dagbuilderlib)
     add_executable(unittests_dagbuilder
         catch2_helpers.h
@@ -131,6 +147,7 @@ if(TARGET dagbuilderlib)
         dag_builder/correspondence.cpp
         dag_builder/reprojection.cpp
         dag_builder/merge_clusterings.cpp
+        dag_builder/multi_component.cpp
         dag_builder/weld.cpp
         dag_builder/slice.cpp
         dag_builder/pull_reproject_texture.cpp

@@ -1,10 +1,12 @@
 #include <algorithm>
 #include <numeric>
 #include <ranges>
+#include <utility>
 #include <vector>
 
 #include <glm/glm.hpp>
 #include <radix/geometry.h>
+#include <radix/raster.h>
 #include <glm/gtx/norm.hpp>
 #include <libassert/assert.hpp>
 
@@ -15,7 +17,7 @@
 #include "mesh/SimpleMesh.h"
 #include "mesh/cleanup.h"
 #include "mesh_builder.h"
-#include "raster.h"
+#include "range_utils.h"
 #include "RawDatasetReader.h"
 #include "srs/transform.h"
 #include "srs/transform_bounds.h"
@@ -29,7 +31,7 @@ namespace terrainbuilder {
 namespace {
 using PixelBounds = radix::geometry::Aabb2i;
     
-glm::dvec3 convert_pixel_to_vertex(const float height, const raster::Coords pixel_coords, const RawDatasetReader& reader, const PixelBounds& pixel_bounds) {
+glm::dvec3 convert_pixel_to_vertex(const float height, const glm::uvec2 pixel_coords, const RawDatasetReader& reader, const PixelBounds& pixel_bounds) {
     const glm::dvec2 point_offset_in_raster(0.5); // Convert pixel coordinates into a point in the dataset's srs.
     const glm::dvec2 coords_raster_relative = glm::dvec2(pixel_coords) + point_offset_in_raster;
     const glm::dvec2 coords_raster_absolute = coords_raster_relative + glm::dvec2(pixel_bounds.min);
@@ -37,9 +39,9 @@ glm::dvec3 convert_pixel_to_vertex(const float height, const raster::Coords pixe
     return coords_source;
 }
 
-SimpleMesh meshify(const raster::Raster<glm::dvec3>& source_points, const raster::Mask& mask) {
+SimpleMesh meshify(const radix::Raster<glm::dvec3>& source_points, const radix::RasterMask& mask) {
     // Compact the vertex grid into a list of valid ones.
-    const size_t valid_vertex_count = std::reduce(mask.begin(), mask.end(), 0);
+    const size_t valid_vertex_count = sum(mask, size_t{0});
     // Check if we even have any valid vertices. Can happen if all of the region is padding.
     if (valid_vertex_count == 0) {
         return SimpleMesh();
@@ -48,11 +50,12 @@ SimpleMesh meshify(const raster::Raster<glm::dvec3>& source_points, const raster
     std::vector<glm::dvec3> positions;
     positions.reserve(valid_vertex_count);
 
-    const raster::Raster<size_t> vertex_index_map = raster::transform(source_points, mask, [&](const glm::dvec3 &point) -> size_t {
+    auto vertex_index_map_result = radix::raster::transform(source_points, mask, [&](const glm::dvec3& point) -> size_t {
         const size_t index = positions.size();
         positions.push_back(point);
         return index;
     });
+    const auto vertex_index_map = *ASSERT_VAL(std::move(vertex_index_map_result), "the mask has the size of the source points");
     DEBUG_ASSERT(positions.size() == valid_vertex_count);
 
     // Allocate triangle vector
@@ -60,13 +63,13 @@ SimpleMesh meshify(const raster::Raster<glm::dvec3>& source_points, const raster
     std::vector<glm::uvec3> triangles;
     triangles.reserve(max_triangle_count);
 
-    for (size_t y = 0; y < source_points.height() - 1; y++) {
-        for (size_t x = 0; x < source_points.width() - 1; x++) {
-            const std::array<raster::Coords, 4> quad {
-                raster::Coords{x, y},
-                raster::Coords{x + 1, y},
-                raster::Coords{x + 1, y + 1},
-                raster::Coords{x, y + 1}};
+    for (unsigned y = 0; y < source_points.height() - 1; y++) {
+        for (unsigned x = 0; x < source_points.width() - 1; x++) {
+            const std::array<glm::uvec2, 4> quad {
+                glm::uvec2{x, y},
+                glm::uvec2{x + 1, y},
+                glm::uvec2{x + 1, y + 1},
+                glm::uvec2{x, y + 1}};
 
             for (uint32_t i = 0; i < 4; i++) {
                 const auto& v0 = quad[i];
@@ -138,21 +141,22 @@ alp::Result<SimpleMesh, BuildMeshError> build_reference_mesh_patch(
     radix::geometry::Aabb2i pixel_bounds = reader.transform_srs_bounds_to_pixel_bounds(target_bounds_in_source_srs);
     add_border_to_aabb(pixel_bounds, Border(1));
     LOG_TRACE("Reading pixels [({}, {})-({}, {})] from dataset", pixel_bounds.min.x, pixel_bounds.min.y, pixel_bounds.max.x, pixel_bounds.max.y);
-    ALP_TRY_CONTEXT(const raster::HeightMap height_map, reader.read_data_in_pixel_bounds_clamped(pixel_bounds), context);
-    if (height_map.size() == 0) {
+    ALP_TRY_CONTEXT(const HeightMap height_map, reader.read_data_in_pixel_bounds_clamped(pixel_bounds), context);
+    if (height_map.buffer().empty()) {
         return alp::make_unexpected(OutOfBounds{.requested = target_bounds_in_source_srs, .available = dataset.bounds()}, context);
     }
 
     LOG_TRACE("Finding valid pixels");
     const float no_data_value = reader.get_no_data_value();
-    const raster::Mask valid_mask = raster::transform(height_map, [=](const float height) {
+    const radix::RasterMask valid_mask = radix::raster::transform(height_map, [=](const float height) {
         return height != no_data_value;
     });
 
     LOG_TRACE("Transforming pixels to vertices");
-    const raster::Raster<glm::dvec3> source_points = raster::transform(height_map, valid_mask, [&](const float height, const raster::Coords& coords) {
+    auto source_points_result = radix::raster::transform(height_map, valid_mask, [&](const float height, const glm::uvec2& coords) {
         return convert_pixel_to_vertex(height, coords, reader, pixel_bounds);
     });
+    const auto source_points = *ASSERT_VAL(std::move(source_points_result), "the mask is made from the height map, so they have the same size");
 
     LOG_TRACE("Generating triangles");
     SimpleMesh mesh_in_source_srs = meshify(source_points, valid_mask);

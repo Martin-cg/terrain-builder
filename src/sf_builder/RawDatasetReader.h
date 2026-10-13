@@ -11,6 +11,7 @@
 #include <glm/glm.hpp>
 #include <libassert/assert.hpp>
 #include <radix/geometry.h>
+#include <radix/raster.h>
 
 #include "error/Result.h"
 #include "error/try.h"
@@ -20,9 +21,11 @@
 #include "gdal/Dataset.h"
 #include "gdal/PixelTransform.h"
 #include "log.h"
-#include "raster.h"
 
 namespace terrainbuilder {
+
+// The heights of a dataset's pixels, one per pixel.
+using HeightMap = radix::Raster<float>;
 
 class RawDatasetReader {
 public:
@@ -48,7 +51,7 @@ public:
     }
 
     // TODO: support reading other data types
-    alp::Result<raster::HeightMap, gdal::CplError> read_data_in_pixel_bounds(const radix::geometry::Aabb2i& bounds) {
+    alp::Result<HeightMap, gdal::CplError> read_data_in_pixel_bounds(const radix::geometry::Aabb2i& bounds) {
         DEBUG_ASSERT(glm::all(glm::greaterThanEqual(bounds.min, glm::ivec2(0))));
         DEBUG_ASSERT(glm::all(glm::greaterThanEqual(bounds.max, glm::ivec2(0))));
         DEBUG_ASSERT(glm::all(glm::lessThan(bounds.min, glm::ivec2(this->dataset_size()))));
@@ -58,7 +61,7 @@ public:
         GDALRasterBand *height_band = this->dataset->GetRasterBand(1); // non-owning pointer
 
         // Initialize the HeightData for reading
-        raster::HeightMap height_data(bounds.width(), bounds.height());
+        HeightMap height_data(glm::uvec2(bounds.width(), bounds.height()));
         if (bounds.width() == 0 || bounds.height() == 0) {
             LOG_WARN("Target dataset bounds are empty");
             return height_data;
@@ -68,7 +71,7 @@ public:
         CPLErrorReset();
         const int32_t read_result = height_band->RasterIO(
             GF_Read, bounds.min.x, bounds.min.y, bounds.width(), bounds.height(),
-            static_cast<void *>(height_data.data()), bounds.width(), bounds.height(), GDT_Float32, 0, 0);
+            static_cast<void*>(height_data.buffer().data()), bounds.width(), bounds.height(), GDT_Float32, 0, 0);
 
         if (read_result != CE_None) {
             return alp::make_unexpected(gdal::CplError::get_last_error(), fmt::format("reading pixels {} from {}", bounds, this->dataset->GetDescription()));
@@ -76,7 +79,7 @@ public:
 
         return height_data;
     }
-    alp::Result<raster::HeightMap, gdal::CplError> read_data_in_pixel_bounds_clamped(radix::geometry::Aabb2i &bounds) {
+    alp::Result<HeightMap, gdal::CplError> read_data_in_pixel_bounds_clamped(radix::geometry::Aabb2i &bounds) {
         const auto original_bounds = bounds;
 
         const glm::ivec2 max_in_bounds = glm::ivec2(this->dataset_size()) - glm::ivec2(1);
@@ -91,13 +94,13 @@ public:
 
         if (bounds.width() == 0 || bounds.height() == 0) {
             LOG_WARN("Target dataset bounds are empty (clamped)");
-            return raster::HeightMap(0, 0);
+            return HeightMap();
         }
 
         return this->read_data_in_pixel_bounds(bounds);
     }
 
-    alp::Result<raster::HeightMap, gdal::CplError> read_data_in_srs_bounds(const radix::tile::SrsBounds &bounds) {
+    alp::Result<HeightMap, gdal::CplError> read_data_in_srs_bounds(const radix::tile::SrsBounds &bounds) {
         // Transform the SrsBounds to pixel space
         radix::geometry::Aabb2i pixel_bounds = this->transform_srs_bounds_to_pixel_bounds(bounds);
 

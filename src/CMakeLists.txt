@@ -29,7 +29,7 @@ alp_setup_cmake_project(tbb URL https://github.com/uxlfoundation/oneTBB.git COMM
 find_package(TBB REQUIRED)
 
 include(../cmake/SetupGDAL.cmake)
-alp_setup_gdal(GDAL_VERSION v3.10.3 PROJ_VERSION 9.6.0)
+alp_setup_gdal(GDAL_VERSION v3.10.3 GEOS_VERSION 3.13.1 PROJ_VERSION 9.6.0)
 
 alp_setup_cmake_project(cgal URL https://github.com/CGAL/cgal.git COMMITISH "v6.0.1" CMAKE_ARGUMENTS -DBUILD_TESTING=OFF -DWITH_examples=OFF)
 find_package(CGAL REQUIRED)
@@ -39,7 +39,7 @@ unset(PACKAGE_VERSION)
 include(../cmake/SetupOpenCV.cmake)
 alp_setup_opencv(4.11.0)
 
-alp_add_git_repository(cgltf URL https://github.com/AlpineMapsOrgDependencies/cgltf.git COMMITISH e035b820ccde6ab20451b612d8033c9b76ea0ce4 DO_NOT_ADD_SUBPROJECT)
+alp_add_git_repository(cgltf URL https://github.com/AlpineMapsOrgDependencies/cgltf.git COMMITISH 1549b07fe059e1917bbdda1f61ec36b5f4d6718a DO_NOT_ADD_SUBPROJECT)
 add_library(cgltf INTERFACE)
 target_include_directories(cgltf SYSTEM INTERFACE ${cgltf_SOURCE_DIR})
 
@@ -60,6 +60,18 @@ alp_add_git_repository(zpp_bits URL https://github.com/eyalz800/zpp_bits.git COM
 add_library(zpp_bits INTERFACE)
 target_include_directories(zpp_bits SYSTEM INTERFACE ${zpp_bits_SOURCE_DIR})
 
+alp_setup_cmake_project(zstd
+    URL https://github.com/AlpineMapsOrgDependencies/zstd.git
+    COMMITISH 5c7b7bad26808e6b40ac3b3d0075466e27738a9d
+    CMAKE_ARGUMENTS
+        -DZSTD_BUILD_PROGRAMS=OFF
+        -DZSTD_BUILD_TESTS=OFF
+        -DZSTD_BUILD_CONTRIB=OFF
+        -DZSTD_BUILD_SHARED=OFF
+        -DZSTD_BUILD_STATIC=ON
+)
+find_package(zstd CONFIG REQUIRED)
+
 # Also used by libassert; keep in sync with the version it expects.
 alp_add_git_repository(cpptrace URL https://github.com/jeremy-rifkin/cpptrace.git COMMITISH v1.0.4 DO_NOT_ADD_SUBPROJECT)
 set(FETCHCONTENT_SOURCE_DIR_CPPTRACE ${cpptrace_SOURCE_DIR} CACHE INTERNAL "" FORCE)
@@ -74,7 +86,7 @@ set(LIBIGL_COPYLEFT_CORE ON)
 set(LIBIGL_RESTRICTED_TRIANGLE ON)
 alp_add_git_repository(libigl URL https://github.com/libigl/libigl.git COMMITISH v2.6.0)
 
-alp_add_git_repository(radix URL https://github.com/AlpineMapsOrg/radix.git COMMITISH bbe25429b3d19f78cea9f8e4aa4b6f618d2dfee5 NOT_SYSTEM)
+alp_add_git_repository(radix URL https://github.com/AlpineMapsOrg/radix.git COMMITISH 6babc632401cb95a701ce431cb68adf91e2c1b71 NOT_SYSTEM)
 
 set(ALP_CLI_COMPONENT_OPTIONS
     ALP_BUILD_SF_MERGER
@@ -103,11 +115,11 @@ if(ALP_BUILD_SF_INDEX_BROWSER)
     alp_add_git_repository(ftxui URL https://github.com/ArthurSonzogni/FTXUI COMMITISH v6.1.9)
 endif()
 
-if(ALP_BUILD_DAG_BUILDER OR ALP_BUILD_DAG_CONVERT_DEBUG)
-    alp_add_git_repository(xatlas URL https://github.com/jpcy/xatlas COMMITISH f700c7790aaa030e794b52ba7791a05c085faf0c DO_NOT_ADD_SUBPROJECT)
-    add_library(xatlas STATIC ${xatlas_SOURCE_DIR}/source/xatlas/xatlas.cpp)
-    target_include_directories(xatlas SYSTEM PUBLIC ${xatlas_SOURCE_DIR}/source)
+alp_add_git_repository(xatlas URL https://github.com/jpcy/xatlas COMMITISH f700c7790aaa030e794b52ba7791a05c085faf0c DO_NOT_ADD_SUBPROJECT)
+add_library(xatlas STATIC ${xatlas_SOURCE_DIR}/source/xatlas/xatlas.cpp)
+target_include_directories(xatlas SYSTEM PUBLIC ${xatlas_SOURCE_DIR}/source)
 
+if(ALP_BUILD_DAG_BUILDER OR ALP_BUILD_DAG_CONVERT_DEBUG)
     alp_add_git_repository(rectpack2D URL https://github.com/TeamHypersomnia/rectpack2D.git COMMITISH bbc9d0ec05b9b508f6c781667fec718bf9e78d21)
 
     set(METIS_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)

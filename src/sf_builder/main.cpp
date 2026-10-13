@@ -61,7 +61,6 @@ alp::Result<radix::geometry::Aabb3d> parse_bounds_from_values(const std::vector<
 
 alp::Result<radix::geometry::Aabb3d> parse_bounds_from_tile(
     const std::vector<uint32_t> &data,
-    radix::tile::Scheme scheme,
     const srs::System &srs) {
 
     // Determine the correct Grid type based on SRS
@@ -78,7 +77,7 @@ alp::Result<radix::geometry::Aabb3d> parse_bounds_from_tile(
 
     const uint32_t zoom_level = data[0];
     const glm::uvec2 tile_coords(data[1], data[2]);
-    const radix::tile::Id target_tile(zoom_level, tile_coords, scheme);
+    const radix::tile::Id target_tile(zoom_level, tile_coords);
 
     return extend_bounds_to_3d(grid->srsBounds(target_tile, false));
 }
@@ -109,7 +108,6 @@ alp::Result<radix::geometry::Aabb3d> parse_target_bounds(
     const std::vector<double> &bounds_data,
     const std::vector<uint64_t> &node_data,
     const std::vector<uint32_t> &tile_data,
-    radix::tile::Scheme tile_scheme,
     srs::System &srs) {
 
     if (!bounds_data.empty()) {
@@ -117,7 +115,7 @@ alp::Result<radix::geometry::Aabb3d> parse_target_bounds(
     }
 
     if (!tile_data.empty()) {
-        return parse_bounds_from_tile(tile_data, tile_scheme, srs);
+        return parse_bounds_from_tile(tile_data, srs);
     }
 
     if (!node_data.empty()) {
@@ -173,14 +171,14 @@ std::unique_ptr<TileProvider> make_tile_provider(const cli::BaseArgs &args) {
         return nullptr;
     }
 
-    BasemapSchemeTilePathProvider basemap_provider(args.texture_base_path.value());
+    GoogleMapboxTilePathProvider path_provider(args.texture_base_path.value());
     if (args.min_texture_level.has_value() || args.max_texture_level.has_value()) {
-        return std::make_unique<ZoomRangeTileProvider<BasemapSchemeTilePathProvider>>(
-            std::move(basemap_provider),
+        return std::make_unique<ZoomRangeTileProvider<GoogleMapboxTilePathProvider>>(
+            std::move(path_provider),
             args.min_texture_level,
             args.max_texture_level);
     } else {
-        return std::make_unique<BasemapSchemeTilePathProvider>(std::move(basemap_provider));
+        return std::make_unique<GoogleMapboxTilePathProvider>(std::move(path_provider));
     }
 }
 
@@ -195,7 +193,6 @@ alp::Result<void> run(
         args.target_bounds_data,
         args.target_node_data,
         args.target_tile_data,
-        args.target_tile_scheme,
         target_srs));
 
     ALP_TRY(terrainbuilder::build_and_save_patch(

@@ -5,7 +5,7 @@
 
 #include "NodeLoader.h"
 #include "NodeWriter.h"
-#include "error/log.h"
+#include "error/unwrap.h"
 #include "mask.h"
 #include "merge/NodeData.h"
 #include "merge/Result.h"
@@ -23,9 +23,9 @@ inline std::string get_dataset_name(const octree::Storage &storage) {
 template <auto N>
 using smallest_uint_t =
     std::conditional_t<(N <= UINT8_MAX), uint8_t,
-                       std::conditional_t<(N <= UINT16_MAX), uint16_t,
-                                          std::conditional_t<(N <= UINT32_MAX), uint32_t,
-                                                             uint64_t>>>;
+    std::conditional_t<(N <= UINT16_MAX), uint16_t,
+    std::conditional_t<(N <= UINT32_MAX), uint32_t,
+    uint64_t>>>;
 
 template <merge::Visitor Visitor>
 class Merger {
@@ -177,5 +177,5 @@ inline void merge_datasets(
         merger.merge_root();
     }
 
-    LOG_UNEXPECTED_OF(output_dataset.save_or_create_index());
+    alp::unwrap(output_dataset.save_or_create_index());
 }

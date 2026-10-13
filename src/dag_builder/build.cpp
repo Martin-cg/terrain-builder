@@ -550,7 +550,8 @@ std::unordered_set<octree::Id> build_level(
             const auto save_result = ctx.output_storage.save(target, *result);
             if (save_result) {
                 if (debug_storage) {
-                    LOG_UNEXPECTED_OF(debug_storage->save(target, clustering_to_mesh(result->clustering)));
+                    const auto debug_save_result = debug_storage->save(target, clustering_to_mesh(result->clustering));
+                    LOG_UNEXPECTED_OF(debug_save_result);
                 }
                 saved_ids.push_back(target);
             } else {

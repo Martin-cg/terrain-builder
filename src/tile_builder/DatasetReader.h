@@ -23,7 +23,7 @@
 #include <memory>
 #include <string>
 
-#include "Image.h"
+#include <radix/raster.h>
 #include "srs.h"
 #include <radix/tile.h>
 
@@ -35,8 +35,8 @@ class DatasetReader {
 public:
     DatasetReader(const std::shared_ptr<gdal::Dataset>& dataset, const srs::System& targetSRS, unsigned band, bool warn_on_missing_overviews = true);
 
-    HeightData read(const radix::tile::SrsBounds& bounds, unsigned width, unsigned height) const;
-    HeightData readWithOverviews(const radix::tile::SrsBounds& bounds, unsigned width, unsigned height) const;
+    radix::Raster<float> read(const radix::tile::SrsBounds& bounds, unsigned width, unsigned height) const;
+    radix::Raster<float> readWithOverviews(const radix::tile::SrsBounds& bounds, unsigned width, unsigned height) const;
 
     unsigned dataset_band() const { return m_band; }
     bool isReprojecting() const { return m_requires_reprojection; }
@@ -44,7 +44,7 @@ public:
     std::string target_srs_wkt() const { return m_target_srs_wkt; }
 
 protected:
-    HeightData readFrom(const std::shared_ptr<gdal::Dataset>& dataset, const radix::tile::SrsBounds& bounds, unsigned width, unsigned height) const;
+    radix::Raster<float> readFrom(const std::shared_ptr<gdal::Dataset>& dataset, const radix::tile::SrsBounds& bounds, unsigned width, unsigned height) const;
 
 private:
     std::shared_ptr<gdal::Dataset> m_dataset;

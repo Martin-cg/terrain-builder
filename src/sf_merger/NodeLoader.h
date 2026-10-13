@@ -16,6 +16,7 @@
 #include "octree/storage/cache/Dummy.h"
 #include "octree/storage/cache/ICache.h"
 
+// TODO: a cached ancestor is returned unchanged instead of clipped to the requested node bounds, producing incorrect geometry for child requests.
 class NodeLoader {
 public:
     NodeLoader(const octree::IndexedStorage &storage, octree::cache::ICache<mesh::Simple> &cache, octree::Space space)
