@@ -44,7 +44,7 @@
 #include "mesh/connectivity/connected_components.h"
 #include "octree/Id.h"
 #include "octree/Space.h"
-#include "srs.h"
+#include "srs/System.h"
 #include "srs/transform.h"
 #include "mesh/cgal.h"
 #include "mesh/convert.h"

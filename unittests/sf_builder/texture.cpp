@@ -31,7 +31,7 @@
 #include "ctb/Grid.hpp"
 #include "error/utils.h"
 #include "io/bytes.h"
-#include "srs.h"
+#include "srs/System.h"
 #include "texture/io.h"
 
 #include "mesh/SimpleMesh.h"

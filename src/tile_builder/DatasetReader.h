@@ -24,7 +24,7 @@
 #include <string>
 
 #include <radix/raster.h>
-#include "srs.h"
+#include "srs/System.h"
 #include <radix/tile.h>
 
 namespace gdal {

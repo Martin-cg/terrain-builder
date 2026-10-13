@@ -32,7 +32,7 @@
 #include "gdal/CplError.h"
 #include "gdal/PixelTransform.h"
 #include "log.h"
-#include "srs.h"
+#include "srs/System.h"
 
 class GDALDataset;
 

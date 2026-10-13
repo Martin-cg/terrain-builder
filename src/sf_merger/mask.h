@@ -22,7 +22,7 @@
 #include "mesh/validate.h"
 #include "mesh/validate_cgal.h"
 #include "mesh/bounds.h"
-#include "srs.h"
+#include "srs/System.h"
 #include "srs/transform.h"
 #include "srs/transform_bounds.h"
 #include "SphereProjector.h"

@@ -3,7 +3,7 @@
 #include <thread>
 
 #include "../result_helpers.h"
-#include "srs.h"
+#include "srs/System.h"
 #include "srs/SharedSystem.h"
 
 TEST_CASE("SharedSystem::get gives a copy of the system it was made from", "[srs][SharedSystem]") {

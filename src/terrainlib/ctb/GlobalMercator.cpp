@@ -22,7 +22,7 @@
 #define _USE_MATH_DEFINES // for M_PI
 
 #include "GlobalMercator.hpp"
-#include "srs.h"
+#include "srs/System.h"
 
 using namespace ctb;
 

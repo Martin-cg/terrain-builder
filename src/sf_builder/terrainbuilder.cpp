@@ -24,7 +24,7 @@
 #include "gdal/Dataset.h"
 #include "ctb/GlobalMercator.hpp"
 #include "ctb/Grid.hpp"
-#include "srs.h"
+#include "srs/System.h"
 #include "srs/SharedSystem.h"
 #include "srs/transform.h"
 #include "srs/transform_bounds.h"

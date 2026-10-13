@@ -11,7 +11,7 @@
 #include "octree/Id.h"
 #include "mesh/SimpleMesh.h"
 #include "mesh/io/error.h"
-#include "srs.h"
+#include "srs/System.h"
 #include "srs/error.h"
 #include "TileProvider.h"
 

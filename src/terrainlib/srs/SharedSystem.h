@@ -2,7 +2,7 @@
 
 #include <tbb/enumerable_thread_specific.h>
 
-#include "srs.h"
+#include "srs/System.h"
 
 namespace srs {
 

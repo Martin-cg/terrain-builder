@@ -1,40 +1,16 @@
 #include <catch2/catch_test_macros.hpp>
 
-#include <memory>
 #include <optional>
-#include <string>
 #include <vector>
 
-#include <fmt/format.h>
 #include <glm/glm.hpp>
-#include <ogr_spatialref.h>
-#include <radix/geometry.h>
-#include <radix/tile.h>
 
 #include "../result_helpers.h"
 #include "error/format.h"
-#include "gdal/OgrError.h"
-#include "srs.h"
+#include "srs/System.h"
 #include "srs/transform.h"
-#include "srs/transform_bounds.h"
 
-TEST_CASE("Importing an unknown EPSG code fails", "[srs]") {
-    const auto result = srs::from_epsg(999999);
-
-    REQUIRE(!result.has_value());
-    CHECK(result.error().holds<gdal::OgrError>());
-}
-
-TEST_CASE("Parsing invalid spatial reference input fails", "[srs]") {
-    const std::string input = "not a spatial reference";
-
-    const auto result = srs::from_user_input(input);
-
-    REQUIRE(!result.has_value());
-    CHECK(result.error().holds<gdal::OgrError>());
-}
-
-TEST_CASE("get_transform fails between spatial references of different celestial bodies", "[srs]") {
+TEST_CASE("get_transform fails between spatial references of different celestial bodies", "[srs][transform]") {
     const srs::System earth = REQUIRE_VALUE(srs::from_user_input("EPSG:4326"));
     const srs::System mars = REQUIRE_VALUE(srs::from_user_input("IAU_2015:49900"));
 
@@ -47,7 +23,7 @@ TEST_CASE("get_transform fails between spatial references of different celestial
 }
 
 // The orthographic projection onto the north pole maps no point south of the equator.
-TEST_CASE("transforming fails for points outside the projection domain", "[srs]") {
+TEST_CASE("transforming fails for points outside the projection domain", "[srs][transform]") {
     const srs::System geographic = REQUIRE_VALUE(srs::from_user_input("EPSG:4326"));
     const srs::System orthographic = REQUIRE_VALUE(srs::from_user_input("ESRI:102035"));
     const srs::Transform transform = REQUIRE_VALUE(srs::get_transform(geographic, orthographic));
@@ -72,22 +48,6 @@ TEST_CASE("transforming fails for points outside the projection domain", "[srs]"
         std::vector<glm::dvec2> out(points.size());
         error_opt = REQUIRE_ERROR(transform.apply_into(points, out));
     }
-    SECTION("non_exact_bounds_transform in 2d") {
-        const radix::tile::SrsBounds bounds({10, -40}, {30, 20});
-        error_opt = REQUIRE_ERROR(srs::non_exact_bounds_transform(transform, bounds));
-    }
-    SECTION("non_exact_bounds_transform in 3d") {
-        const radix::geometry::Aabb3d bounds({10, -40, 300}, {30, 20, 500});
-        error_opt = REQUIRE_ERROR(srs::non_exact_bounds_transform(transform, bounds));
-    }
-    SECTION("encompassing_bounds_transfer in 2d") {
-        const radix::tile::SrsBounds bounds({10, -40}, {30, -20});
-        error_opt = REQUIRE_ERROR(srs::encompassing_bounds_transfer(transform, bounds));
-    }
-    SECTION("encompassing_bounds_transfer in 3d") {
-        const radix::geometry::Aabb3d bounds({10, -40, 300}, {30, -20, 500});
-        error_opt = REQUIRE_ERROR(srs::encompassing_bounds_transfer(transform, bounds));
-    }
 
     const srs::Untransformable *untransformable = error_opt.value().get_if<srs::Untransformable>();
     REQUIRE(untransformable != nullptr);
@@ -95,7 +55,7 @@ TEST_CASE("transforming fails for points outside the projection domain", "[srs]"
     CHECK(untransformable->target == "North_Pole_Orthographic");
 }
 
-TEST_CASE("apply succeeds on an empty range", "[srs]") {
+TEST_CASE("apply succeeds on an empty range", "[srs][transform]") {
     const srs::System geographic = REQUIRE_VALUE(srs::from_user_input("EPSG:4326"));
     const srs::System mercator = REQUIRE_VALUE(srs::from_user_input("EPSG:3857"));
     const srs::Transform transform = REQUIRE_VALUE(srs::get_transform(geographic, mercator));

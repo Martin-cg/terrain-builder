@@ -20,7 +20,7 @@
  */
 
 #include "GlobalGeodetic.hpp"
-#include "srs.h"
+#include "srs/System.h"
 
 using namespace ctb;
 

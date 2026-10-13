@@ -22,7 +22,7 @@
 #include "error/utils.h"
 #include "gdal/CplError.h"
 #include "gdal/init.h"
-#include "srs.h"
+#include "srs/System.h"
 #include "srs/error.h"
 
 namespace srs {

@@ -6,7 +6,7 @@
 #include <fmt/format.h>
 
 #include "gdal/Dataset.h"
-#include "srs.h"
+#include "srs/System.h"
 #include "srs/error.h"
 
 #include "error/Error.h"

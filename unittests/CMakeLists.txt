@@ -81,8 +81,10 @@ add_executable(unittests_terrainlib
     terrainlib/range_utils.cpp
     terrainlib/spatial_lookup.cpp
     terrainlib/spsc_channel.cpp
-    terrainlib/srs.cpp
     terrainlib/srs_shared_system.cpp
+    terrainlib/srs_system.cpp
+    terrainlib/srs_transform.cpp
+    terrainlib/srs_transform_bounds.cpp
     terrainlib/string_utils.cpp
     terrainlib/texture_dilate_colors.cpp
     terrainlib/texture_io.cpp
