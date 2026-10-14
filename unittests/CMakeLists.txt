@@ -169,6 +169,7 @@ if(TARGET sfmergerlib)
         throwing_assertions.cpp
         sf_merger/mask.cpp
         sf_merger/sphere_projector.cpp
+        sf_merger/utils.cpp
     )
     target_link_libraries(unittests_sfmerger PRIVATE sfmergerlib Catch2::Catch2WithMain)
     if(TARGET sf-builder AND TARGET sf-merger)
