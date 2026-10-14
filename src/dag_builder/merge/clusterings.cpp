@@ -638,7 +638,7 @@ Clustering merge_clusterings(const std::span<const Clustering> clusterings, cons
         options.mode = MergeMode::GreedyLocal;
     }
     if (options.mode != MergeMode::ExactHashBased && epsilon == 0.0) {
-        LOG_WARN("Cannot merge clusterings with epsilon 0.0, falling back to ExactHashBased");
+        LOG_DEBUG("Cannot merge clusterings with epsilon 0.0, falling back to ExactHashBased");
         options.mode = MergeMode::ExactHashBased;
     }
     if (options.mode == MergeMode::ExactHashBased && epsilon != 0.0) {
