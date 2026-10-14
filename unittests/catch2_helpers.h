@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <string>
 
 #include <catch2/catch_all.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -28,29 +29,26 @@
 #include <glm/glm.hpp>
 #include <radix/geometry.h>
 #include <fmt/format.h>
+#include <fmt/ranges.h>
 
 #include "fmt_impls.h"
 #include "geometry/geometry.h"
 #include "type_utils.h"
 
 namespace Catch {
-template <glm::length_t N, typename T>
-struct StringMaker<glm::vec<N, T>> {
-    static std::string convert(const glm::vec<N, T> &value) {
+
+// A type fmt can format, apart from ranges, whose elements Catch prints one by one.
+template <typename T>
+concept PrintedByFmt = fmt::is_formattable<T>::value && !is_range<T>::value;
+
+// Prints a value the way fmt formats it.
+template <PrintedByFmt T>
+struct StringMaker<T> {
+    static std::string convert(const T &value) {
         return fmt::format("{}", value);
     }
 };
 
-template <glm::length_t N, typename T>
-struct StringMaker<radix::geometry::Aabb<N, T>> {
-    static std::string convert(const radix::geometry::Aabb<N, T> &value) {
-        return fmt::format("Aabb{}{}(({}, {}, {}) - ({}, {}, {}))", 
-            N,
-            type_name<T>()[0], 
-            value.min.x, value.min.y, value.min.z,
-            value.max.x, value.max.y, value.max.z);
-    }
-};
 }
 
 // Matches a value equal to `target` up to `geometry::epsilon<double>()`, scaled by its magnitude above 1.
