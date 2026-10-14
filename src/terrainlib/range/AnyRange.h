@@ -27,6 +27,10 @@ struct AnyRange : RangeBounds<AnyRange<T>, T> {
     constexpr AnyRange(RangeFull range) noexcept
         : start(range.template start_bound<T>()), end(range.template end_bound<T>()) {}
 
+    template <typename U>
+    explicit constexpr AnyRange(const AnyRange<U> &other)
+        : start(Bound<T>(other.start)), end(Bound<T>(other.end)) {}
+
     [[nodiscard]] constexpr Bound<T> start_bound() const noexcept {
         return this->start;
     }
