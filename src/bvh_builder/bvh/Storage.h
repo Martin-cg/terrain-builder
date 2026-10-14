@@ -8,7 +8,7 @@
 #include <libassert/assert.hpp>
 
 #include "storage/BaseStorage.h"
-#include "bvh/layout.h"
+#include "bvh/Batch.h"
 #include "error/Result.h"
 #include "error/try.h"
 #include "io/Error.h"

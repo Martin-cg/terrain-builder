@@ -1,6 +1,7 @@
 #include "../catch2_helpers.h"
 #include "../result_helpers.h"
 #include "../temp_directory.h"
+#include "node_header_helpers.h"
 
 #include <array>
 #include <cstddef>
@@ -15,12 +16,14 @@
 #include "error/Result.h"
 #include "error/utils.h"
 #include "io/Error.h"
-#include "range_utils.h"
 
 #include "bvh/BatchWriter.h"
 #include "bvh/NodeCache.h"
 #include "bvh/Storage.h"
-#include "bvh/layout.h"
+#include "bvh/Batch.h"
+#include "bvh/NodeHeader.h"
+#include "bvh/NodeView.h"
+#include "bvh/Reference.h"
 #include "bvh/traverse_tree.h"
 #include "storage/batch_limits.h"
 
@@ -46,13 +49,13 @@ TEST_CASE("the walk visits every node once, each parent before its children and 
     const TempDirectory directory("traverse_tree");
     bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path()));
     bvh::BatchWriter writer(nodes, max_batch_bytes);
-    const bvh::Reference leaf_0 = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 0}));
-    const bvh::Reference leaf_1 = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 1}));
-    const bvh::Reference leaf_2 = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 2}));
-    const bvh::Reference leaf_3 = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 3}));
-    const bvh::Reference left = REQUIRE_VALUE(writer.write_inner({}, std::array{leaf_0, leaf_1}));
-    const bvh::Reference right = REQUIRE_VALUE(writer.write_inner({}, std::array{leaf_2, leaf_3}));
-    const bvh::Reference root = REQUIRE_VALUE(writer.write_inner({}, std::array{left, right}));
+    const bvh::Reference leaf_0 = REQUIRE_VALUE(writer.write_node(make_leaf_input()));
+    const bvh::Reference leaf_1 = REQUIRE_VALUE(writer.write_node(make_leaf_input()));
+    const bvh::Reference leaf_2 = REQUIRE_VALUE(writer.write_node(make_leaf_input()));
+    const bvh::Reference leaf_3 = REQUIRE_VALUE(writer.write_node(make_leaf_input()));
+    const bvh::Reference left = REQUIRE_VALUE(writer.write_node(bvh::InnerInput{bvh::NodeHeader{}, std::array{leaf_0, leaf_1}}));
+    const bvh::Reference right = REQUIRE_VALUE(writer.write_node(bvh::InnerInput{bvh::NodeHeader{}, std::array{leaf_2, leaf_3}}));
+    const bvh::Reference root = REQUIRE_VALUE(writer.write_node(bvh::InnerInput{bvh::NodeHeader{}, std::array{left, right}}));
     REQUIRE(writer.flush().has_value());
     REQUIRE(nodes.save_index().has_value());
 
@@ -66,13 +69,17 @@ TEST_CASE("the walk visits every node once, each parent before its children and 
     CHECK(visited == std::vector{root, left, leaf_0, leaf_1, right, leaf_2, leaf_3});
 }
 
-TEST_CASE("a leaf root is visited alone, with its header and cluster", "[bvh][traverse_tree]") {
-    const bvh::NodeHeader leaf_header{.min_child_error = 3.0, .max_parent_error = 4.0, .bounds = {glm::dvec3{5.0}, glm::dvec3{6.0}}};
+TEST_CASE("a leaf root is visited alone, with its header and clusters","[bvh][traverse_tree]") {
+    const bvh::NodeHeader leaf_header = make_node_header({3.0, 4.0}, {glm::dvec3{5.0}, glm::dvec3{6.0}});
+    const std::vector<dag::ClusterInfo> leaf_clusters{
+        {.id = {octree::Id::root(), 5}, .error = 3.0},
+        {.id = {octree::Id::root(), 6}, .error = 4.0},
+    };
 
     const TempDirectory directory("traverse_tree");
     bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path()));
     bvh::BatchWriter writer(nodes);
-    const auto leaf_result = writer.write_leaf(leaf_header, dag::Id{octree::Id::root(), 5});
+    const auto leaf_result = writer.write_node(bvh::LeafInput{leaf_header, leaf_clusters});
     REQUIRE(leaf_result.has_value());
     REQUIRE(writer.flush().has_value());
     REQUIRE(nodes.save_index().has_value());
@@ -80,28 +87,28 @@ TEST_CASE("a leaf root is visited alone, with its header and cluster", "[bvh][tr
     bvh::NodeCache cache(nodes, 1);
     std::vector<bvh::Reference> visited;
     bvh::NodeHeader header;
-    std::optional<dag::Id> cluster;
+    std::vector<dag::ClusterInfo> clusters;
     const auto result = bvh::traverse_tree(cache, *leaf_result, [&](const bvh::Reference &reference, const bvh::NodeView &view) {
         visited.push_back(reference);
         header = view.header();
-        cluster = view.leaf();
+        clusters.assign_range(view.clusters());
     });
 
     REQUIRE(result.value_or(false));
     CHECK(visited == std::vector{*leaf_result});
     CHECK(header == leaf_header);
-    CHECK(cluster == dag::Id{octree::Id::root(), 5});
+    CHECK(clusters == leaf_clusters);
 }
 
 TEST_CASE("an inner node's view carries its header and children", "[bvh][traverse_tree]") {
-    const bvh::NodeHeader root_header{.min_child_error = 1.0, .max_parent_error = 2.0, .bounds = {glm::dvec3{0.0}, glm::dvec3{4.0}}};
+    const bvh::NodeHeader root_header = make_node_header({1.0, 2.0}, {glm::dvec3{0.0}, glm::dvec3{4.0}});
 
     const TempDirectory directory("traverse_tree");
     bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path()));
     bvh::BatchWriter writer(nodes);
-    const bvh::Reference first = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 0}));
-    const bvh::Reference second = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 1}));
-    const bvh::Reference root = REQUIRE_VALUE(writer.write_inner(root_header, std::array{first, second}));
+    const bvh::Reference first = REQUIRE_VALUE(writer.write_node(make_leaf_input()));
+    const bvh::Reference second = REQUIRE_VALUE(writer.write_node(make_leaf_input()));
+    const bvh::Reference root = REQUIRE_VALUE(writer.write_node(bvh::InnerInput{root_header, std::array{first, second}}));
     REQUIRE(writer.flush().has_value());
     REQUIRE(nodes.save_index().has_value());
 
@@ -109,36 +116,6 @@ TEST_CASE("an inner node's view carries its header and children", "[bvh][travers
     bvh::NodeHeader header;
     std::vector<bvh::Reference> children;
     const auto result = bvh::traverse_tree(cache, root, [&](const bvh::Reference &, const bvh::NodeView &view) {
-        header = view.header();
-        children.assign_range(view.children());
-        return false;
-    });
-
-    REQUIRE(result.has_value());
-    CHECK(header == root_header);
-    CHECK(children == std::vector{first, second});
-}
-
-TEST_CASE("a view stays valid while the visitor reads through the same cache", "[bvh][traverse_tree]") {
-    const bvh::NodeHeader root_header{.min_child_error = 1.0, .max_parent_error = 2.0, .bounds = {glm::dvec3{0.0}, glm::dvec3{4.0}}};
-
-    const TempDirectory directory("traverse_tree");
-    bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path()));
-    // One node per batch and room for one batch in memory, so every read below evicts the root's batch.
-    bvh::BatchWriter writer(nodes, 1);
-    const bvh::Reference first = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 0}));
-    const bvh::Reference second = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 1}));
-    const bvh::Reference root = REQUIRE_VALUE(writer.write_inner(root_header, std::array{first, second}));
-    REQUIRE(writer.flush().has_value());
-    REQUIRE(nodes.save_index().has_value());
-
-    bvh::NodeCache cache(nodes, 1);
-    bvh::NodeHeader header;
-    std::vector<bvh::Reference> children;
-    const auto result = bvh::traverse_tree(cache, root, [&](const bvh::Reference &, const bvh::NodeView &view) {
-        for (const uint32_t batch : range(nodes.size())) {
-            REQUIRE(cache.read_batch(batch).has_value());
-        }
         header = view.header();
         children.assign_range(view.children());
         return false;
@@ -153,13 +130,13 @@ TEST_CASE("a visitor breaking off stops the walk", "[bvh][traverse_tree]") {
     const TempDirectory directory("traverse_tree");
     bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path()));
     bvh::BatchWriter writer(nodes);
-    const bvh::Reference leaf_0 = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 0}));
-    const bvh::Reference leaf_1 = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 1}));
-    const bvh::Reference leaf_2 = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 2}));
-    const bvh::Reference leaf_3 = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 3}));
-    const bvh::Reference left = REQUIRE_VALUE(writer.write_inner({}, std::array{leaf_0, leaf_1}));
-    const bvh::Reference right = REQUIRE_VALUE(writer.write_inner({}, std::array{leaf_2, leaf_3}));
-    const bvh::Reference root = REQUIRE_VALUE(writer.write_inner({}, std::array{left, right}));
+    const bvh::Reference leaf_0 = REQUIRE_VALUE(writer.write_node(make_leaf_input()));
+    const bvh::Reference leaf_1 = REQUIRE_VALUE(writer.write_node(make_leaf_input()));
+    const bvh::Reference leaf_2 = REQUIRE_VALUE(writer.write_node(make_leaf_input()));
+    const bvh::Reference leaf_3 = REQUIRE_VALUE(writer.write_node(make_leaf_input()));
+    const bvh::Reference left = REQUIRE_VALUE(writer.write_node(bvh::InnerInput{bvh::NodeHeader{}, std::array{leaf_0, leaf_1}}));
+    const bvh::Reference right = REQUIRE_VALUE(writer.write_node(bvh::InnerInput{bvh::NodeHeader{}, std::array{leaf_2, leaf_3}}));
+    const bvh::Reference root = REQUIRE_VALUE(writer.write_node(bvh::InnerInput{bvh::NodeHeader{}, std::array{left, right}}));
     REQUIRE(writer.flush().has_value());
     REQUIRE(nodes.save_index().has_value());
 
@@ -183,7 +160,7 @@ TEST_CASE("a child whose batch cannot be read fails the walk", "[bvh][traverse_t
     const bvh::Batch missing = nodes.create_batch();
 
     bvh::BatchWriter writer(nodes);
-    const auto root_result = writer.write_inner({}, std::array{bvh::Reference{.batch = missing.index(), .node = 0}});
+    const auto root_result = writer.write_node(bvh::InnerInput{bvh::NodeHeader{}, std::array{bvh::Reference{.batch = missing.index(), .node = 0}}});
     REQUIRE(root_result.has_value());
     REQUIRE(writer.flush().has_value());
     REQUIRE(nodes.save_index().has_value());
@@ -202,13 +179,13 @@ TEST_CASE("a pruned node's children are skipped and the walk goes on with its si
     const TempDirectory directory("traverse_tree");
     bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path()));
     bvh::BatchWriter writer(nodes);
-    const bvh::Reference leaf_0 = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 0}));
-    const bvh::Reference leaf_1 = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 1}));
-    const bvh::Reference leaf_2 = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 2}));
-    const bvh::Reference leaf_3 = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 3}));
-    const bvh::Reference left = REQUIRE_VALUE(writer.write_inner({}, std::array{leaf_0, leaf_1}));
-    const bvh::Reference right = REQUIRE_VALUE(writer.write_inner({}, std::array{leaf_2, leaf_3}));
-    const bvh::Reference root = REQUIRE_VALUE(writer.write_inner({}, std::array{left, right}));
+    const bvh::Reference leaf_0 = REQUIRE_VALUE(writer.write_node(make_leaf_input()));
+    const bvh::Reference leaf_1 = REQUIRE_VALUE(writer.write_node(make_leaf_input()));
+    const bvh::Reference leaf_2 = REQUIRE_VALUE(writer.write_node(make_leaf_input()));
+    const bvh::Reference leaf_3 = REQUIRE_VALUE(writer.write_node(make_leaf_input()));
+    const bvh::Reference left = REQUIRE_VALUE(writer.write_node(bvh::InnerInput{bvh::NodeHeader{}, std::array{leaf_0, leaf_1}}));
+    const bvh::Reference right = REQUIRE_VALUE(writer.write_node(bvh::InnerInput{bvh::NodeHeader{}, std::array{leaf_2, leaf_3}}));
+    const bvh::Reference root = REQUIRE_VALUE(writer.write_node(bvh::InnerInput{bvh::NodeHeader{}, std::array{left, right}}));
     REQUIRE(writer.flush().has_value());
     REQUIRE(nodes.save_index().has_value());
 
@@ -231,9 +208,9 @@ TEST_CASE("a pruned leaf goes on like a continued one", "[bvh][traverse_tree]") 
     const TempDirectory directory("traverse_tree");
     bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path()));
     bvh::BatchWriter writer(nodes);
-    const bvh::Reference first = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 0}));
-    const bvh::Reference second = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 1}));
-    const bvh::Reference root = REQUIRE_VALUE(writer.write_inner({}, std::array{first, second}));
+    const bvh::Reference first = REQUIRE_VALUE(writer.write_node(make_leaf_input()));
+    const bvh::Reference second = REQUIRE_VALUE(writer.write_node(make_leaf_input()));
+    const bvh::Reference root = REQUIRE_VALUE(writer.write_node(bvh::InnerInput{bvh::NodeHeader{}, std::array{first, second}}));
     REQUIRE(writer.flush().has_value());
     REQUIRE(nodes.save_index().has_value());
 
@@ -256,9 +233,9 @@ TEST_CASE("a failing visitor fails the walk with its error and visits nothing af
     const TempDirectory directory("traverse_tree");
     bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path()));
     bvh::BatchWriter writer(nodes);
-    const bvh::Reference first = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 0}));
-    const bvh::Reference second = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 1}));
-    const bvh::Reference root = REQUIRE_VALUE(writer.write_inner({}, std::array{first, second}));
+    const bvh::Reference first = REQUIRE_VALUE(writer.write_node(make_leaf_input()));
+    const bvh::Reference second = REQUIRE_VALUE(writer.write_node(make_leaf_input()));
+    const bvh::Reference root = REQUIRE_VALUE(writer.write_node(bvh::InnerInput{bvh::NodeHeader{}, std::array{first, second}}));
     REQUIRE(writer.flush().has_value());
     REQUIRE(nodes.save_index().has_value());
 
@@ -285,7 +262,7 @@ TEST_CASE("a batch that cannot be read fails a walk with a wider error, holding 
     const bvh::Batch missing = nodes.create_batch();
 
     bvh::BatchWriter writer(nodes);
-    const auto root_result = writer.write_inner({}, std::array{bvh::Reference{.batch = missing.index(), .node = 0}});
+    const auto root_result = writer.write_node(bvh::InnerInput{bvh::NodeHeader{}, std::array{bvh::Reference{.batch = missing.index(), .node = 0}}});
     REQUIRE(root_result.has_value());
     REQUIRE(writer.flush().has_value());
     REQUIRE(nodes.save_index().has_value());

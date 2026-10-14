@@ -16,7 +16,8 @@
 #include "log.h"
 
 #include "bvh/Storage.h"
-#include "bvh/layout.h"
+#include "bvh/Batch.h"
+#include "bvh/Reference.h"
 #include "frontier/Storage.h"
 #include "frontier/layout.h"
 #include "gated_ploc/RoundLayout.h"

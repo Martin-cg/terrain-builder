@@ -1,6 +1,7 @@
 #include "../catch2_helpers.h"
 #include "../result_helpers.h"
 #include "../temp_directory.h"
+#include "node_header_helpers.h"
 
 #include <array>
 #include <cstddef>
@@ -17,15 +18,17 @@
 #include "bvh/BatchWriter.h"
 #include "bvh/NodeCache.h"
 #include "bvh/Storage.h"
-#include "bvh/layout.h"
+#include "bvh/Batch.h"
+#include "bvh/NodeHeader.h"
+#include "bvh/Reference.h"
 #include "widen/options.h"
 #include "widen/tabulate_splits.h"
 
 namespace {
 
 // A header without error over the box from `min` to `max`.
-bvh::NodeHeader make_header(const glm::dvec3 &min, const glm::dvec3 &max) {
-    return bvh::NodeHeader{.min_child_error = 0.0, .max_parent_error = 0.0, .bounds = {min, max}};
+bvh::NodeHeader make_box_header(const glm::dvec3 &min, const glm::dvec3 &max) {
+    return make_node_header({0.0, 0.0}, {min, max});
 }
 
 // Tabulates the tree at `root` at `arity` into a storage in `directory` and returns its rows in the order they were written.
@@ -56,9 +59,9 @@ TEST_CASE("tabulate_splits makes a node offered one slot keep itself", "[widen][
     const TempDirectory directory("tabulate_splits");
     bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "nodes"));
     bvh::BatchWriter writer(nodes);
-    const bvh::Reference leaf_0 = REQUIRE_VALUE(writer.write_leaf(make_header({0, 0, 0}, {1, 1, 1}), dag::Id{octree::Id::root(), 0}));
-    const bvh::Reference leaf_1 = REQUIRE_VALUE(writer.write_leaf(make_header({1, 0, 0}, {2, 1, 1}), dag::Id{octree::Id::root(), 1}));
-    const bvh::Reference root = REQUIRE_VALUE(writer.write_inner(make_header({0, 0, 0}, {2, 1, 1}), std::array{leaf_0, leaf_1}));
+    const bvh::Reference leaf_0 = REQUIRE_VALUE(writer.write_node(make_leaf_input(make_box_header({0, 0, 0}, {1, 1, 1}))));
+    const bvh::Reference leaf_1 = REQUIRE_VALUE(writer.write_node(make_leaf_input(make_box_header({1, 0, 0}, {2, 1, 1}))));
+    const bvh::Reference root = REQUIRE_VALUE(writer.write_node(bvh::InnerInput{make_box_header({0, 0, 0}, {2, 1, 1}), std::array{leaf_0, leaf_1}}));
     REQUIRE_VALUE(writer.flush());
     REQUIRE_VALUE(nodes.save_index());
 
@@ -80,15 +83,15 @@ TEST_CASE("tabulate_splits writes one row per inner node, right subtree first, a
     const TempDirectory directory("tabulate_splits");
     bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "nodes"));
     bvh::BatchWriter writer(nodes);
-    const bvh::Reference leaf_0 = REQUIRE_VALUE(writer.write_leaf(make_header({0, 0, 0}, {1, 1, 1}), dag::Id{octree::Id::root(), 0}));
-    const bvh::Reference leaf_1 = REQUIRE_VALUE(writer.write_leaf(make_header({1, 0, 0}, {2, 1, 1}), dag::Id{octree::Id::root(), 1}));
-    const bvh::Reference leaf_2 = REQUIRE_VALUE(writer.write_leaf(make_header({2, 0, 0}, {3, 1, 1}), dag::Id{octree::Id::root(), 2}));
-    const bvh::Reference leaf_3 = REQUIRE_VALUE(writer.write_leaf(make_header({3, 0, 0}, {4, 1, 1}), dag::Id{octree::Id::root(), 3}));
-    const bvh::Reference leaf_4 = REQUIRE_VALUE(writer.write_leaf(make_header({4, 0, 0}, {5, 1, 1}), dag::Id{octree::Id::root(), 4}));
-    const bvh::Reference a = REQUIRE_VALUE(writer.write_inner(make_header({0, 0, 0}, {2, 1, 1}), std::array{leaf_0, leaf_1}));
-    const bvh::Reference d = REQUIRE_VALUE(writer.write_inner(make_header({3, 0, 0}, {5, 1, 1}), std::array{leaf_3, leaf_4}));
-    const bvh::Reference c = REQUIRE_VALUE(writer.write_inner(make_header({2, 0, 0}, {5, 1, 1}), std::array{leaf_2, d}));
-    const bvh::Reference root = REQUIRE_VALUE(writer.write_inner(make_header({0, 0, 0}, {5, 1, 1}), std::array{a, c}));
+    const bvh::Reference leaf_0 = REQUIRE_VALUE(writer.write_node(make_leaf_input(make_box_header({0, 0, 0}, {1, 1, 1}))));
+    const bvh::Reference leaf_1 = REQUIRE_VALUE(writer.write_node(make_leaf_input(make_box_header({1, 0, 0}, {2, 1, 1}))));
+    const bvh::Reference leaf_2 = REQUIRE_VALUE(writer.write_node(make_leaf_input(make_box_header({2, 0, 0}, {3, 1, 1}))));
+    const bvh::Reference leaf_3 = REQUIRE_VALUE(writer.write_node(make_leaf_input(make_box_header({3, 0, 0}, {4, 1, 1}))));
+    const bvh::Reference leaf_4 = REQUIRE_VALUE(writer.write_node(make_leaf_input(make_box_header({4, 0, 0}, {5, 1, 1}))));
+    const bvh::Reference a = REQUIRE_VALUE(writer.write_node(bvh::InnerInput{make_box_header({0, 0, 0}, {2, 1, 1}), std::array{leaf_0, leaf_1}}));
+    const bvh::Reference d = REQUIRE_VALUE(writer.write_node(bvh::InnerInput{make_box_header({3, 0, 0}, {5, 1, 1}), std::array{leaf_3, leaf_4}}));
+    const bvh::Reference c = REQUIRE_VALUE(writer.write_node(bvh::InnerInput{make_box_header({2, 0, 0}, {5, 1, 1}), std::array{leaf_2, d}}));
+    const bvh::Reference root = REQUIRE_VALUE(writer.write_node(bvh::InnerInput{make_box_header({0, 0, 0}, {5, 1, 1}), std::array{a, c}}));
     REQUIRE_VALUE(writer.flush());
     REQUIRE_VALUE(nodes.save_index());
 
@@ -115,15 +118,15 @@ TEST_CASE("tabulate_splits gives a kept node's slots to the child that saves the
     const TempDirectory directory("tabulate_splits");
     bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "nodes"));
     bvh::BatchWriter writer(nodes);
-    const bvh::Reference leaf_0 = REQUIRE_VALUE(writer.write_leaf(make_header({0, 0, 0}, {2, 2, 2}), dag::Id{octree::Id::root(), 0}));
-    const bvh::Reference leaf_1 = REQUIRE_VALUE(writer.write_leaf(make_header({2, 0, 0}, {4, 2, 2}), dag::Id{octree::Id::root(), 1}));
-    const bvh::Reference leaf_2 = REQUIRE_VALUE(writer.write_leaf(make_header({4, 0, 0}, {5, 1, 1}), dag::Id{octree::Id::root(), 2}));
-    const bvh::Reference leaf_3 = REQUIRE_VALUE(writer.write_leaf(make_header({5, 0, 0}, {6, 1, 1}), dag::Id{octree::Id::root(), 3}));
-    const bvh::Reference leaf_4 = REQUIRE_VALUE(writer.write_leaf(make_header({6, 0, 0}, {7, 1, 1}), dag::Id{octree::Id::root(), 4}));
-    const bvh::Reference a = REQUIRE_VALUE(writer.write_inner(make_header({0, 0, 0}, {4, 2, 2}), std::array{leaf_0, leaf_1}));
-    const bvh::Reference d = REQUIRE_VALUE(writer.write_inner(make_header({5, 0, 0}, {7, 1, 1}), std::array{leaf_3, leaf_4}));
-    const bvh::Reference c = REQUIRE_VALUE(writer.write_inner(make_header({4, 0, 0}, {7, 1, 1}), std::array{leaf_2, d}));
-    const bvh::Reference root = REQUIRE_VALUE(writer.write_inner(make_header({0, 0, 0}, {7, 2, 2}), std::array{a, c}));
+    const bvh::Reference leaf_0 = REQUIRE_VALUE(writer.write_node(make_leaf_input(make_box_header({0, 0, 0}, {2, 2, 2}))));
+    const bvh::Reference leaf_1 = REQUIRE_VALUE(writer.write_node(make_leaf_input(make_box_header({2, 0, 0}, {4, 2, 2}))));
+    const bvh::Reference leaf_2 = REQUIRE_VALUE(writer.write_node(make_leaf_input(make_box_header({4, 0, 0}, {5, 1, 1}))));
+    const bvh::Reference leaf_3 = REQUIRE_VALUE(writer.write_node(make_leaf_input(make_box_header({5, 0, 0}, {6, 1, 1}))));
+    const bvh::Reference leaf_4 = REQUIRE_VALUE(writer.write_node(make_leaf_input(make_box_header({6, 0, 0}, {7, 1, 1}))));
+    const bvh::Reference a = REQUIRE_VALUE(writer.write_node(bvh::InnerInput{make_box_header({0, 0, 0}, {4, 2, 2}), std::array{leaf_0, leaf_1}}));
+    const bvh::Reference d = REQUIRE_VALUE(writer.write_node(bvh::InnerInput{make_box_header({5, 0, 0}, {7, 1, 1}), std::array{leaf_3, leaf_4}}));
+    const bvh::Reference c = REQUIRE_VALUE(writer.write_node(bvh::InnerInput{make_box_header({4, 0, 0}, {7, 1, 1}), std::array{leaf_2, d}}));
+    const bvh::Reference root = REQUIRE_VALUE(writer.write_node(bvh::InnerInput{make_box_header({0, 0, 0}, {7, 2, 2}), std::array{a, c}}));
     REQUIRE_VALUE(writer.flush());
     REQUIRE_VALUE(nodes.save_index());
 
@@ -145,13 +148,13 @@ TEST_CASE("tabulate_splits makes a dissolving node keep its cheaper child", "[wi
     const TempDirectory directory("tabulate_splits");
     bvh::Storage nodes = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "nodes"));
     bvh::BatchWriter writer(nodes);
-    const bvh::Reference leaf_0 = REQUIRE_VALUE(writer.write_leaf(make_header({0, 0, 0}, {1, 1, 1}), dag::Id{octree::Id::root(), 0}));
-    const bvh::Reference leaf_1 = REQUIRE_VALUE(writer.write_leaf(make_header({1, 0, 0}, {2, 1, 1}), dag::Id{octree::Id::root(), 1}));
-    const bvh::Reference leaf_2 = REQUIRE_VALUE(writer.write_leaf(make_header({2, 0, 0}, {4, 2, 2}), dag::Id{octree::Id::root(), 2}));
-    const bvh::Reference leaf_3 = REQUIRE_VALUE(writer.write_leaf(make_header({4, 0, 0}, {6, 2, 2}), dag::Id{octree::Id::root(), 3}));
-    const bvh::Reference a = REQUIRE_VALUE(writer.write_inner(make_header({0, 0, 0}, {2, 1, 1}), std::array{leaf_0, leaf_1}));
-    const bvh::Reference b = REQUIRE_VALUE(writer.write_inner(make_header({2, 0, 0}, {6, 2, 2}), std::array{leaf_2, leaf_3}));
-    const bvh::Reference root = REQUIRE_VALUE(writer.write_inner(make_header({0, 0, 0}, {6, 2, 2}), std::array{a, b}));
+    const bvh::Reference leaf_0 = REQUIRE_VALUE(writer.write_node(make_leaf_input(make_box_header({0, 0, 0}, {1, 1, 1}))));
+    const bvh::Reference leaf_1 = REQUIRE_VALUE(writer.write_node(make_leaf_input(make_box_header({1, 0, 0}, {2, 1, 1}))));
+    const bvh::Reference leaf_2 = REQUIRE_VALUE(writer.write_node(make_leaf_input(make_box_header({2, 0, 0}, {4, 2, 2}))));
+    const bvh::Reference leaf_3 = REQUIRE_VALUE(writer.write_node(make_leaf_input(make_box_header({4, 0, 0}, {6, 2, 2}))));
+    const bvh::Reference a = REQUIRE_VALUE(writer.write_node(bvh::InnerInput{make_box_header({0, 0, 0}, {2, 1, 1}), std::array{leaf_0, leaf_1}}));
+    const bvh::Reference b = REQUIRE_VALUE(writer.write_node(bvh::InnerInput{make_box_header({2, 0, 0}, {6, 2, 2}), std::array{leaf_2, leaf_3}}));
+    const bvh::Reference root = REQUIRE_VALUE(writer.write_node(bvh::InnerInput{make_box_header({0, 0, 0}, {6, 2, 2}), std::array{a, b}}));
     REQUIRE_VALUE(writer.flush());
     REQUIRE_VALUE(nodes.save_index());
 
@@ -170,7 +173,7 @@ TEST_CASE("tabulate_splits fails when a batch cannot be read", "[widen][tabulate
     const bvh::Batch missing = nodes.create_batch();
 
     bvh::BatchWriter writer(nodes);
-    const bvh::Reference root = REQUIRE_VALUE(writer.write_inner({}, std::array{bvh::Reference{.batch = missing.index(), .node = 0}, bvh::Reference{.batch = missing.index(), .node = 1}}));
+    const bvh::Reference root = REQUIRE_VALUE(writer.write_node(bvh::InnerInput{bvh::NodeHeader{}, std::array{bvh::Reference{.batch = missing.index(), .node = 0}, bvh::Reference{.batch = missing.index(), .node = 1}}}));
     REQUIRE_VALUE(writer.flush());
     REQUIRE_VALUE(nodes.save_index());
 

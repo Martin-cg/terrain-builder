@@ -1,6 +1,7 @@
 #include "../catch2_helpers.h"
 #include "../result_helpers.h"
 #include "../temp_directory.h"
+#include "node_header_helpers.h"
  
 #include <vector>
 
@@ -20,8 +21,8 @@ std::vector<bvh::NodeHeader> write_nodes(bvh::Storage &nodes, const std::vector<
     bvh::Batch batch = nodes.create_batch();
     std::vector<bvh::NodeHeader> written;
     for (const auto &[index, node_bounds] : enumerate<uint32_t>(bounds)) {
-        written.push_back(bvh::NodeHeader{.min_child_error = 1.0, .max_parent_error = 2.0, .bounds = node_bounds});
-        batch.add_leaf_node(written.back(), dag::Id{octree::Id::root(), index});
+        written.push_back(make_node_header({1.0, 2.0}, node_bounds));
+        batch.add_node(make_leaf_input(written.back()));
     }
     REQUIRE(nodes.write(batch).has_value());
     REQUIRE(nodes.save_index().has_value());

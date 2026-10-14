@@ -4,7 +4,7 @@
 
 #include "build/merge_cost.h"
 #include "bvh/earth.h"
-#include "bvh/layout.h"
+#include "bvh/NodeHeader.h"
 #include "storage/batch_limits.h"
 
 namespace gated_ploc {

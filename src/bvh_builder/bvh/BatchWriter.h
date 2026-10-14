@@ -8,7 +8,9 @@
 #include "io/Error.h"
 
 #include "bvh/Storage.h"
-#include "bvh/layout.h"
+#include "bvh/Batch.h"
+#include "bvh/NodeInput.h"
+#include "bvh/Reference.h"
 #include "bvh/utils.h"
 #include "storage/BaseBatchWriter.h"
 #include "error/Result.h"
@@ -24,26 +26,12 @@ public:
     using Base::Base;
     using Base::compute_buffered_bytes;
 
-    // Create a new leaf node and write it to the current batch.
+    // Writes `node` to the current batch and returns its reference.
+    template <NodeInput N>
     [[nodiscard]]
-    alp::Result<Reference, io::Error> write_leaf(NodeHeader header, const dag::Id &id) {
+    alp::Result<Reference, io::Error> write_node(const N &node) {
         Batch &current = this->open_batch();
-        const NodeIndex node_index = current.add_leaf_node(std::move(header), id);
-        const BatchIndex batch_index = current.index();
-
-        ALP_TRY(this->flush_if_full());
-        return bvh::Reference{
-            .batch = batch_index,
-            .node = node_index
-        };
-    }
-
-    // Create a new inner node and write it to the current batch.
-    template <std::ranges::input_range R>
-    [[nodiscard]]
-    alp::Result<Reference, io::Error> write_inner(NodeHeader header, R &&children) {
-        Batch &current = this->open_batch();
-        const NodeIndex node_index = current.add_inner_node(std::move(header), std::forward<R>(children));
+        const NodeIndex node_index = current.add_node(node);
         const BatchIndex batch_index = current.index();
 
         ALP_TRY(this->flush_if_full());

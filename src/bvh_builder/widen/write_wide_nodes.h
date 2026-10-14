@@ -18,7 +18,11 @@
 #include "bvh/BatchWriter.h"
 #include "bvh/NodeCache.h"
 #include "bvh/Storage.h"
-#include "bvh/layout.h"
+#include "bvh/Batch.h"
+#include "bvh/Node.h"
+#include "bvh/NodeInput.h"
+#include "bvh/Reference.h"
+#include "dag/ClusterInfo.h"
 #include "widen/options.h"
 #include "widen/tabulate_splits.h"
 
@@ -67,8 +71,8 @@ inline alp::Result<void, io::Error> write_subtree(
     return batch.visit(
         node,
         // A leaf is carried over as it is, filling the one slot it was offered.
-        [&](const dag::Id &id) -> alp::Result<void, io::Error> {
-            ALP_TRY(const bvh::Reference leaf, writer.write_leaf(node.header, id));
+        [&](const std::span<const dag::ClusterInfo> clusters) -> alp::Result<void, io::Error> {
+            ALP_TRY(const bvh::Reference leaf, writer.write_node(bvh::LeafInput{node.header(), clusters}));
             children.push_back(leaf);
             return {};
         },
@@ -91,7 +95,7 @@ inline alp::Result<void, io::Error> write_subtree(
             }
 
             // The wide children partition the leaves the binary ones did, so the node keeps the header it had.
-            ALP_TRY(const bvh::Reference kept, writer.write_inner(node.header, kept_children));
+            ALP_TRY(const bvh::Reference kept, writer.write_node(bvh::InnerInput{node.header(), kept_children}));
             children.push_back(kept);
             return {};
         });

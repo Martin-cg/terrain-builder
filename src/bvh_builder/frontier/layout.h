@@ -4,7 +4,9 @@
 #include <limits>
 #include <vector>
 
-#include "bvh/layout.h"
+#include "bvh/Batch.h"
+#include "bvh/NodeHeader.h"
+#include "bvh/Reference.h"
 #include "morton/code.h"
 
 // Layout

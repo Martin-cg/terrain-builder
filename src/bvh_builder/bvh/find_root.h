@@ -13,7 +13,8 @@
 #include "range_utils.h"
 
 #include "bvh/Storage.h"
-#include "bvh/layout.h"
+#include "bvh/Batch.h"
+#include "bvh/Reference.h"
 
 namespace bvh {
 

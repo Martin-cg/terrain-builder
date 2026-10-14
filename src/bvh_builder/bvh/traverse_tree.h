@@ -1,9 +1,11 @@
 #pragma once
 
+#include <cstdint>
 #include <ranges>
-#include <span>
 #include <type_traits>
 #include <vector>
+
+#include <libassert/assert.hpp>
 
 #include "error/Result.h"
 #include "error/ResultFn.h"
@@ -11,7 +13,10 @@
 #include "io/Error.h"
 
 #include "bvh/NodeCache.h"
-#include "bvh/layout.h"
+#include "bvh/Batch.h"
+#include "bvh/Node.h"
+#include "bvh/NodeView.h"
+#include "bvh/Reference.h"
 
 namespace bvh {
 
@@ -50,31 +55,22 @@ inline constexpr Control Control::Break{Action::Break};
 // Visits the tree from `root` in pre-order, passing each node with the reference naming it and skipping the children of every node `v` prunes.
 // False if `v` broke off the walk before its end.
 // Fails with `E` if a batch cannot be read or `v` fails.
+// `v` must not read through `nodes`.
 template <typename E = io::Error, typename F>
 [[nodiscard]]
 alp::Result<bool, E> traverse_tree(NodeCache &nodes, const Reference &root, F &&v) {
     alp::ResultFn<E, F &> visit(v);
 
     std::vector<Reference> stack{root};
-    // The children of the node being visited, copied out of its batch so that reads the visitor makes through `nodes` cannot pull them away.
-    std::vector<Reference> children;
 
     while (!stack.empty()) {
         const Reference reference = stack.back();
         stack.pop_back();
 
         ALP_TRY(const Batch &batch, nodes.read_batch(reference.batch));
-        const Node &node = batch.node(reference.node);
-        const NodeView view = batch.visit(
-            node,
-            [&](const dag::Id &id) {
-                return NodeView{node.header, id};
-            },
-            [&](const std::span<const Reference> node_children) {
-                children.assign_range(node_children);
-                return NodeView{node.header, std::span<const Reference>(children)};
-            });
+        const NodeView view = batch.resolve(batch.node(reference.node));
 
+        const uint32_t misses_before_visit = nodes.count_misses();
         // A visitor that returns nothing always continues.
         Control control = Control::Continue;
         if constexpr (std::is_void_v<typename decltype(visit(reference, view))::value_type>) {
@@ -82,6 +78,7 @@ alp::Result<bool, E> traverse_tree(NodeCache &nodes, const Reference &root, F &&
         } else {
             ALP_TRY(control, visit(reference, view));
         }
+        DEBUG_ASSERT(nodes.count_misses() == misses_before_visit, "the visitor may have invalidated the cache");
 
         if (control == Control::Break) {
             return false;
@@ -89,7 +86,7 @@ alp::Result<bool, E> traverse_tree(NodeCache &nodes, const Reference &root, F &&
 
         // Pushed in reverse so that they come off the stack in stored order.
         if (view.is_inner() && control == Control::Continue) {
-            stack.append_range(children | std::views::reverse);
+            stack.append_range(view.children() | std::views::reverse);
         }
     }
 

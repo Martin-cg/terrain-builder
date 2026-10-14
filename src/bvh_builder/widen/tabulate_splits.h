@@ -26,7 +26,11 @@
 #include "storage/BaseBatchWriter.h"
 #include "storage/BatchStorage.h"
 #include "bvh/NodeCache.h"
-#include "bvh/layout.h"
+#include "bvh/Batch.h"
+#include "bvh/Node.h"
+#include "bvh/NodeHeader.h"
+#include "bvh/Reference.h"
+#include "dag/ClusterInfo.h"
 #include "widen/RowBuffer.h"
 #include "widen/options.h"
 
@@ -217,7 +221,7 @@ inline alp::Result<void, io::Error> tabulate_subtree(
 
     return batch.visit(
         node,
-        [&](const dag::Id &) -> alp::Result<void, io::Error> {
+        [&](const std::span<const dag::ClusterInfo>) -> alp::Result<void, io::Error> {
             // A leaf fills one slot and costs nothing at any number of them, so its row is empty.
             scratch.cost_stack.push_empty_segment();
             return {};
@@ -235,7 +239,7 @@ inline alp::Result<void, io::Error> tabulate_subtree(
             const size_t cost_rows = scratch.cost_stack.segment_count();
             const std::span<const double> left_costs = scratch.cost_stack.segment(cost_rows - 1);
             const std::span<const double> right_costs = scratch.cost_stack.segment(cost_rows - 2);
-            tabulate_inner_node(node.header, left_costs, right_costs, options, scratch.costs, scratch.row);
+            tabulate_inner_node(node.header(), left_costs, right_costs, options, scratch.costs, scratch.row);
 
             // Every subtree leaves one row, so the node's replaces the two its children left.
             scratch.cost_stack.pop_segments(2);

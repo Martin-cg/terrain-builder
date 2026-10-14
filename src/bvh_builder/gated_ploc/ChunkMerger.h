@@ -12,7 +12,7 @@
 #include "range_utils.h"
 
 #include "bvh/BatchWriter.h"
-#include "bvh/layout.h"
+#include "bvh/NodeHeader.h"
 #include "frontier/BatchWriter.h"
 #include "frontier/layout.h"
 #include "frontier/merge_entry.h"

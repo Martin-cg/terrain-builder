@@ -1,4 +1,5 @@
 #include "../catch2_helpers.h"
+#include "node_header_helpers.h"
 
 #include <vector>
 
@@ -18,9 +19,9 @@ TEST_CASE("sort_entries orders by morton", "[frontier][sort]") {
 
 TEST_CASE("sort_entries orders equal codes by header, then by reference", "[frontier][sort]") {
     // The header decides although the references say the opposite, and the reference only between equal headers.
-    const frontier::Entry a{.morton = 5, .header = {.min_child_error = 2.0, .max_parent_error = 4.0, .bounds = {}}, .ref = {.batch = 0, .node = 0}};
-    const frontier::Entry b{.morton = 5, .header = {.min_child_error = 1.0, .max_parent_error = 4.0, .bounds = {}}, .ref = {.batch = 0, .node = 3}};
-    const frontier::Entry c{.morton = 5, .header = {.min_child_error = 1.0, .max_parent_error = 4.0, .bounds = {}}, .ref = {.batch = 0, .node = 2}};
+    const frontier::Entry a{.morton = 5, .header = make_node_header({2.0, 4.0}, {}), .ref = {.batch = 0, .node = 0}};
+    const frontier::Entry b{.morton = 5, .header = make_node_header({1.0, 4.0}, {}), .ref = {.batch = 0, .node = 3}};
+    const frontier::Entry c{.morton = 5, .header = make_node_header({1.0, 4.0}, {}), .ref = {.batch = 0, .node = 2}};
 
     std::vector<frontier::Entry> entries = {a, b, c};
     frontier::sort_entries(entries);

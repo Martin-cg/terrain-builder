@@ -11,7 +11,7 @@
 
 #include "bvh/BatchWriter.h"
 #include "bvh/Storage.h"
-#include "bvh/layout.h"
+#include "bvh/Reference.h"
 #include "frontier/Storage.h"
 #include "frontier/layout.h"
 #include "frontier/traverse.h"

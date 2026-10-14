@@ -1,6 +1,7 @@
 #include "../catch2_helpers.h"
 #include "../result_helpers.h"
 #include "../temp_directory.h"
+#include "node_header_helpers.h"
 
 #include <array>
 #include <cstddef>
@@ -112,12 +113,12 @@ TEST_CASE("two entries are joined under a parent carrying both their headers", "
     // The references name leaves stored elsewhere; the builder never reads them.
     const frontier::Entry left{
         .morton = morton::Code{0b01},
-        .header = {.min_child_error = 1.0, .max_parent_error = 3.0, .bounds = {glm::dvec3{0.0}, glm::dvec3{1.0}}},
+        .header = make_node_header({1.0, 3.0}, {glm::dvec3{0.0}, glm::dvec3{1.0}}),
         .ref = {.batch = 100, .node = 0},
     };
     const frontier::Entry right{
         .morton = morton::Code{0b10},
-        .header = {.min_child_error = 2.0, .max_parent_error = 4.0, .bounds = {glm::dvec3{5.0}, glm::dvec3{7.0}}},
+        .header = make_node_header({2.0, 4.0}, {glm::dvec3{5.0}, glm::dvec3{7.0}}),
         .ref = {.batch = 100, .node = 1},
     };
 
@@ -130,7 +131,7 @@ TEST_CASE("two entries are joined under a parent carrying both their headers", "
     REQUIRE_VALUE(nodes.save_index());
 
     CHECK(root->morton == left.morton);
-    CHECK(root->header == bvh::NodeHeader{.min_child_error = 1.0, .max_parent_error = 4.0, .bounds = {glm::dvec3{0.0}, glm::dvec3{7.0}}});
+    CHECK(root->header == make_node_header({1.0, 4.0}, {glm::dvec3{0.0}, glm::dvec3{7.0}}));
     CHECK(read_children(nodes, root->ref) == std::vector{left.ref, right.ref});
 }
 

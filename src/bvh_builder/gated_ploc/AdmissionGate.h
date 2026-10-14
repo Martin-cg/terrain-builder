@@ -86,12 +86,12 @@ private:
     alp::Result<bool, io::Error> drain_region() {
         this->_metrics.clear();
         std::ranges::transform(this->_region, std::back_inserter(this->_metrics), [](const frontier::Entry &e) {
-            return geometry::compute_mean_extent(e.header.bounds);
+            return geometry::compute_mean_extent(e.header.tight_bounds);
         });
         const double limit = compute_admission_limit(this->_metrics, this->_options);
 
         const auto held = std::ranges::stable_partition(this->_region, [limit](const frontier::Entry &entry) {
-            return geometry::compute_mean_extent(entry.header.bounds) <= limit;
+            return geometry::compute_mean_extent(entry.header.tight_bounds) <= limit;
         });
 
         ALP_TRY(const bool keep_going, this->_admitted(std::span<const frontier::Entry>(this->_region.begin(), held.begin())));

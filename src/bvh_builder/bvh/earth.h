@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bvh/layout.h"
+#include "bvh/NodeHeader.h"
 #include "octree/Space.h"
 
 namespace bvh {

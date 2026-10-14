@@ -10,7 +10,9 @@
 #include "error/try.h"
 
 #include "bvh/Storage.h"
-#include "bvh/layout.h"
+#include "bvh/Batch.h"
+#include "bvh/Node.h"
+#include "bvh/Reference.h"
 #include "storage/BatchCache.h"
 
 namespace bvh {

@@ -13,29 +13,24 @@
 
 #include "geometry/bounds.h"
 
-#include "bvh/layout.h"
+#include "bvh/NodeHeader.h"
 
 namespace bvh {
 
-// Aggregate metrics from multiple headers into a parent header.
+// Computes the header of a node from those of its children.
+// There must be at least one.
 template <std::ranges::input_range R>
 NodeHeader merge_headers(R &&headers) {
-    auto it = std::ranges::begin(headers);
-    const auto end = std::ranges::end(headers);
-
-    DEBUG_ASSERT(it != end);
-
-    NodeHeader result = *it;
-    it++;
-
-    for (; it != end; it++) {
-        const NodeHeader &child = *it;
-        result.min_child_error = std::min(result.min_child_error, child.min_child_error);
-        result.max_parent_error = std::max(result.max_parent_error, child.max_parent_error);
-        result.bounds = geometry::union_bounds(result.bounds, child.bounds);
-    }
-
-    return result;
+    DEBUG_ASSERT(!std::ranges::empty(headers));
+    const auto merge =[](const NodeHeader &a, const NodeHeader &b) {
+        return NodeHeader{
+            .min_child_error = std::min(a.min_child_error, b.min_child_error),
+            .max_parent_error = std::max(a.max_parent_error, b.max_parent_error),
+            .lod_bounds = geometry::union_bounds(a.lod_bounds, b.lod_bounds),
+            .tight_bounds = geometry::union_bounds(a.tight_bounds, b.tight_bounds),
+        };
+    };
+    return std::ranges::fold_left_first(headers, merge).value();
 }
 
 } // namespace bvh

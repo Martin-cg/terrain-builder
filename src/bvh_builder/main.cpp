@@ -76,7 +76,7 @@ alp::Result<void> build_bvh(const cli::Args &args) {
         .max_batch_bytes = args.max_batch_bytes,
         .max_resident_bytes = args.max_resident_bytes,
     };
-    ALP_TRY(bvh::flatten_dag(dag, octree::OddLevelShifted::earth(), nodes, flatten_options));
+    ALP_TRY(bvh::flatten_dag(dag, nodes, flatten_options));
     ALP_TRY(nodes.save_index());
     LOG_INFO("Flattened {} into {} node batches", args.input_path.string(), nodes.size());
 

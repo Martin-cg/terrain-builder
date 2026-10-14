@@ -6,7 +6,7 @@
 #include "Range.h"
 #include "geometry/bounds.h"
 
-#include "bvh/layout.h"
+#include "bvh/NodeHeader.h"
 #include "view/Camera.h"
 
 namespace view {
@@ -39,18 +39,18 @@ inline bool crosses_cut(const bvh::NodeHeader &header, const RangeInclusive<doub
     return error_fits && !parent_error_fits;
 }
 
-// Checks whether the leaf with `header` lies on the cut for `camera` under `rule`, judged from its nearest point.
+// Checks whether `error` fits the cut, that is, is small enough to draw, measured from the nearest point of `bounds`.
 [[nodiscard]]
-inline bool is_on_cut(const bvh::NodeHeader &header, const Camera &camera, const CutRule &rule) {
-    const double nearest = geometry::compute_nearest_distance_to_bounds(header.bounds, camera.eye());
-    return crosses_cut(header, RangeInclusive<double>(nearest), camera, rule);
+inline bool is_small_enough_to_draw(const double error, const bvh::Bounds &bounds, const Camera &camera, const CutRule &rule) {
+    const double nearest = geometry::compute_nearest_distance_to_bounds(bounds, camera.eye());
+    return detail::project_error(camera, error, nearest) <= rule.threshold;
 }
 
-// Checks whether the cut for `camera` under `rule` can pass below the inner node with `header`.
+// Checks whether the cut can cross the leaf from anywhere within its LOD bounds.
 [[nodiscard]]
-inline bool is_cut_below(const bvh::NodeHeader &header, const Camera &camera, const CutRule &rule) {
-    const double nearest = geometry::compute_nearest_distance_to_bounds(header.bounds, camera.eye());
-    const double farthest = geometry::compute_farthest_distance_to_bounds(header.bounds, camera.eye());
+inline bool should_visit_leaf(const bvh::NodeHeader &header, const Camera &camera, const CutRule &rule) {
+    const double nearest = geometry::compute_nearest_distance_to_bounds(header.lod_bounds, camera.eye());
+    const double farthest = geometry::compute_farthest_distance_to_bounds(header.lod_bounds, camera.eye());
     return crosses_cut(header, RangeInclusive<double>(nearest, farthest), camera, rule);
 }
 

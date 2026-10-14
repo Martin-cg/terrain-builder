@@ -6,7 +6,7 @@
 #include "io/Error.h"
 
 #include "bvh/Storage.h"
-#include "bvh/layout.h"
+#include "bvh/Reference.h"
 #include "frontier/Storage.h"
 #include "hploc/build.h"
 #include "hploc/options.h"

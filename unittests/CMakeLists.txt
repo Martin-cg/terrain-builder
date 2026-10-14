@@ -149,6 +149,7 @@ if(TARGET bvhbuilderlib)
         throwing_assertions.cpp
         temp_directory.h
         bvh_builder/frontier_helpers.h
+        bvh_builder/batch.cpp
         bvh_builder/batch_cache.cpp
         bvh_builder/batch_reader.cpp
         bvh_builder/batch_storage.cpp
@@ -157,6 +158,7 @@ if(TARGET bvhbuilderlib)
         bvh_builder/cut_rule.cpp
         bvh_builder/find_root.cpp
         bvh_builder/flat_traverse.cpp
+        bvh_builder/flatten_dag.cpp
         bvh_builder/frustum.cpp
         bvh_builder/json_glm.cpp
         bvh_builder/json_serialize.cpp

@@ -1,4 +1,5 @@
 #include "../catch2_helpers.h"
+#include "node_header_helpers.h"
 
 #include <cstddef>
 #include <optional>
@@ -10,7 +11,6 @@
 
 #include "range_utils.h"
 
-#include "bvh/layout.h"
 #include "frontier/layout.h"
 #include "ploc/NearestSearch.h"
 
@@ -20,11 +20,7 @@ namespace {
 frontier::Entry make_entry(const double x, const double error = 0.0) {
     return frontier::Entry{
         .morton = {},
-        .header = {
-            .min_child_error = error,
-            .max_parent_error = error,
-            .bounds = {glm::dvec3{x, 0.0, 0.0}, glm::dvec3{x + 1.0, 1.0, 1.0}},
-        },
+        .header = make_node_header({error, error}, {glm::dvec3{x, 0.0, 0.0}, glm::dvec3{x + 1.0, 1.0, 1.0}}),
         .ref = {},
     };
 }

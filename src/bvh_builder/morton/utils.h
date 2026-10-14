@@ -8,7 +8,7 @@
 #include "geometry/bounds.h"
 #include "numeric/wide_integer.h"
 
-#include "bvh/layout.h"
+#include "bvh/NodeHeader.h"
 #include "morton/code.h"
 
 namespace morton {
@@ -39,9 +39,14 @@ inline Code encode(const bvh::Bounds &scene, const glm::dvec3 &point) {
     return CodeId(level, coords).index_on_level();
 }
 
-// Morton code of a node's spatial position, taken at its bounds centre.
+// Morton code of the centre of `bounds`, mapped into `scene`.
+inline Code encode(const bvh::Bounds &scene, const bvh::Bounds &bounds) {
+    return encode(scene, bounds.centre());
+}
+
+// Morton code of a node's spatial position, taken at the centre of its tight bounds.
 inline Code encode(const bvh::Bounds &scene, const bvh::NodeHeader &header) {
-    return encode(scene, header.bounds.centre());
+    return encode(scene, header.tight_bounds);
 }
 
 }

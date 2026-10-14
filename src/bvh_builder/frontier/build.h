@@ -13,7 +13,9 @@
 #include "storage/batch_limits.h"
 #include "bvh/Storage.h"
 #include "bvh/flat_traverse.h"
-#include "bvh/layout.h"
+#include "bvh/Node.h"
+#include "bvh/NodeHeader.h"
+#include "bvh/Reference.h"
 #include "frontier/BatchWriter.h"
 #include "frontier/Storage.h"
 #include "frontier/layout.h"
@@ -28,8 +30,8 @@ namespace frontier {
 // The entry a stored node enters the frontier as.
 inline Entry make_entry(const bvh::Reference &ref, const bvh::Node &node, const bvh::Bounds &scene) {
     return Entry{
-        .morton = morton::encode(scene, node.header),
-        .header = node.header,
+        .morton = morton::encode(scene, node.header()),
+        .header = node.header(),
         .ref = ref,
     };
 }

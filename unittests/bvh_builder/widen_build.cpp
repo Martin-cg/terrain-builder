@@ -1,6 +1,7 @@
 #include "../catch2_helpers.h"
 #include "../result_helpers.h"
 #include "../temp_directory.h"
+#include "node_header_helpers.h"
 
 #include <array>
 #include <cstddef>
@@ -8,7 +9,7 @@
 
 #include "bvh/BatchWriter.h"
 #include "bvh/Storage.h"
-#include "bvh/layout.h"
+#include "bvh/Reference.h"
 #include "storage/batch_limits.h"
 #include "widen/build.h"
 #include "widen/options.h"
@@ -20,9 +21,9 @@ TEST_CASE("widen writes its root into the last batch", "[widen][build]") {
     const TempDirectory directory("widen_build");
     bvh::Storage input = REQUIRE_VALUE(bvh::Storage::create(directory.path() / "input"));
     bvh::BatchWriter writer(input);
-    const bvh::Reference first = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 0}));
-    const bvh::Reference second = REQUIRE_VALUE(writer.write_leaf({}, dag::Id{octree::Id::root(), 1}));
-    const bvh::Reference root = REQUIRE_VALUE(writer.write_inner({}, std::array{first, second}));
+    const bvh::Reference first = REQUIRE_VALUE(writer.write_node(make_leaf_input()));
+    const bvh::Reference second = REQUIRE_VALUE(writer.write_node(make_leaf_input()));
+    const bvh::Reference root = REQUIRE_VALUE(writer.write_node(bvh::InnerInput{bvh::NodeHeader{}, std::array{first, second}}));
     REQUIRE(writer.flush().has_value());
     REQUIRE(input.save_index().has_value());
 

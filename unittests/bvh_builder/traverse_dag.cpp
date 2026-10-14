@@ -2,10 +2,12 @@
 #include "../result_helpers.h"
 #include "../temp_directory.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
-#include <limits>
-#include <unordered_map>
+#include <filesystem>
+#include <set>
+#include <utility>
 #include <vector>
 
 #include <glm/glm.hpp>
@@ -13,32 +15,12 @@
 #include "../dag_builder/dag_node.h"
 #include "../dag_builder/encoded.h"
 #include "../dag_builder/storage.h"
-#include "octree/OddLevelShifted.h"
+#include "dag/traverse_dag.h"
 #include "octree/storage/open.h"
-#include "traverse_dag.h"
 
 namespace {
 
-constexpr double INFINITE_ERROR = std::numeric_limits<double>::infinity();
 constexpr size_t AMPLE_RESIDENT_BYTES = 1024 * 1024;
-
-// Metadata giving each cluster a group of its own with the matching one of `errors`.
-dag::NodeMetadata make_metadata(const std::vector<double> &errors) {
-    dag::NodeMetadata metadata;
-    for (uint32_t i = 0; i < errors.size(); i++) {
-        metadata.clusters.push_back(dag::ClusterMetadata{.group_index = i, .bounds = {}});
-        metadata.groups.push_back(dag::GroupMetadata{.children = {}, .error = errors[i], .bounds = {}});
-    }
-    return metadata;
-}
-
-// What the walk handed over, kept past the visit.
-struct Visited {
-    dag::GroupMetadata group;
-    double parent_error;
-
-    bool operator==(const Visited &) const = default;
-};
 
 // A dag folder holding exactly the given nodes.
 void write_dag(const std::filesystem::path &path, std::vector<std::pair<octree::Id, dag::NodeMetadata>> nodes) {
@@ -49,206 +31,149 @@ void write_dag(const std::filesystem::path &path, std::vector<std::pair<octree::
     REQUIRE(dag.save_index().has_value());
 }
 
-std::unordered_map<dag::Id, Visited> traverse(const std::filesystem::path &dag_path, const size_t max_resident_bytes = AMPLE_RESIDENT_BYTES) {
-    const auto dag = REQUIRE_VALUE(octree::open_folder_indexed<dag::NodeMetadata>(dag_path));
-    const octree::OddLevelShifted shifted_space = octree::OddLevelShifted::earth();
-
-    std::unordered_map<dag::Id, Visited> visited;
-    const auto collect = [&](const dag::FlatNode &node) {
-        const auto [entry, inserted] = visited.emplace(node.id, Visited{.group = node.group, .parent_error = node.parent_error});
-        REQUIRE(inserted);
-    };
-    REQUIRE(dag::traverse_nodes(dag, shifted_space, max_resident_bytes, collect).value_or(false));
-
+// Every group the walk over the dag at `path` visits.
+std::vector<dag::GroupInfo> collect_groups(const std::filesystem::path &path, const size_t max_resident_bytes) {
+    const auto dag = REQUIRE_VALUE(octree::open_folder_indexed<dag::NodeMetadata>(path));
+    std::vector<dag::GroupInfo> visited;
+    const auto walked = dag::traverse_groups(dag, max_resident_bytes, [&](const dag::GroupView &group) {
+        visited.push_back(group.to_owned());
+    });
+    REQUIRE(walked.value_or(false));
     return visited;
 }
 
 }
 
-TEST_CASE("every cluster is visited with the group it is assigned to", "[traverse_dag]") {
-    const octree::Id root = octree::Id::root();
-    const std::vector<dag::GroupMetadata> groups{
-        dag::GroupMetadata{.children = {}, .error = 1.0, .bounds = {glm::dvec3{0.0}, glm::dvec3{1.0}}},
-        dag::GroupMetadata{.children = {}, .error = 2.0, .bounds = {glm::dvec3{2.0}, glm::dvec3{3.0}}},
-    };
-    dag::NodeMetadata metadata;
-    metadata.clusters = {{.group_index = 1, .bounds = {}}, {.group_index = 0, .bounds = {}}, {.group_index = 1, .bounds = {}}};
-    metadata.groups = groups;
-
-    const TempDirectory directory("traverse_dag");
-    write_dag(directory.path(), {{root, std::move(metadata)}});
-
-    const auto visited = traverse(directory.path());
-
-    REQUIRE(visited.size() == 3);
-    CHECK(visited.at(dag::Id{root, 0}).group == groups[1]);
-    CHECK(visited.at(dag::Id{root, 1}).group == groups[0]);
-    CHECK(visited.at(dag::Id{root, 2}).group == groups[1]);
-}
-
-TEST_CASE("a cluster takes the error of the group that owns it", "[traverse_dag]") {
+TEST_CASE("traverse_groups visits every group once", "[dag][traverse_dag]") {
     const octree::Id root = octree::Id::root();
     const octree::Id child = root.children().value()[0];
-
-    dag::NodeMetadata coarse = make_metadata({5.0});
-    coarse.groups[0].children = {dag::Id{child, 0}, dag::Id{child, 1}};
-
-    const TempDirectory directory("traverse_dag");
-    write_dag(directory.path(), {{root, std::move(coarse)}, {child, make_metadata({1.0, 2.0})}});
-
-    const auto visited = traverse(directory.path());
-
-    REQUIRE(visited.size() == 3);
-    CHECK(visited.at(dag::Id{root, 0}).parent_error == INFINITE_ERROR);
-    CHECK(visited.at(dag::Id{child, 0}).parent_error == 5.0);
-    CHECK(visited.at(dag::Id{child, 1}).parent_error == 5.0);
-    CHECK(visited.at(dag::Id{child, 0}).group.error == 1.0);
-}
-
-TEST_CASE("a cluster is owned by a node that is not its octree ancestor", "[traverse_dag]") {
-    // The owner A holds a cluster stored in Y, which hangs under A's neighbour Z, so no ancestor of
-    // Y ever names its clusters.
-    const octree::Id a = octree::Id::root().children().value()[0].children().value()[0];
-    const octree::Id z = octree::Id::root().children().value()[1].children().value()[0];
-    const octree::Id y = z.children().value()[0];
-    REQUIRE_FALSE(a.is_ancestor_of(y, true));
-
-    // Z sits at A's own level, so its clusters are roots like A's.
-    REQUIRE(z.level() == a.level());
-
-    dag::NodeMetadata owner = make_metadata({7.0});
-    owner.groups[0].children = {dag::Id{y, 0}};
+    const radix::geometry::Aabb3d bounds{glm::dvec3{0.0}, glm::dvec3{1.0}};
 
     const TempDirectory directory("traverse_dag");
     write_dag(directory.path(), {
-        {a, std::move(owner)},
-        {z, make_metadata({1.0})},
-        {y, make_metadata({2.0})},
-    });
-
-    const auto visited = traverse(directory.path());
-
-    REQUIRE(visited.size() == 3);
-    CHECK(visited.at(dag::Id{y, 0}).parent_error == 7.0);
-    CHECK(visited.at(dag::Id{z, 0}).parent_error == INFINITE_ERROR);
-    CHECK(visited.at(dag::Id{a, 0}).parent_error == INFINITE_ERROR);
-}
-
-TEST_CASE("clusters owned by different groups keep each group's error", "[traverse_dag]") {
-    const octree::Id root = octree::Id::root();
-    const octree::Id first = root.children().value()[0];
-    const octree::Id second = root.children().value()[1];
-
-    dag::NodeMetadata coarse = make_metadata({5.0, 8.0});
-    coarse.groups[0].children = {dag::Id{first, 0}};
-    coarse.groups[1].children = {dag::Id{second, 0}};
-
-    const TempDirectory directory("traverse_dag");
-    write_dag(directory.path(), {
-        {root, std::move(coarse)},
-        {first, make_metadata({1.0})},
-        {second, make_metadata({2.0})},
-    });
-
-    const auto visited = traverse(directory.path());
-
-    REQUIRE(visited.size() == 4);
-    CHECK(visited.at(dag::Id{first, 0}).parent_error == 5.0);
-    CHECK(visited.at(dag::Id{second, 0}).parent_error == 8.0);
-}
-
-TEST_CASE("a cluster no group lists is a root, even below the coarsest level", "[traverse_dag]") {
-    const octree::Id root = octree::Id::root();
-    const octree::Id unlisted = root.children().value()[3].children().value()[5];
-
-    const TempDirectory directory("traverse_dag");
-    write_dag(directory.path(), {
-        {root, make_metadata({9.0})},
-        {unlisted, make_metadata({1.0, 2.0})},
-    });
-
-    const auto visited = traverse(directory.path());
-
-    REQUIRE(visited.size() == 3);
-    CHECK(visited.at(dag::Id{unlisted, 0}).parent_error == INFINITE_ERROR);
-    CHECK(visited.at(dag::Id{unlisted, 1}).parent_error == INFINITE_ERROR);
-}
-
-TEST_CASE("each cluster takes the error of its own parent group across three levels", "[traverse_dag]") {
-    const octree::Id root = octree::Id::root();
-    const octree::Id child = root.children().value()[0];
-    const octree::Id grandchild = child.children().value()[0];
-
-    dag::NodeMetadata coarse = make_metadata({9.0});
-    coarse.groups[0].children = {dag::Id{child, 0}};
-    dag::NodeMetadata middle = make_metadata({4.0});
-    middle.groups[0].children = {dag::Id{grandchild, 0}};
-
-    const TempDirectory directory("traverse_dag");
-    write_dag(directory.path(), {
-        {root, std::move(coarse)},
-        {child, std::move(middle)},
-        {grandchild, make_metadata({1.0})},
-    });
-
-    const auto visited = traverse(directory.path());
-
-    REQUIRE(visited.size() == 3);
-    CHECK(visited.at(dag::Id{root, 0}).parent_error == INFINITE_ERROR);
-    CHECK(visited.at(dag::Id{child, 0}).parent_error == 9.0);
-    CHECK(visited.at(dag::Id{grandchild, 0}).parent_error == 4.0);
-}
-
-TEST_CASE("a budget too small to keep any parent gives the same errors", "[traverse_dag]") {
-    const octree::Id root = octree::Id::root();
-    const octree::Id first = root.children().value()[0];
-    const octree::Id second = root.children().value()[1];
-    const octree::Id grandchild = first.children().value()[7];
-
-    dag::NodeMetadata coarse = make_metadata({5.0, 8.0});
-    coarse.groups[0].children = {dag::Id{first, 0}, dag::Id{second, 1}};
-    coarse.groups[1].children = {dag::Id{second, 0}, dag::Id{first, 1}};
-    dag::NodeMetadata middle = make_metadata({3.0, 4.0});
-    middle.groups[1].children = {dag::Id{grandchild, 0}};
-
-    const TempDirectory directory("traverse_dag");
-    write_dag(directory.path(), {
-        {root, std::move(coarse)},
-        {first, std::move(middle)},
-        {second, make_metadata({1.0, 2.0})},
-        {grandchild, make_metadata({0.5})},
-    });
-
-    const auto unbounded = traverse(directory.path());
-    const auto starved = traverse(directory.path(), 1);
-
-    REQUIRE(unbounded.size() == 7);
-    CHECK(starved == unbounded);
-}
-
-TEST_CASE("a visitor returning false stops the walk", "[traverse_dag]") {
-    const octree::Id root = octree::Id::root();
-    const octree::Id child = root.children().value()[0];
-
-    dag::NodeMetadata coarse = make_metadata({1.0, 2.0});
-    coarse.groups[0].children = {dag::Id{child, 0}};
-
-    const TempDirectory directory("traverse_dag");
-    write_dag(directory.path(), {
-        {root, std::move(coarse)},
-        {child, make_metadata({3.0})},
+        {root, dag::NodeMetadata{
+            .clusters = {{.group_index = 0, .bounds = bounds}, {.group_index = 1, .bounds = bounds}},
+            .groups = {
+                {.children = {dag::Id{child, 0}}, .error = 1.0, .bounds = bounds},
+                {.children = {}, .error = 0.0, .bounds = bounds},
+            },
+        }},
+        {child, dag::NodeMetadata{
+            .clusters = {{.group_index = 0, .bounds = bounds}},
+            .groups = {{.children = {}, .error = 0.0, .bounds = bounds}},
+        }},
     });
 
     const auto dag = REQUIRE_VALUE(octree::open_folder_indexed<dag::NodeMetadata>(directory.path()));
 
-    uint32_t visits = 0;
-    const auto stop_after_first = [&](const dag::FlatNode &) {
-        visits++;
-        return false;
-    };
-    const auto walked = dag::traverse_nodes(dag, octree::OddLevelShifted::earth(), AMPLE_RESIDENT_BYTES, stop_after_first);
-    REQUIRE(walked.has_value());
+    std::set<dag::GroupId> visited;
+    const auto walked = dag::traverse_groups(dag, AMPLE_RESIDENT_BYTES, [&](const dag::GroupView &group) {
+        const auto [entry, inserted] = visited.insert(group.id);
+        REQUIRE(inserted);
+    });
 
-    CHECK(!walked.value());
-    CHECK(visits == 1);
+    REQUIRE(walked.value_or(false));
+    CHECK(visited == std::set<dag::GroupId>{{root, 0}, {root, 1}, {child, 0}});
+}
+
+TEST_CASE("a group's child clusters have their own bounds and the error and bounds of the group that made them", "[dag][traverse_dag]") {
+    // Small enough for reading one child's node to evict the node of the group listing it.
+    const size_t max_resident_bytes = GENERATE(AMPLE_RESIDENT_BYTES, size_t{1});
+
+    const octree::Id group_node = octree::Id::root();
+    const octree::Id first_child_node = group_node.child(0).value();
+    const octree::Id second_child_node = group_node.child(1).value();
+
+    const radix::geometry::Aabb3d group_bounds{glm::dvec3{0.0}, glm::dvec3{1.0}};
+    const radix::geometry::Aabb3d first_child_bounds{glm::dvec3{2.0}, glm::dvec3{3.0}};
+    const radix::geometry::Aabb3d first_child_group_bounds{glm::dvec3{4.0}, glm::dvec3{5.0}};
+    const radix::geometry::Aabb3d second_child_bounds{glm::dvec3{6.0}, glm::dvec3{7.0}};
+
+    const TempDirectory directory("traverse_dag");
+    write_dag(directory.path(), {
+        {group_node, dag::NodeMetadata{
+            .clusters = {{.group_index = 0, .bounds = group_bounds}},
+            .groups = {{.children = {dag::Id{first_child_node, 0}, dag::Id{second_child_node, 0}}, .error = 3.0, .bounds = group_bounds}},
+        }},
+        // The child's own bounds differ from its group's, so the two cannot be mixed up.
+        {first_child_node, dag::NodeMetadata{
+            .clusters = {{.group_index = 0, .bounds = first_child_bounds}},
+            .groups = {{.children = {}, .error = 2.0, .bounds = first_child_group_bounds}},
+        }},
+        {second_child_node, dag::NodeMetadata{
+            .clusters = {{.group_index = 0, .bounds = second_child_bounds}},
+            .groups = {{.children = {}, .error = 0.0, .bounds = second_child_bounds}},
+        }},
+    });
+
+    const std::vector<dag::GroupInfo> groups = collect_groups(directory.path(), max_resident_bytes);
+    const auto group_it = std::ranges::find(groups, dag::GroupId{group_node, 0}, &dag::GroupInfo::id);
+    REQUIRE(group_it != groups.end());
+
+    CHECK_THAT(group_it->child_clusters,Catch::Matchers::UnorderedEquals(std::vector<dag::ClusterInfo>{
+        {.id = {first_child_node, 0}, .error = 2.0, .lod_bounds = first_child_group_bounds, .tight_bounds = first_child_bounds},
+        {.id = {second_child_node, 0}, .error = 0.0, .lod_bounds = second_child_bounds, .tight_bounds = second_child_bounds},
+    }));
+}
+
+TEST_CASE("a group's parent clusters are the clusters of its node that point at it", "[dag][traverse_dag]") {
+    const octree::Id node = octree::Id::root();
+
+    const radix::geometry::Aabb3d first_bounds{glm::dvec3{0.0}, glm::dvec3{1.0}};
+    const radix::geometry::Aabb3d second_bounds{glm::dvec3{2.0}, glm::dvec3{3.0}};
+    const radix::geometry::Aabb3d third_bounds{glm::dvec3{4.0}, glm::dvec3{5.0}};
+    const radix::geometry::Aabb3d first_group_bounds{glm::dvec3{6.0}, glm::dvec3{7.0}};
+    const radix::geometry::Aabb3d second_group_bounds{glm::dvec3{8.0}, glm::dvec3{9.0}};
+
+    // The clusters of the two groups alternate, so neither group's are a prefix of the node's.
+    const TempDirectory directory("traverse_dag");
+    write_dag(directory.path(), {
+        {node, dag::NodeMetadata{
+            .clusters = {
+                {.group_index = 1, .bounds = first_bounds},
+                {.group_index = 0, .bounds = second_bounds},
+                {.group_index = 1, .bounds = third_bounds},
+            },
+            .groups = {
+                {.children = {}, .error = 1.0, .bounds = first_group_bounds},
+                {.children = {}, .error = 2.0, .bounds = second_group_bounds},
+            },
+        }},
+    });
+
+    const std::vector<dag::GroupInfo> groups = collect_groups(directory.path(), AMPLE_RESIDENT_BYTES);
+    const auto first_group_it = std::ranges::find(groups, dag::GroupId{node, 0}, &dag::GroupInfo::id);
+    const auto second_group_it = std::ranges::find(groups, dag::GroupId{node, 1}, &dag::GroupInfo::id);
+    REQUIRE(first_group_it != groups.end());
+    REQUIRE(second_group_it != groups.end());
+
+    CHECK_THAT(first_group_it->parent_clusters, Catch::Matchers::UnorderedEquals(std::vector<dag::ClusterInfo>{
+        {.id = {node, 1}, .error = 1.0, .lod_bounds = first_group_bounds, .tight_bounds = second_bounds},
+    }));
+    CHECK_THAT(second_group_it->parent_clusters,Catch::Matchers::UnorderedEquals(std::vector<dag::ClusterInfo>{
+        {.id = {node, 0}, .error = 2.0, .lod_bounds = second_group_bounds, .tight_bounds = first_bounds},
+        {.id = {node, 2}, .error = 2.0, .lod_bounds = second_group_bounds, .tight_bounds = third_bounds},
+    }));
+}
+
+TEST_CASE("traverse_groups stops when the visitor returns false", "[dag][traverse_dag]") {
+    const octree::Id root = octree::Id::root();
+    const octree::Id child = root.children().value()[0];
+    const radix::geometry::Aabb3d bounds{glm::dvec3{0.0}, glm::dvec3{1.0}};
+
+    const TempDirectory directory("traverse_dag");
+    write_dag(directory.path(), {
+        {root, dag::NodeMetadata{.clusters = {{.group_index = 0, .bounds = bounds}}, .groups = {{.children = {}, .error = 0.0, .bounds = bounds}}}},
+        {child, dag::NodeMetadata{.clusters = {{.group_index = 0, .bounds = bounds}}, .groups = {{.children = {}, .error = 0.0, .bounds = bounds}}}},
+    });
+    const auto dag = REQUIRE_VALUE(octree::open_folder_indexed<dag::NodeMetadata>(directory.path()));
+
+    uint32_t visit_count = 0;
+    const bool walked = REQUIRE_VALUE(dag::traverse_groups(dag, AMPLE_RESIDENT_BYTES, [&](const dag::GroupView &) {
+        visit_count++;
+        return false;
+    }));
+
+    CHECK_FALSE(walked);
+    CHECK(visit_count == 1);
 }

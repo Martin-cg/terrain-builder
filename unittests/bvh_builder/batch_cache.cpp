@@ -1,13 +1,15 @@
 #include "../catch2_helpers.h"
 #include "../result_helpers.h"
 #include "../temp_directory.h"
+#include "node_header_helpers.h"
 
 #include <cstdint>
 #include <utility>
 #include <vector>
 
 #include "bvh/Storage.h"
-#include "bvh/layout.h"
+#include "bvh/Batch.h"
+#include "bvh/NodeHeader.h"
 #include "storage/BatchCache.h"
 
 namespace {
@@ -17,7 +19,7 @@ std::vector<bvh::Batch> write_batches(bvh::Storage &nodes, const uint32_t count)
     std::vector<bvh::Batch> written;
     for (uint32_t index = 0; index < count; index++) {
         bvh::Batch batch = nodes.create_batch();
-        batch.add_leaf_node(bvh::NodeHeader{}, dag::Id{octree::Id::root(), index});
+        batch.add_node(make_leaf_input());
         REQUIRE(nodes.write(batch).has_value());
         written.push_back(std::move(batch));
     }
@@ -45,8 +47,8 @@ TEST_CASE("a batch takes up the budget by its size, so a larger one displaces se
     const std::vector<bvh::Batch> written = write_batches(nodes, 2);
 
     bvh::Batch large = nodes.create_batch();
-    for (uint32_t cluster = 0; cluster < 3; cluster++) {
-        large.add_leaf_node(bvh::NodeHeader{}, dag::Id{octree::Id::root(), cluster});
+    for (uint32_t group_index = 0; group_index < 3; group_index++) {
+        large.add_node(make_leaf_input());
     }
     REQUIRE(nodes.write(large).has_value());
     REQUIRE(nodes.save_index().has_value());

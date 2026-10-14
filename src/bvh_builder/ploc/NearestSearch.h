@@ -44,7 +44,7 @@ public:
     // Of equally cheap partners it keeps the one with the lowest index. The result is valid until the next call.
     [[nodiscard]]
     std::span<const Nearest> find_nearest(const std::span<const frontier::Entry> entries) {
-        const std::span<const radix::geometry::Aabb<4, double>> bounds = this->extend_bounds(entries);
+        const std::span<const radix::geometry::Aabb<4, double>> bounds = this->collect_cost_bounds(entries);
         this->_nearest.assign(bounds.size(), Nearest{});
 
         // The cost is symmetric, so each pair is measured once and offered to both of its members.
@@ -60,12 +60,13 @@ public:
     }
 
 private:
-    // Extends every entry's bounds by its error.
+    // Collects the cost bounds of every one of `entries`.
+    // Valid until the next call.
     [[nodiscard]]
-    std::span<const radix::geometry::Aabb<4, double>> extend_bounds(const std::span<const frontier::Entry> entries) {
+    std::span<const radix::geometry::Aabb<4, double>> collect_cost_bounds(const std::span<const frontier::Entry> entries) {
         this->_bounds.clear();
         std::ranges::transform(entries, std::back_inserter(this->_bounds), [this](const frontier::Entry &e) {
-            return build::extend_by_error(e.header, this->_error_weight);
+            return build::make_cost_bounds(e.header, this->_error_weight);
         });
         return this->_bounds;
     }

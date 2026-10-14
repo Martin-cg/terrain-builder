@@ -14,7 +14,10 @@
 #include "error/try.h"
 
 #include "bvh/BatchWriter.h"
-#include "bvh/layout.h"
+#include "bvh/Batch.h"
+#include "bvh/NodeHeader.h"
+#include "bvh/NodeInput.h"
+#include "bvh/Reference.h"
 #include "bvh/utils.h"
 #include "frontier/layout.h"
 #include "morton/utils.h"
@@ -32,7 +35,7 @@ inline alp::Result<Entry, io::Error> merge_entries(bvh::BatchWriter &sink, F &&c
     auto child_refs = std::views::transform(children, &Entry::ref);
 
     bvh::NodeHeader header = bvh::merge_headers(child_headers);
-    ALP_TRY(const bvh::Reference ref, sink.write_inner(header, child_refs));
+    ALP_TRY(const bvh::Reference ref, sink.write_node(bvh::InnerInput{header, child_refs}));
     return Entry{
         .morton = compute_morton(header),
         .header = std::move(header),
@@ -57,7 +60,7 @@ inline alp::Result<Entry, io::Error> merge_entries(bvh::BatchWriter &sink, const
 // Merge two frontier entries into an inner node in a batch.
 inline bvh::NodeIndex make_inner_node(bvh::Batch &batch, const Entry &a, const Entry &b) {
     const bvh::NodeHeader header = bvh::merge_headers(std::array{a.header, b.header});
-    const bvh::NodeIndex node_index = batch.add_inner_node(header, std::array{a.ref, b.ref});
+    const bvh::NodeIndex node_index = batch.add_node(bvh::InnerInput{header, std::array{a.ref, b.ref}});
     return node_index;
 }
 
@@ -67,14 +70,14 @@ inline bvh::NodeIndex make_inner_node(bvh::Batch &batch, R &&entries) {
     const auto child_headers = entries | std::views::transform(&Entry::header);
     const bvh::NodeHeader header = bvh::merge_headers(child_headers);
     const auto child_references = entries | std::views::transform(&Entry::ref);
-    const bvh::NodeIndex node_index = batch.add_inner_node(header, child_references);
+    const bvh::NodeIndex node_index = batch.add_node(bvh::InnerInput{header, child_references});
     return node_index;
 }
 
 // Merge two frontier entries into an inner node in a batch.
 inline Entry merge_entries(bvh::Batch &batch, const bvh::BatchIndex batch_index, const morton::Code morton, const Entry &a, const Entry &b) {
     const bvh::NodeHeader header = bvh::merge_headers(std::array{a.header, b.header});
-    const bvh::NodeIndex node_index = batch.add_inner_node(header, std::array{a.ref, b.ref});
+    const bvh::NodeIndex node_index = batch.add_node(bvh::InnerInput{header, std::array{a.ref, b.ref}});
 
     return Entry{
         .morton = morton,
@@ -89,7 +92,7 @@ inline Entry merge_entries(bvh::Batch &batch, const bvh::BatchIndex batch_index,
     const auto child_headers = entries | std::views::transform(&Entry::header);
     const bvh::NodeHeader header = bvh::merge_headers(child_headers);
     const auto references = entries | std::views::transform(&Entry::ref);
-    const bvh::NodeIndex node_index = batch.add_inner_node(header, references);
+    const bvh::NodeIndex node_index = batch.add_node(bvh::InnerInput{header, references});
 
     return Entry{
         .morton = morton,

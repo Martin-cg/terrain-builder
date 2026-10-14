@@ -15,7 +15,7 @@
 
 #include "bvh/NodeCache.h"
 #include "bvh/Storage.h"
-#include "bvh/layout.h"
+#include "bvh/Reference.h"
 #include "widen/options.h"
 #include "widen/tabulate_splits.h"
 #include "widen/write_wide_nodes.h"
