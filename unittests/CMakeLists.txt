@@ -49,6 +49,7 @@ add_executable(unittests_terrainlib
     terrainlib/io_compression.cpp
     terrainlib/io_envelope.cpp
     terrainlib/io_filesystem.cpp
+    terrainlib/io_text.cpp
     terrainlib/mem.cpp
     terrainlib/mesh_boundary.cpp
     terrainlib/mesh_bounds.cpp
