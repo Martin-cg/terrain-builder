@@ -22,11 +22,25 @@
 #include "spatial_lookup/Hashmap.h"
 #include "validate.h"
 
+struct WeldingMap {
+    std::vector<uint32_t> position_to_welded;
+    uint32_t welded_position_count = 0;
+};
+
 namespace detail {
 
+// Throws std::invalid_argument when epsilon is negative or not finite.
+inline void validate_epsilon(const double epsilon) {
+    if (!(epsilon >= 0.0) || !std::isfinite(epsilon)) {
+        throw std::invalid_argument("epsilon must be finite and non negative");
+    }
+}
+
 // Maps each position onto the welded position of its transitive epsilon neighbourhood.
-inline std::vector<uint32_t> build_welding_map(const std::span<const glm::dvec3> positions, const double epsilon) {
-    const uint32_t position_count = positions.size();
+template <std::ranges::forward_range Positions>
+    requires std::ranges::sized_range<Positions>
+WeldingMap build_epsilon_welding_map(Positions &&positions, const double epsilon) {
+    const uint32_t position_count = std::ranges::size(positions);
 
     spatial_lookup::Hashmap3d<uint32_t> spatial_map(epsilon * 5);
     for (const auto &[position_index, position] : enumerate<uint32_t>(positions)) {
@@ -51,13 +65,16 @@ inline std::vector<uint32_t> build_welding_map(const std::span<const glm::dvec3>
         }
     }
 
-    return neighbourhoods.get_set_labels();
+    return WeldingMap{
+        .position_to_welded = neighbourhoods.get_set_labels(),
+        .welded_position_count = neighbourhoods.set_count(),
+    };
 }
 
 // Maps each position onto the welded position of all equal positions.
 template <std::ranges::input_range Positions>
     requires std::ranges::sized_range<Positions>
-std::vector<uint32_t> build_exact_welding_map(Positions &&positions) {
+WeldingMap build_exact_welding_map(Positions &&positions) {
     std::unordered_map<glm::dvec3, uint32_t, DVec3Hash> welded_by_position;
     std::vector<uint32_t> position_to_welded;
     position_to_welded.reserve(std::ranges::size(positions));
@@ -68,37 +85,10 @@ std::vector<uint32_t> build_exact_welding_map(Positions &&positions) {
         position_to_welded.push_back(it->second);
     }
 
-    return position_to_welded;
-}
-
-inline std::vector<glm::dvec3> build_welded_positions(
-    const std::span<const glm::dvec3> positions,
-    const std::span<const uint32_t> position_to_welded,
-    const uint32_t welded_position_count,
-    const bool average_positions) {
-    std::vector<glm::dvec3> welded_positions(welded_position_count, glm::dvec3(0.0));
-
-    if (!average_positions) {
-        for (const auto &[position_index, position] : enumerate(positions)) {
-            welded_positions[position_to_welded[position_index]] = position;
-        }
-
-        return welded_positions;
-    }
-
-    std::vector<uint32_t> counts(welded_position_count, 0);
-    for (const auto &[position_index, position] : enumerate(positions)) {
-        const uint32_t welded_index = position_to_welded[position_index];
-        welded_positions[welded_index] += position;
-        counts[welded_index]++;
-    }
-
-    for (const auto &[welded_index, count] : enumerate(counts)) {
-        DEBUG_ASSERT(count > 0);
-        welded_positions[welded_index] /= static_cast<double>(count);
-    }
-
-    return welded_positions;
+    return WeldingMap{
+        .position_to_welded = std::move(position_to_welded),
+        .welded_position_count = static_cast<uint32_t>(welded_by_position.size()),
+    };
 }
 
 inline void filter_degenerate_triangles(Clustering &clustering) {
@@ -120,34 +110,74 @@ inline void filter_degenerate_triangles(Clustering &clustering) {
 }
 } // namespace detail
 
+// Maps each position onto the welded position of its transitive epsilon neighbourhood.
+template <std::ranges::forward_range Positions>
+    requires std::ranges::sized_range<Positions>
+[[nodiscard]] WeldingMap build_welding_map(Positions &&positions, const double epsilon) {
+    detail::validate_epsilon(epsilon);
+
+    // The spatial hash of the epsilon weld cannot have a cell size of zero.
+    if (epsilon == 0.0) {
+        return detail::build_exact_welding_map(std::forward<Positions>(positions));
+    }
+    return detail::build_epsilon_welding_map(std::forward<Positions>(positions), epsilon);
+}
+
+// The welded positions, each averaged over its inputs or taken from the last one.
+[[nodiscard]] inline std::vector<glm::dvec3> weld_positions(
+    const std::span<const glm::dvec3> positions,
+    const WeldingMap &map,
+    const bool average_positions) {
+    std::vector<glm::dvec3> welded_positions(map.welded_position_count, glm::dvec3(0.0));
+
+    if (!average_positions) {
+        for (const auto &[position_index, position] : enumerate(positions)) {
+            welded_positions[map.position_to_welded[position_index]] = position;
+        }
+
+        return welded_positions;
+    }
+
+    std::vector<uint32_t> counts(map.welded_position_count, 0);
+    for (const auto &[position_index, position] : enumerate(positions)) {
+        const uint32_t welded_index = map.position_to_welded[position_index];
+        welded_positions[welded_index] += position;
+        counts[welded_index]++;
+    }
+
+    for (const auto &[welded_index, count] : enumerate(counts)) {
+        DEBUG_ASSERT(count > 0);
+        welded_positions[welded_index] /= static_cast<double>(count);
+    }
+
+    return welded_positions;
+}
+
 // Welds vertices of a single clustering that lie within epsilon of each other.
 inline Clustering weld_clustering(const Clustering &clustering, const double epsilon, const bool average_positions = true) {
-    if (!(epsilon >= 0.0) || !std::isfinite(epsilon)) {
-        throw std::invalid_argument("weld_clustering: epsilon must be finite and non negative");
-    }
+    detail::validate_epsilon(epsilon);
 
     if (clustering.is_empty()) {
         return clustering;
     }
 
-    // The spatial hash of the epsilon weld cannot have a cell size of zero.
-    const std::vector<uint32_t> vertex_to_welded = epsilon == 0.0
-        ? detail::build_exact_welding_map(clustering.positions)
-        : detail::build_welding_map(clustering.positions, epsilon);
-    const uint32_t welded_vertex_count = std::ranges::max(vertex_to_welded) + 1;
+    const WeldingMap welding_map = build_welding_map(clustering.positions, epsilon);
 
     Clustering welded = clustering;
-    welded.positions = detail::build_welded_positions(clustering.positions, vertex_to_welded, welded_vertex_count, average_positions);
+    welded.positions = weld_positions(clustering.positions, welding_map, average_positions);
 
     for (Cluster &cluster : welded.clusters) {
         for (uint32_t &vertex_index : cluster.vertex_indices) {
-            vertex_index = vertex_to_welded[vertex_index];
+            vertex_index = welding_map.position_to_welded[vertex_index];
         }
     }
 
     detail::filter_degenerate_triangles(welded);
 
-    LOG_DEBUG("Welding with {} welded and {} unique vertices", clustering.vertex_count() - welded_vertex_count, welded_vertex_count);
+    LOG_DEBUG(
+        "Welding with {} welded and {} unique vertices",
+        clustering.vertex_count() - welding_map.welded_position_count,
+        welding_map.welded_position_count);
 
     validate(welded);
     return welded;

@@ -98,12 +98,6 @@ struct CandidateEdge {
     }
 };
 
-void validate_epsilon(const double epsilon) {
-    if (!(epsilon >= 0.0) || !std::isfinite(epsilon)) {
-        throw std::invalid_argument("merge_clusterings: epsilon must be finite and positive (or zero)");
-    }
-}
-
 OffsetTable build_offset_table(const std::span<const Clustering> clusterings) {
     OffsetTable offsets(clusterings.size());
 
@@ -581,16 +575,16 @@ std::vector<uint32_t> build_exact_hash_mapping(
     const auto positions = vertices | std::views::transform([&](const VertexInClustering &vertex) -> const glm::dvec3 & {
         return clusterings[vertex.clustering_index].positions[vertex.global_vertex_index];
     });
-    const std::vector<uint32_t> vertex_to_canonical = detail::build_exact_welding_map(positions);
+    const WeldingMap welding_map = build_welding_map(positions, 0.0);
 
     std::vector<uint32_t> flat_to_canonical;
     flat_to_canonical.resize(total_vertex_count, detail::INVALID_INDEX);
     for (const auto &[vertex_index, vertex] : enumerate(vertices)) {
         const uint32_t flat_index = detail::to_flat_index(base_offsets, vertex);
-        flat_to_canonical[flat_index] = vertex_to_canonical[vertex_index];
+        flat_to_canonical[flat_index] = welding_map.position_to_welded[vertex_index];
     }
 
-    uint32_t next_canonical_index = vertex_to_canonical.empty() ? 0 : std::ranges::max(vertex_to_canonical) + 1;
+    uint32_t next_canonical_index = welding_map.welded_position_count;
     detail::assign_remaining_canonical_indices(flat_to_canonical, next_canonical_index);
 
     return flat_to_canonical;
